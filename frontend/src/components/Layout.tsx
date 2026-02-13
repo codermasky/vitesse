@@ -144,7 +144,7 @@ const Layout: React.FC = () => {
                     className="flex flex-col"
                   >
                     <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-surface-950 to-brand-600 dark:from-white dark:to-brand-400 whitespace-nowrap">
-                      {whitelabel?.brand_name || 'Vitesse'}
+                      {whitelabel?.brand_name || 'Vitesse AI'}
                     </span>
                     <span className="text-[9px] font-bold text-surface-400 dark:text-brand-500/60 uppercase tracking-wider whitespace-nowrap">
                       {whitelabel?.creator ? `Built by ${whitelabel.creator}` : 'AI Agent Platform'}

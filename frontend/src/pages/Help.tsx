@@ -16,7 +16,7 @@ const HelpPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const docs = [
-        { id: 'guides/ui_help_guide.md', title: 'User Guide', icon: Book, description: 'Learn how to use the Vitesse interface.' },
+        { id: 'guides/ui_help_guide.md', title: 'User Guide', icon: Book, description: 'Learn how to use the Vitesse AI interface.' },
         { id: 'getting-started.md', title: 'Getting Started', icon: Zap, description: 'Installation and initial setup instructions.' },
         { id: 'features.md', title: 'Feature Overview', icon: Settings, description: 'Detailed breakdown of integration capabilities.' },
         { id: 'aether.md', title: 'Aether Integration', icon: ShieldCheck, description: 'Technical details of the Aether intelligence layer.' },

@@ -258,7 +258,7 @@ const Sidekick: React.FC = () => {
                                 <Sparkles className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <h2 className="text-sm font-bold text-surface-950 dark:text-white">Vitesse Assistant</h2>
+                                <h2 className="text-sm font-bold text-surface-950 dark:text-white">Vitesse AI Assistant</h2>
                                 <div className="flex items-center gap-1.5">
                                     <div className={cn("w-1 h-1 rounded-full", isConnected ? "bg-emerald-400 animate-pulse" : "bg-red-400")} />
                                     <span className="text-[8px] text-brand-500 font-medium tracking-wider uppercase">{isConnected ? "Online" : "Offline"}</span>
@@ -300,7 +300,7 @@ const Sidekick: React.FC = () => {
                                     <span className="text-xs font-bold uppercase tracking-tight">Current Focus</span>
                                 </div>
                                 <p className="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
-                                    Collaborating on your Vitesse workspace. Use the input below to ask me anything.
+                                    Collaborating on your Vitesse AI workspace. Use the input below to ask me anything.
                                 </p>
                             </div>
 
@@ -358,7 +358,7 @@ const Sidekick: React.FC = () => {
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="Ask Vitesse Assistant..."
+                            placeholder="Ask Vitesse AI Assistant...",
                             disabled={isLoading || !isConnected}
                             className="w-full bg-surface-100 dark:bg-white/5 border border-surface-200 dark:border-white/10 rounded-xl py-3 pl-4 pr-12 text-xs text-surface-900 dark:text-white placeholder:text-surface-400 focus:outline-none focus:border-brand-500/50 transition-all disabled:opacity-50"
                         />

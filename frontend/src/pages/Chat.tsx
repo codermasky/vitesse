@@ -334,7 +334,7 @@ const Chat: React.FC = () => {
                 {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
               </button>
               <SectionHeader
-                title="Vitesse Mapper"
+                title="Vitesse AI Mapper"
                 subtitle="AI Knowledge Assistant"
                 variant="premium"
                 className="border-none p-0 bg-transparent"
@@ -538,7 +538,7 @@ const Chat: React.FC = () => {
                         {!message.isUser && (
                           <div className="flex items-center gap-2 mb-3">
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md">
-                              Vitesse Mapper
+                              Vitesse AI Mapper
                             </span>
                             <div className="h-px flex-1 bg-gradient-to-r from-brand-primary/20 to-transparent" />
                           </div>
@@ -656,7 +656,7 @@ const Chat: React.FC = () => {
                             className="w-1.5 h-1.5 rounded-full bg-brand-primary"
                           />
                         </div>
-                        <span className="text-[10px] font-black text-brand-primary/60 uppercase tracking-[0.1em]">Vitesse Mapper is typing</span>
+                        <span className="text-[10px] font-black text-brand-primary/60 uppercase tracking-[0.1em]">Vitesse AI Mapper is typing</span>
                       </div>
                     </div>
                   </motion.div>

@@ -9,9 +9,16 @@ Design a system where a user provides an API URL, and Vitesse AI delivers a live
 
 ## 🏗️ Core Architecture
 
-### The Four-Agent Factory Line
+### The Agentic Integration Factory
 
-**1. The Ingestor Agent (Discovery)**
+**Discovery Agent (Search & Identify)**
+- Search for APIs using natural language queries
+- Curated catalog of popular APIs and Linedata products
+- LLM-powered discovery for unknown APIs
+- Input: Search query (e.g., "Shopify", "payment APIs")
+- Output: Ranked API candidates with confidence scores
+
+**1. The Ingestor Agent (Specification)**
 - Autonomously parses API endpoints, headers, and authentication logic
 - Generates standardized integration specifications
 - Input: API Documentation URL or Swagger/OpenAPI spec
@@ -35,6 +42,13 @@ Design a system where a user provides an API URL, and Vitesse AI delivers a live
 - Configurable via `--target` flag for seamless scaling
 - All instances are stateless, using external PostgreSQL (Supabase) for state
 
+### Typical Integration Pattern
+
+**External API → Linedata Product**
+- Source: Third-party APIs (Shopify, Stripe, GitHub, market data providers, etc.)
+- Destination: Linedata products (CapitalStream, Longview, Ekip, MFEX)
+- Use Case: Enrich Linedata platforms with external data sources for asset management, compliance, and insurance workflows
+
 ## 🚀 Quick Start
 
 ### Backend Setup
@@ -53,6 +67,15 @@ cd frontend
 npm install
 npm run dev
 ```
+
+### Create Your First Integration
+
+1. **Navigate to Integrations**: Open http://localhost:5173/integrations
+2. **Click "New Integration"**: Start the discovery wizard
+3. **Search for Source API**: e.g., "Shopify", "GitHub", "Stripe"
+4. **Select Destination**: Choose a Linedata product (CapitalStream, Longview, Ekip, MFEX)
+5. **Configure Intent**: Describe what you want to sync
+6. **Let Agents Build**: Vitesse AI will discover, map, test, and deploy automatically
 
 ### Deployment
 ```bash

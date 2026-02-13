@@ -32,7 +32,7 @@ const Wayfinder: React.FC = () => {
                 {
                     id: 'welcome',
                     role: 'assistant',
-                    content: "Hi! I'm your **Vitesse Navigator**. I can help you discover APIs, map data flows, and automate integrations. Ask me anything about how to use Vitesse!",
+                    content: "Hi! I'm your **Vitesse AI Navigator**. I can help you discover APIs, map data flows, and automate integrations. Ask me anything about how to use Vitesse AI!",
                     timestamp: new Date()
                 }
             ];
@@ -178,7 +178,7 @@ const Wayfinder: React.FC = () => {
                                     <Sparkles className="w-4 h-4 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-bold text-white">Vitesse Navigator</h3>
+                                    <h3 className="text-sm font-bold text-white">Vitesse AI Navigator</h3>
                                     <div className="flex items-center gap-1.5">
                                         <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isConnected ? "bg-emerald-400" : "bg-red-400")} />
                                         <span className="text-[10px] text-brand-100 font-medium">{isConnected ? "Online" : "Connecting..."}</span>

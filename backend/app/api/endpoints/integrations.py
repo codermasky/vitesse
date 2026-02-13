@@ -4,7 +4,7 @@ Exposes the full integration lifecycle via REST API.
 """
 
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query
 from pydantic import BaseModel
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from sqlalchemy import select
 from app.agents.vitesse_orchestrator import VitesseOrchestrator
 from app.agents.base import AgentContext
 from app.schemas.integration import DeploymentTarget, DeploymentConfig
+from app.schemas.discovery import DiscoveryRequest, DiscoveryResponse
 from app.db.session import get_db
 
 logger = structlog.get_logger(__name__)
@@ -90,15 +91,54 @@ class OrchestratorStatusResponse(BaseModel):
     """Orchestrator status response."""
 
     orchestrator_id: str
+    discovery_status: Dict[str, Any]
     ingestor_status: Dict[str, Any]
     mapper_status: Dict[str, Any]
     guardian_status: Dict[str, Any]
 
 
+# ==================== Discovery Endpoint ====================
+
+
+@router.get(
+    "/discover",
+    response_model=DiscoveryResponse,
+    summary="Discover APIs by search query",
+    description="Search for APIs using natural language. Returns API candidates with documentation URLs.",
+)
+async def discover_apis(
+    query: str = Query(..., description="Natural language search query (e.g., 'Shopify', 'payment APIs')"),
+    limit: int = Query(5, ge=1, le=20, description="Maximum number of results"),
+    orchestrator: VitesseOrchestrator = Depends(get_orchestrator),
+) -> Dict[str, Any]:
+    """
+    Discover APIs based on natural language search.
+    
+    This is the first step in the agentic discovery flow.
+    Users can search for APIs without needing to know exact URLs.
+    
+    Example queries:
+    - "Shopify"
+    - "payment processing APIs"
+    - "cryptocurrency data"
+    - "GitHub"
+    """
+    try:
+        logger.info("API discovery request", query=query, limit=limit)
+        
+        result = await orchestrator.discover_apis(query=query, limit=limit)
+        
+        if result["status"] == "failed":
+            raise HTTPException(status_code=500, detail=result.get("error"))
+        
+        return result
+        
+    except Exception as e:
+        logger.error("Discovery endpoint failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== Integration Lifecycle Endpoints ====================
-
-
-@router.post(
     "/integrations",
     response_model=CreateIntegrationResponse,
     summary="Create new integration",

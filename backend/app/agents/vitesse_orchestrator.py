@@ -1,6 +1,6 @@
 """
 VitesseOrchestrator: Master orchestration class for Vitesse AI.
-Coordinates Ingestor, Mapper, Guardian, and Deployer agents.
+Coordinates Discovery, Ingestor, Mapper, Guardian, and Deployer agents.
 Manages the complete integration lifecycle.
 """
 
@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, List
 from datetime import datetime
 import structlog
 from app.agents.base import AgentContext
+from app.agents.discovery import VitesseDiscoveryAgent
 from app.agents.ingestor import VitesseIngestor
 from app.agents.mapper import VitesseMapper
 from app.agents.guardian import VitesseGuardian
@@ -41,6 +42,7 @@ class VitesseOrchestrator:
         self.created_at = datetime.utcnow()
 
         # Initialize agents
+        self.discovery = VitesseDiscoveryAgent(context)
         self.ingestor = VitesseIngestor(context)
         self.mapper = VitesseMapper(context)
         self.guardian = VitesseGuardian(context)
@@ -483,11 +485,43 @@ class VitesseOrchestrator:
             created_by="system-self-healing",
         )
 
+    async def discover_apis(self, query: str, limit: int = 5) -> Dict[str, Any]:
+        """
+        Discover APIs based on natural language query.
+
+        This is the first step in the agentic discovery flow.
+        Users can search for APIs without knowing exact URLs.
+        """
+        logger.info("Discovering APIs", query=query, limit=limit)
+
+        try:
+            result = await self.discovery.execute(
+                context={
+                    "orchestrator_id": self.orchestrator_id,
+                    "start_time": datetime.utcnow(),
+                },
+                input_data={
+                    "query": query,
+                    "limit": limit,
+                    "include_unofficial": False,
+                },
+            )
+            return result
+        except Exception as e:
+            logger.error("API discovery failed", error=str(e))
+            return {
+                "status": "failed",
+                "error": str(e),
+                "query": query,
+                "results": [],
+            }
+
     def get_orchestrator_status(self) -> Dict[str, Any]:
         """Get orchestrator status and agent metrics."""
         return {
             "orchestrator_id": self.orchestrator_id,
             "created_at": self.created_at.isoformat(),
+            "discovery": self.discovery.get_status(),
             "ingestor": self.ingestor.get_status(),
             "mapper": self.mapper.get_status(),
             "guardian": self.guardian.get_status(),

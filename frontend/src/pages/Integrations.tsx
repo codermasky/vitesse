@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Zap,
   Plus,
@@ -9,7 +10,9 @@ import {
   Clock,
   XCircle,
   RefreshCw,
-  Trash2
+  Trash2,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '../services/utils';
 import axios from 'axios';
@@ -25,6 +28,17 @@ interface Integration {
   health_score?: Record<string, any>;
 }
 
+interface DiscoveryResult {
+  api_name: string;
+  description: string;
+  documentation_url: string;
+  spec_url?: string;
+  base_url?: string;
+  confidence_score: number;
+  source: string;
+  tags: string[];
+}
+
 const statusConfig = {
   initializing: { icon: Clock, color: 'text-blue-500', bg: 'bg-blue-500/10' },
   discovering: { icon: RefreshCw, color: 'text-purple-500', bg: 'bg-purple-500/10' },
@@ -37,6 +51,7 @@ const statusConfig = {
 };
 
 export const Integrations: React.FC = () => {
+  const navigate = useNavigate();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +59,15 @@ export const Integrations: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // Discovery flow state
+  const [modalStep, setModalStep] = useState<'search' | 'select' | 'configure'>('search');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResult[]>([]);
+  const [selectedSource, setSelectedSource] = useState<DiscoveryResult | null>(null);
+  const [selectedDest, setSelectedDest] = useState<DiscoveryResult | null>(null);
+
   const [formData, setFormData] = useState({
     source_api_url: '',
     source_api_name: '',
@@ -76,32 +100,43 @@ export const Integrations: React.FC = () => {
     }
   };
 
+  const searchAPIs = async (query: string) => {
+    try {
+      setIsSearching(true);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
+
+      const response = await axios.get(`${apiUrl}/vitesse/discover`, {
+        params: { query, limit: 5 },
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+
+      setDiscoveryResults(response.data.results || []);
+    } catch (error) {
+      console.error('API discovery failed:', error);
+      setCreateError('Failed to discover APIs. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const createIntegration = async () => {
     try {
       setIsCreating(true);
       setCreateError('');
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
-      
+
       await axios.post(`${apiUrl}/vitesse/integrations`, formData, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       // Reset form and close modal
-      setFormData({
-        source_api_url: '',
-        source_api_name: '',
-        dest_api_url: '',
-        dest_api_name: '',
-        user_intent: '',
-        deployment_target: 'local',
-        source_spec_url: '',
-        dest_spec_url: '',
-      });
-      setShowCreateModal(false);
-      
+      resetModal();
+
       // Refresh integrations list
       fetchIntegrations();
     } catch (error: any) {
@@ -110,6 +145,46 @@ export const Integrations: React.FC = () => {
       console.error('Integration creation error:', error);
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const resetModal = () => {
+    setShowCreateModal(false);
+    setModalStep('search');
+    setSearchQuery('');
+    setDiscoveryResults([]);
+    setSelectedSource(null);
+    setSelectedDest(null);
+    setFormData({
+      source_api_url: '',
+      source_api_name: '',
+      dest_api_url: '',
+      dest_api_name: '',
+      user_intent: '',
+      deployment_target: 'local',
+      source_spec_url: '',
+      dest_spec_url: '',
+    });
+    setCreateError('');
+  };
+
+  const handleSelectAPI = (result: DiscoveryResult, type: 'source' | 'dest') => {
+    if (type === 'source') {
+      setSelectedSource(result);
+      setFormData(prev => ({
+        ...prev,
+        source_api_name: result.api_name,
+        source_api_url: result.base_url || result.documentation_url,
+        source_spec_url: result.spec_url || '',
+      }));
+    } else {
+      setSelectedDest(result);
+      setFormData(prev => ({
+        ...prev,
+        dest_api_name: result.api_name,
+        dest_api_url: result.base_url || result.documentation_url,
+        dest_spec_url: result.spec_url || '',
+      }));
     }
   };
 
@@ -146,7 +221,7 @@ export const Integrations: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => navigate('/integrations/new')}
               className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-brand-500/20 transition-all duration-300"
             >
               <Plus className="w-5 h-5" />
@@ -247,170 +322,170 @@ export const Integrations: React.FC = () => {
             onClick={() => setShowCreateModal(false)}
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            onClick={e => e.stopPropagation()}
-            className="bg-white dark:bg-surface-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-8"
-          >
-            <div className="flex items-start justify-between mb-6">
-              <h2 className="text-2xl font-bold text-surface-950 dark:text-white">
-                Create New Integration
-              </h2>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-surface-400 hover:text-surface-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            {createError && (
-              <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-red-600 dark:text-red-400 text-sm">{createError}</p>
-              </div>
-            )}
-
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    Source API Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Shopify, GitHub"
-                    value={formData.source_api_name}
-                    onChange={(e) => setFormData({ ...formData, source_api_name: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    Source API URL
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://api.example.com/swagger.json"
-                    value={formData.source_api_url}
-                    onChange={(e) => setFormData({ ...formData, source_api_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    Source Spec URL <span className="text-xs text-surface-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Direct OpenAPI/Swagger spec URL"
-                    value={formData.source_spec_url}
-                    onChange={(e) => setFormData({ ...formData, source_spec_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
-                  />
-                  <p className="text-xs text-surface-400 mt-1">Use if API doesn't expose spec at standard paths</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    Destination API Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Stripe, Salesforce"
-                    value={formData.dest_api_name}
-                    onChange={(e) => setFormData({ ...formData, dest_api_name: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    Destination API URL
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://api.example.com/openapi.json"
-                    value={formData.dest_api_url}
-                    onChange={(e) => setFormData({ ...formData, dest_api_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    Destination Spec URL <span className="text-xs text-surface-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Direct OpenAPI/Swagger spec URL"
-                    value={formData.dest_spec_url}
-                    onChange={(e) => setFormData({ ...formData, dest_spec_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
-                  />
-                  <p className="text-xs text-surface-400 mt-1">Use if API doesn't expose spec at standard paths</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                  User Intent
-                </label>
-                <textarea
-                  placeholder="Describe what you want to sync (e.g., 'Sync customers and orders from Shopify to Salesforce')"
-                  value={formData.user_intent}
-                  onChange={(e) => setFormData({ ...formData, user_intent: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                  Deployment Target
-                </label>
-                <select
-                  value={formData.deployment_target}
-                  onChange={(e) => setFormData({ ...formData, deployment_target: e.target.value as any })}
-                  className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                >
-                  <option value="local">Local (Docker)</option>
-                  <option value="eks">AWS EKS (Kubernetes)</option>
-                  <option value="ecs">AWS ECS (Fargate)</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white dark:bg-surface-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-8"
+            >
+              <div className="flex items-start justify-between mb-6">
+                <h2 className="text-2xl font-bold text-surface-950 dark:text-white">
+                  Create New Integration
+                </h2>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors"
+                  className="text-surface-400 hover:text-surface-600"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={createIntegration}
-                  disabled={isCreating || !formData.source_api_url || !formData.dest_api_url || !formData.user_intent}
-                  className="flex-1 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  {isCreating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Integration'
-                  )}
+                  ✕
                 </button>
               </div>
-            </div>
+
+              {createError && (
+                <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <p className="text-red-600 dark:text-red-400 text-sm">{createError}</p>
+                </div>
+              )}
+
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                      Source API Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Shopify, GitHub"
+                      value={formData.source_api_name}
+                      onChange={(e) => setFormData({ ...formData, source_api_name: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                      Source API URL
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://api.example.com/swagger.json"
+                      value={formData.source_api_url}
+                      onChange={(e) => setFormData({ ...formData, source_api_url: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                      Source Spec URL <span className="text-xs text-surface-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Direct OpenAPI/Swagger spec URL"
+                      value={formData.source_spec_url}
+                      onChange={(e) => setFormData({ ...formData, source_spec_url: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
+                    />
+                    <p className="text-xs text-surface-400 mt-1">Use if API doesn't expose spec at standard paths</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                      Destination API Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Stripe, Salesforce"
+                      value={formData.dest_api_name}
+                      onChange={(e) => setFormData({ ...formData, dest_api_name: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                      Destination API URL
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://api.example.com/openapi.json"
+                      value={formData.dest_api_url}
+                      onChange={(e) => setFormData({ ...formData, dest_api_url: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                      Destination Spec URL <span className="text-xs text-surface-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Direct OpenAPI/Swagger spec URL"
+                      value={formData.dest_spec_url}
+                      onChange={(e) => setFormData({ ...formData, dest_spec_url: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
+                    />
+                    <p className="text-xs text-surface-400 mt-1">Use if API doesn't expose spec at standard paths</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                    User Intent
+                  </label>
+                  <textarea
+                    placeholder="Describe what you want to sync (e.g., 'Sync customers and orders from Shopify to Salesforce')"
+                    value={formData.user_intent}
+                    onChange={(e) => setFormData({ ...formData, user_intent: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                    Deployment Target
+                  </label>
+                  <select
+                    value={formData.deployment_target}
+                    onChange={(e) => setFormData({ ...formData, deployment_target: e.target.value as any })}
+                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                  >
+                    <option value="local">Local (Docker)</option>
+                    <option value="eks">AWS EKS (Kubernetes)</option>
+                    <option value="ecs">AWS ECS (Fargate)</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={createIntegration}
+                    disabled={isCreating || !formData.source_api_url || !formData.dest_api_url || !formData.user_intent}
+                    className="flex-1 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isCreating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Integration'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
         )}
 
         {/* Integration Detail Modal */}
@@ -422,99 +497,99 @@ export const Integrations: React.FC = () => {
             onClick={() => setSelectedIntegration(null)}
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            onClick={e => e.stopPropagation()}
-            className="bg-white dark:bg-surface-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-8"
-          >
-            <div className="flex items-start justify-between mb-6">
-              <h2 className="text-2xl font-bold text-surface-950 dark:text-white">
-                {selectedIntegration.name}
-              </h2>
-              <button
-                onClick={() => setSelectedIntegration(null)}
-                className="text-surface-400 hover:text-surface-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold text-surface-950 dark:text-white mb-3">Status</h3>
-                <div className="inline-flex items-center gap-2">
-                  <div className={cn(
-                    'p-2 rounded-lg',
-                    statusConfig[selectedIntegration.status].bg
-                  )}>
-                    {React.createElement(statusConfig[selectedIntegration.status].icon, {
-                      className: cn('w-5 h-5', statusConfig[selectedIntegration.status].color)
-                    })}
-                  </div>
-                  <span className="font-medium text-surface-950 dark:text-white capitalize">
-                    {selectedIntegration.status.replace('_', ' ')}
-                  </span>
-                </div>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white dark:bg-surface-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-8"
+            >
+              <div className="flex items-start justify-between mb-6">
+                <h2 className="text-2xl font-bold text-surface-950 dark:text-white">
+                  {selectedIntegration.name}
+                </h2>
+                <button
+                  onClick={() => setSelectedIntegration(null)}
+                  className="text-surface-400 hover:text-surface-600"
+                >
+                  ✕
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-6">
                 <div>
-                  <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Source API</h4>
-                  <p className="font-medium text-surface-950 dark:text-white">
-                    {selectedIntegration.source_api_spec?.title || 'Unknown'}
-                  </p>
-                  {selectedIntegration.source_api_spec?.servers?.[0]?.url && (
-                    <p className="text-xs text-surface-500 mt-1">
-                      {selectedIntegration.source_api_spec.servers[0].url}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Destination API</h4>
-                  <p className="font-medium text-surface-950 dark:text-white">
-                    {selectedIntegration.dest_api_spec?.title || 'Unknown'}
-                  </p>
-                  {selectedIntegration.dest_api_spec?.servers?.[0]?.url && (
-                    <p className="text-xs text-surface-500 mt-1">
-                      {selectedIntegration.dest_api_spec.servers[0].url}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {selectedIntegration.health_score && (
-                <div>
-                  <h4 className="text-xs font-semibold text-surface-500 uppercase mb-3">Health Metrics</h4>
-                  <div className="space-y-2">
-                    {Object.entries(selectedIntegration.health_score).map(([key, value]) => (
-                      <div key={key} className="flex justify-between items-center text-sm">
-                        <span className="text-surface-600 dark:text-surface-400 capitalize">
-                          {key.replace(/_/g, ' ')}
-                        </span>
-                        <span className="font-medium text-surface-950 dark:text-white">
-                          {typeof value === 'number' ? value.toFixed(2) : String(value)}
-                        </span>
-                      </div>
-                    ))}
+                  <h3 className="text-sm font-semibold text-surface-950 dark:text-white mb-3">Status</h3>
+                  <div className="inline-flex items-center gap-2">
+                    <div className={cn(
+                      'p-2 rounded-lg',
+                      statusConfig[selectedIntegration.status].bg
+                    )}>
+                      {React.createElement(statusConfig[selectedIntegration.status].icon, {
+                        className: cn('w-5 h-5', statusConfig[selectedIntegration.status].color)
+                      })}
+                    </div>
+                    <span className="font-medium text-surface-950 dark:text-white capitalize">
+                      {selectedIntegration.status.replace('_', ' ')}
+                    </span>
                   </div>
                 </div>
-              )}
 
-              <div className="flex gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
-                <button className="flex-1 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition-colors">
-                  Deploy
-                </button>
-                <button className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors">
-                  Edit
-                </button>
-                <button className="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-lg font-medium transition-colors">
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Source API</h4>
+                    <p className="font-medium text-surface-950 dark:text-white">
+                      {selectedIntegration.source_api_spec?.title || 'Unknown'}
+                    </p>
+                    {selectedIntegration.source_api_spec?.servers?.[0]?.url && (
+                      <p className="text-xs text-surface-500 mt-1">
+                        {selectedIntegration.source_api_spec.servers[0].url}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Destination API</h4>
+                    <p className="font-medium text-surface-950 dark:text-white">
+                      {selectedIntegration.dest_api_spec?.title || 'Unknown'}
+                    </p>
+                    {selectedIntegration.dest_api_spec?.servers?.[0]?.url && (
+                      <p className="text-xs text-surface-500 mt-1">
+                        {selectedIntegration.dest_api_spec.servers[0].url}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {selectedIntegration.health_score && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-3">Health Metrics</h4>
+                    <div className="space-y-2">
+                      {Object.entries(selectedIntegration.health_score).map(([key, value]) => (
+                        <div key={key} className="flex justify-between items-center text-sm">
+                          <span className="text-surface-600 dark:text-surface-400 capitalize">
+                            {key.replace(/_/g, ' ')}
+                          </span>
+                          <span className="font-medium text-surface-950 dark:text-white">
+                            {typeof value === 'number' ? value.toFixed(2) : String(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
+                  <button className="flex-1 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition-colors">
+                    Deploy
+                  </button>
+                  <button className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors">
+                    Edit
+                  </button>
+                  <button className="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-lg font-medium transition-colors">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
         )}
       </AnimatePresence>
     </div>

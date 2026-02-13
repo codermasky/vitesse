@@ -53,7 +53,7 @@ last_sync_time = None
 total_records_synced = 0
 errors_count = 0
 
-app = FastAPI(title=f"Vitesse: {SOURCE_API_NAME} -> {DEST_API_NAME}")
+app = FastAPI(title=f"Vitesse AI: {SOURCE_API_NAME} -> {DEST_API_NAME}")
 
 # --- Helper Functions ---
 

@@ -714,8 +714,8 @@ const Settings: React.FC = () => {
                 title={
                     activeTab === 'appearance' ? 'Appearance' :
                         activeTab === 'whitelabel' ? 'Branding & Whitelabel' :
-                            activeTab === 'sidekick' ? 'Vitesse Assistant' :
-                                activeTab === 'wayfinder' ? 'Vitesse Navigator' :
+                            activeTab === 'sidekick' ? 'Vitesse AI Assistant' :
+                                activeTab === 'wayfinder' ? 'Vitesse AI Navigator' :
                                     activeTab === 'features' ? 'Feature Matrix' :
                                         activeTab === 'users' ? 'User Management' :
                                             activeTab === 'monitoring' ? 'LLM Monitoring' :
@@ -726,7 +726,7 @@ const Settings: React.FC = () => {
                         activeTab === 'sidekick' ? "Configure your proactive AI companion's behavior and intelligence level." :
                             activeTab === 'wayfinder' ? "Manage your always-on navigation assistant and help system." :
                                 activeTab === 'integrations' ? "Connect external services like Email for automated ingestion pipelines." :
-                                    activeTab === 'features' ? "Enable or disable Vitesse features and use cases for your organization." :
+                                    activeTab === 'features' ? "Enable or disable Vitesse AI features and use cases for your organization." :
                                         activeTab === 'whitelabel' ? "Customize the platform's brand name, logo, and core identity." :
                                             activeTab === 'users' ? "Manage users, roles, and access permissions." :
                                                 activeTab === 'monitoring' ? "Monitor LLM performance, traces, costs, and analytics via Langfuse integration." :

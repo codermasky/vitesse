@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Chat from './pages/Chat';
 import Integrations from './pages/Integrations';
+import NewIntegration from './pages/NewIntegration';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
@@ -50,17 +51,12 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
-        {isFeatureEnabled('chat') && (
-          <>
-            <Route path="chat" element={<Chat />} />
-            <Route path="chat/:sessionId" element={<Chat />} />
-          </>
-        )}
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="chat" element={<Chat />} />
         <Route path="integrations" element={<Integrations />} />
-        {isFeatureEnabled('knowledge_base') && (
-          <Route path="knowledge-base" element={<KnowledgeBase />} />
-        )}
+        <Route path="integrations/new" element={<NewIntegration />} />
+        <Route path="knowledge" element={<KnowledgeBase />} />
         <Route path="settings" element={<Settings />} />
         <Route path="profile" element={<Profile />} />
         <Route path="help" element={<Help />} />

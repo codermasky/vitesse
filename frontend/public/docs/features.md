@@ -32,7 +32,7 @@ Vitesse AI provides a comprehensive set of features designed to accelerate the d
 - **In-App Documentation**: Help center and guides accessible directly within the application.
 
 ## � Advanced Tools
-- **Vitesse Navigator**: Guided navigation system for integration workflows.
-- **Vitesse Assistant**: A persistent AI companion available throughout the application.
+- **Vitesse AI Navigator**: Guided navigation system for integration workflows.
+- **Vitesse AI Assistant**: A persistent AI companion available throughout the application.
 - **Test Suite**: Comprehensive testing tools to validate integration mappings.
 - **Integration Templates**: Pre-built templates for common integration scenarios.
