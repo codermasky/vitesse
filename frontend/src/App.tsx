@@ -7,7 +7,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Chat from './pages/Chat';
 import Integrations from './pages/Integrations';
-import NewIntegration from './pages/NewIntegration';
+import { NewIntegration } from './pages/NewIntegration';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
@@ -37,8 +37,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 
 const AppRoutes: React.FC = () => {
-  const { isFeatureEnabled } = useFeatureFlags();
-
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

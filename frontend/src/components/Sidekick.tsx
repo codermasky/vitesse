@@ -358,7 +358,7 @@ const Sidekick: React.FC = () => {
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="Ask Vitesse AI Assistant...",
+                            placeholder="Ask Vitesse AI Assistant..."
                             disabled={isLoading || !isConnected}
                             className="w-full bg-surface-100 dark:bg-white/5 border border-surface-200 dark:border-white/10 rounded-xl py-3 pl-4 pr-12 text-xs text-surface-900 dark:text-white placeholder:text-surface-400 focus:outline-none focus:border-brand-500/50 transition-all disabled:opacity-50"
                         />

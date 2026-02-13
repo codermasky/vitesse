@@ -5,14 +5,10 @@ import {
   Zap,
   Plus,
   Search,
-  ChevronRight,
   CheckCircle,
   Clock,
   XCircle,
-  RefreshCw,
-  Trash2,
-  Sparkles,
-  ArrowRight
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../services/utils';
 import axios from 'axios';
@@ -56,28 +52,6 @@ export const Integrations: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState('');
-
-  // Discovery flow state
-  const [modalStep, setModalStep] = useState<'search' | 'select' | 'configure'>('search');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResult[]>([]);
-  const [selectedSource, setSelectedSource] = useState<DiscoveryResult | null>(null);
-  const [selectedDest, setSelectedDest] = useState<DiscoveryResult | null>(null);
-
-  const [formData, setFormData] = useState({
-    source_api_url: '',
-    source_api_name: '',
-    dest_api_url: '',
-    dest_api_name: '',
-    user_intent: '',
-    deployment_target: 'local' as const,
-    source_spec_url: '',
-    dest_spec_url: '',
-  });
 
   useEffect(() => {
     fetchIntegrations();

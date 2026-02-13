@@ -9,7 +9,6 @@ import {
     CheckCircle,
     ExternalLink,
     Zap,
-    Shield,
     Loader2
 } from 'lucide-react';
 import { cn } from '../services/utils';
