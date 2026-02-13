@@ -18,6 +18,7 @@ services:
     volumes:
       - ./backend:/app
       - /Users/sujitm/Sandbox/aether:/app/aether
+      - /var/run/docker.sock:/var/run/docker.sock
       - /app/.venv
 
   frontend:

@@ -1,44 +1,7 @@
 """
-Script Generator: Generates standalone Python scripts for Vitesse integrations.
-Replaces container-based templates with process-based execution scripts.
-"""
-
-from typing import Dict, Any, Optional
-from datetime import datetime
-import json
-import structlog
-
-logger = structlog.get_logger(__name__)
-
-
-class ScriptGenerator:
-    """Generates standalone Python scripts for Vitesse integrations."""
-
-    @staticmethod
-    def generate_integration_script(
-        integration_id: str,
-        source_api_name: str,
-        dest_api_name: str,
-        mapping_json: str,
-        source_api_url: str,
-        dest_api_url: str,
-        source_auth_config: Dict[str, Any],
-        dest_auth_config: Dict[str, Any],
-        sync_interval: int = 3600,
-    ) -> str:
-        """
-        Generate a standalone main.py script for the integration.
-        Includes all configuration embedded directly/securely.
-        """
-
-        # Serialize auth configs for embedding
-        source_auth_json = json.dumps(source_auth_config)
-        dest_auth_json = json.dumps(dest_auth_config)
-
-        script_content = f'''"""
-Vitesse AI Integration: {source_api_name} -> {dest_api_name}
-Integration ID: {integration_id}
-Generated at: {datetime.utcnow().isoformat()} 
+Vitesse AI Integration: PetstoreSource -> PetstoreDest
+Integration ID: f9f467b8-64de-4a05-b4e4-54f0a4e9591a
+Generated at: 2026-02-13T07:41:10.109209 
 
 Running mode: Standalone Process
 """
@@ -68,21 +31,21 @@ logging.basicConfig(
 logger = logging.getLogger("vitesse_integration")
 
 # --- Configuration ---
-INTEGRATION_ID = "{integration_id}"
-SOURCE_API_NAME = "{source_api_name}"
-DEST_API_NAME = "{dest_api_name}"
+INTEGRATION_ID = "f9f467b8-64de-4a05-b4e4-54f0a4e9591a"
+SOURCE_API_NAME = "PetstoreSource"
+DEST_API_NAME = "PetstoreDest"
 
 # API Endpoints
-SOURCE_API_URL = "{source_api_url}"
-DEST_API_URL = "{dest_api_url}"
+SOURCE_API_URL = "https://petstore.swagger.io/v2/swagger.json"
+DEST_API_URL = "https://petstore.swagger.io/v2/swagger.json"
 
 # Auth Configuration
-SOURCE_AUTH = {source_auth_json}
-DEST_AUTH = {dest_auth_json}
+SOURCE_AUTH = {"type": "unknown"}
+DEST_AUTH = {"type": "unknown"}
 
 # Logic Configuration
-MAPPING_CONFIG = {mapping_json}
-SYNC_INTERVAL = {sync_interval}
+MAPPING_CONFIG = {}
+SYNC_INTERVAL = 3600
 
 # Global State
 is_running = True
@@ -90,7 +53,7 @@ last_sync_time = None
 total_records_synced = 0
 errors_count = 0
 
-app = FastAPI(title=f"Vitesse: {{SOURCE_API_NAME}} -> {{DEST_API_NAME}}")
+app = FastAPI(title=f"Vitesse: {SOURCE_API_NAME} -> {DEST_API_NAME}")
 
 # --- Helper Functions ---
 
@@ -98,8 +61,8 @@ async def fetch_data(client: httpx.AsyncClient) -> List[Dict[str, Any]]:
     """Fetch data from source API."""
     try:
         url = SOURCE_API_URL
-        headers = {{}}
-        params = {{}}
+        headers = {}
+        params = {}
         
         # Handle Source Auth
         if SOURCE_AUTH.get("type") == "api_key":
@@ -114,13 +77,13 @@ async def fetch_data(client: httpx.AsyncClient) -> List[Dict[str, Any]]:
                 
         elif SOURCE_AUTH.get("type") == "bearer":
             token = SOURCE_AUTH.get("token", "")
-            headers["Authorization"] = f"Bearer {{token}}"
+            headers["Authorization"] = f"Bearer {token}"
             
         elif SOURCE_AUTH.get("type") == "basic":
             # Handled by httpx auth if needed, or manual header
             pass
 
-        logger.info(f"Fetching data from {{url}}")
+        logger.info(f"Fetching data from {url}")
         response = await client.get(url, headers=headers, params=params, timeout=30.0)
         response.raise_for_status()
         
@@ -140,17 +103,17 @@ async def fetch_data(client: httpx.AsyncClient) -> List[Dict[str, Any]]:
         return []
         
     except Exception as e:
-        logger.error(f"Fetch failed: {{str(e)}}")
+        logger.error(f"Fetch failed: {str(e)}")
         raise
 
 async def push_data(client: httpx.AsyncClient, data: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Push data to destination API."""
     if not data:
-        return {{"status": "skipped", "reason": "no data"}}
+        return {"status": "skipped", "reason": "no data"}
 
     try:
         url = DEST_API_URL
-        headers = {{"Content-Type": "application/json"}}
+        headers = {"Content-Type": "application/json"}
         
         # Handle Dest Auth
         if DEST_AUTH.get("type") == "api_key":
@@ -163,7 +126,7 @@ async def push_data(client: httpx.AsyncClient, data: List[Dict[str, Any]]) -> Di
                 
         elif DEST_AUTH.get("type") == "bearer":
             token = DEST_AUTH.get("token", "")
-            headers["Authorization"] = f"Bearer {{token}}"
+            headers["Authorization"] = f"Bearer {token}"
 
         # Simple strategy: One-by-one or Bulk? 
         # For MVP, let's try pushing individual records if endpoint looks singular, or bulk if plural.
@@ -182,24 +145,24 @@ async def push_data(client: httpx.AsyncClient, data: List[Dict[str, Any]]) -> Di
                     success_count += 1
                 else:
                     error_count += 1
-                    logger.warning(f"Failed to push record: {{resp.status_code}}")
+                    logger.warning(f"Failed to push record: {resp.status_code}")
             except Exception as inner_e:
                 error_count += 1
-                logger.error(f"Push error: {{str(inner_e)}}")
+                logger.error(f"Push error: {str(inner_e)}")
                 
-        return {{
+        return {
             "status": "completed", 
             "synced": success_count, 
             "failed": error_count
-        }}
+        }
 
     except Exception as e:
-        logger.error(f"Push failed: {{str(e)}}")
+        logger.error(f"Push failed: {str(e)}")
         raise
 
 def transform_record(record: Dict[str, Any]) -> Dict[str, Any]:
     """Apply transformation logic."""
-    output = {{}}
+    output = {}
     transformations = MAPPING_CONFIG.get("transformations", [])
     
     for t in transformations:
@@ -236,33 +199,33 @@ async def run_sync_cycle():
         try:
             # 1. Fetch
             source_data = await fetch_data(client)
-            logger.info(f"Fetched {{len(source_data)}} records")
+            logger.info(f"Fetched {len(source_data)} records")
             
             # 2. Transform
             transformed_data = [transform_record(r) for r in source_data]
             
             # 3. Push
             result = await push_data(client, transformed_data)
-            logger.info(f"Push result: {{result}}")
+            logger.info(f"Push result: {result}")
             
             # Update Stats
             last_sync_time = datetime.utcnow().isoformat()
             total_records_synced += result.get("synced", 0)
             
         except Exception as e:
-            logger.error(f"Sync cycle error: {{e}}")
+            logger.error(f"Sync cycle error: {e}")
             errors_count += 1
 
 # --- Background Worker ---
 
 async def data_sync_loop():
     """Continuous loop for data synchronization."""
-    logger.info(f"Starting background worker. Interval: {{SYNC_INTERVAL}}s")
+    logger.info(f"Starting background worker. Interval: {SYNC_INTERVAL}s")
     while is_running:
         try:
             await run_sync_cycle()
         except Exception as e:
-            logger.error(f"Critical worker error: {{e}}")
+            logger.error(f"Critical worker error: {e}")
         
         # Sleep until next interval
         await asyncio.sleep(SYNC_INTERVAL)
@@ -275,27 +238,25 @@ async def startup_event():
 
 @app.get("/health")
 def health():
-    return {{"status": "healthy"}}
+    return {"status": "healthy"}
 
 @app.get("/status")
 def status():
-    return {{
+    return {
         "integration_id": INTEGRATION_ID,
         "active": is_running,
         "last_sync": last_sync_time,
         "total_records": total_records_synced,
         "errors": errors_count
-    }}
+    }
 
 @app.post("/trigger")
 async def trigger():
     """Manually trigger immediate sync."""
     asyncio.create_task(run_sync_cycle())
-    return {{"status": "triggered"}}
+    return {"status": "triggered"}
 
 if __name__ == "__main__":
     # Determine port based on env or default (could be dynamic)
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="127.0.0.1", port=port)
-'''
-        return script_content
