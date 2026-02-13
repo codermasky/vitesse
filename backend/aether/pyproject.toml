@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "aether"
+version = "0.2.0"
+description = "Production-ready agentic orchestration platform"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+pydantic = "^2.0.0"
+langgraph = "^0.2.0"
+langchain-core = "^0.3.0"
+structlog = "^24.0.0"
+prometheus-client = "^0.20.0"
+redis = "^5.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+black = "^24.0.0"
+ruff = "^0.3.0"
+
+[tool.poetry.extras]
+telemetry = ["opentelemetry-api", "opentelemetry-sdk", "opentelemetry-instrumentation-fastapi"]
+all = ["opentelemetry-api", "opentelemetry-sdk", "opentelemetry-instrumentation-fastapi"]
+
+[build-system]
+requires = ["hatchling"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/aether"]

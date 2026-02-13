@@ -1,0 +1,52 @@
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "9001:8000"
+    environment:
+      - DATABASE_URI=postgresql://${POSTGRES_USER:-vitesse}:${POSTGRES_PASSWORD:-vitesse123}@db:5432/${POSTGRES_DB:-vitesse}
+      - SECRET_KEY=${SECRET_KEY}
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=${POSTGRES_USER:-vitesse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-vitesse123}
+      - POSTGRES_DB=${POSTGRES_DB:-vitesse}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /Users/sujitm/Sandbox/aether:/app/aether
+      - /app/.venv
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:9001/api/v1
+    ports:
+      - "9002:80"
+    depends_on:
+      - backend
+
+  db:
+    image: pgvector/pgvector:pg16
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-vitesse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-vitesse123}
+      - POSTGRES_DB=${POSTGRES_DB:-vitesse}
+    ports:
+      - "9005:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vitesse} -d ${POSTGRES_DB:-vitesse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

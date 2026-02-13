@@ -1,0 +1,12 @@
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+.next
+out
+dist
+.env
+
+# IDE
+.idea
+.vscode
