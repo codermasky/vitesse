@@ -202,9 +202,9 @@ class VitesseOrchestrator:
                     container_config={
                         "source_api_name": source_api_name,
                         "dest_api_name": dest_api_name,
-                        "mapping_json": json.dumps(mapping_logic)
-                        if mapping_logic
-                        else "{}",
+                        "mapping_json": (
+                            json.dumps(mapping_logic) if mapping_logic else "{}"
+                        ),
                         "env": {
                             "SOURCE_API_URL": source_api_url,
                             "DEST_API_URL": dest_api_url,
@@ -241,9 +241,11 @@ class VitesseOrchestrator:
                 "status": "success",
                 "integration_id": integration_id,
                 "integration": integration.model_dump(),
-                "health_score": health_score
-                if isinstance(health_score, dict)
-                else (health_score.model_dump() if health_score else None),
+                "health_score": (
+                    health_score
+                    if isinstance(health_score, dict)
+                    else (health_score.model_dump() if health_score else None)
+                ),
             }
 
         except Exception as e:
