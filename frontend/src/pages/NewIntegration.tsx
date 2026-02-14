@@ -57,9 +57,10 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
         setError(null);
         try {
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
-            const response = await axios.post(`${apiUrl}/vitesse/discover`, {
-                query: query
-            }, {
+            const response = await axios.get(`${apiUrl}/vitesse/discover`, {
+                params: {
+                    query: query
+                },
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                 }
