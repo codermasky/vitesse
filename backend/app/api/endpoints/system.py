@@ -14,15 +14,21 @@ async def get_system_status():
 async def get_products():
     """Return managed product categories."""
     from app.services.settings_service import settings_service
+
     products = settings_service.get_products()
     # Return default products if none configured
-    return products if products else ["AgentStack Core", "AgentStack Professional", "AgentStack Enterprise"]
+    return (
+        products
+        if products
+        else ["AgentStack Core", "AgentStack Professional", "AgentStack Enterprise"]
+    )
 
 
 @router.post("/products")
 async def update_products(products: List[str]):
     """Update product categories."""
     from app.services.settings_service import settings_service
+
     return settings_service.update_products(products)
 
 
