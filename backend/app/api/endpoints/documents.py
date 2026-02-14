@@ -139,6 +139,8 @@ async def upload_document(
         safe_filename = f"{file_id}.{file_ext}" if file_ext else file_id
         file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
 
+        logger.info(f"Uploading file: {file.filename} for user {current_user.id}")
+
         # 1. Create SQL record first
         new_doc = Document(
             id=file_id,
@@ -157,11 +159,13 @@ async def upload_document(
         db.add(new_doc)
         await db.commit()
         await db.refresh(new_doc)
+        logger.info(f"Document saved to DB with ID: {file_id}, Status: {new_doc.extraction_status}")
 
         # 2. Save file locally
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
+        logger.info(f"File saved to disk: {file_path}")
 
         # 3. Prepare metadata
         metadata = {
@@ -183,7 +187,9 @@ async def upload_document(
                 metadata=metadata,
                 db_session=None,
             )
+            logger.info(f"Background task queued for document {file_id}")
         else:
+            logger.warning(f"No background tasks available, processing synchronously for {file_id}")
             await knowledge_base_manager.add_document(
                 file_path=file_path,
                 file_type=file_ext,
@@ -192,6 +198,7 @@ async def upload_document(
                 db_session=db,
             )
 
+        logger.info(f"File upload successful: {file_id} ({file.filename})")
         return {
             "id": file_id,
             "filename": file.filename,
@@ -209,7 +216,10 @@ async def upload_document(
 async def upload_multiple(
     files: List[UploadFile] = File(...),
     doc_type: str = Form("vault"),
+    product_id: str = Form(None),
+    deployment_type: str = Form(None),
     db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """Upload and process multiple documents."""
@@ -217,7 +227,7 @@ async def upload_multiple(
     for file in files:
         try:
             res = await upload_document(
-                file=file, doc_type=doc_type, db=db, current_user=current_user
+                file=file, doc_type=doc_type, product_id=product_id, deployment_type=deployment_type, db=db, background_tasks=background_tasks, current_user=current_user
             )
             results.append(res)
         except Exception as e:

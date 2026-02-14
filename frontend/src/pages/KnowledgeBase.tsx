@@ -103,14 +103,24 @@ const KnowledgeBase: React.FC = () => {
         try {
             if (showLoading) setLoading(true);
             const response = await apiService.getDocuments();
+            console.log('Raw API response:', response);
+            console.log('Response data:', response.data);
+            
             const docs = response.data.map((d: any) => ({
                 ...d,
                 source: d.source || 'local',
                 doc_type: d.doc_type || 'vault'
             }));
+            console.log('Formatted documents:', docs);
+            console.log('Document count:', docs.length);
             setDocuments(docs);
         } catch (error) {
             console.error('Failed to fetch KB documents:', error);
+            addNotification({
+                type: 'error',
+                message: 'Failed to fetch documents. Check console for details.',
+                duration: 5000,
+            });
         } finally {
             if (showLoading) setLoading(false);
         }
@@ -158,6 +168,7 @@ const KnowledgeBase: React.FC = () => {
         if (!files || files.length === 0) return;
 
         const fileCount = files.length;
+        const fileNames = Array.from(files).map(f => f.name);
 
         setIsUploading(true);
         
@@ -169,19 +180,42 @@ const KnowledgeBase: React.FC = () => {
         });
 
         try {
+            let uploadResponse;
             if (files.length === 1) {
-                await apiService.uploadDocument(files[0], uploadType, productId, deploymentType);
+                uploadResponse = await apiService.uploadDocument(files[0], uploadType, productId, deploymentType);
             } else {
-                await apiService.uploadDocumentsBulk(files, uploadType, productId, deploymentType);
+                uploadResponse = await apiService.uploadDocumentsBulk(files, uploadType, productId, deploymentType);
             }
             
+            console.log('Upload response:', uploadResponse);
+            
+            // Check if upload actually succeeded
+            if (!uploadResponse?.data) {
+                throw new Error('Upload response was empty or invalid');
+            }
+            
+            // For bulk uploads, check if any failed
+            if (uploadResponse.data.results && Array.isArray(uploadResponse.data.results)) {
+                const hasFailures = uploadResponse.data.results.some((r: any) => r.status === 'failed');
+                if (hasFailures) {
+                    const failedFiles = uploadResponse.data.results
+                        .filter((r: any) => r.status === 'failed')
+                        .map((r: any) => r.error || r.filename);
+                    throw new Error(`Some files failed: ${failedFiles.join(', ')}`);
+                }
+            }
+            
+            // Wait a moment for backend to process
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             // Refresh document list
-            await fetchDocuments();
+            const docsFetched = await fetchDocuments();
+            console.log('Documents after upload:', documents);
             
             // Show success notification
             addNotification({
                 type: 'success',
-                message: `Successfully uploaded ${fileCount} file${fileCount > 1 ? 's' : ''}. Processing in background...`,
+                message: `✓ Successfully uploaded ${fileCount} file${fileCount > 1 ? 's' : ''}. Processing in background...`,
                 duration: 5000,
             });
         } catch (error: any) {
@@ -190,6 +224,7 @@ const KnowledgeBase: React.FC = () => {
             // Show error notification
             const errorMessage = error?.response?.data?.detail 
                 || error?.message 
+                || error?.toString()
                 || 'Failed to upload files. Please try again.';
             
             addNotification({
@@ -300,7 +335,10 @@ const KnowledgeBase: React.FC = () => {
             }
         }
 
-        if (!matchesProduct || !matchesDeployment) return false;
+        if (!matchesProduct || !matchesDeployment) {
+            console.debug(`Filtered out ${doc.name}: matchesProduct=${matchesProduct}, matchesDeployment=${matchesDeployment}, productId=${productId}, doc.product_id=${doc.product_id}`);
+            return false;
+        }
 
         if (activeFilter === 'all') return matchesSearch;
         if (activeFilter === 'sharepoint') return matchesSearch && doc.source === 'sharepoint';
