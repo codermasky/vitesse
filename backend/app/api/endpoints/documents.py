@@ -159,7 +159,9 @@ async def upload_document(
         db.add(new_doc)
         await db.commit()
         await db.refresh(new_doc)
-        logger.info(f"Document saved to DB with ID: {file_id}, Status: {new_doc.extraction_status}")
+        logger.info(
+            f"Document saved to DB with ID: {file_id}, Status: {new_doc.extraction_status}"
+        )
 
         # 2. Save file locally
         with open(file_path, "wb") as buffer:
@@ -189,7 +191,9 @@ async def upload_document(
             )
             logger.info(f"Background task queued for document {file_id}")
         else:
-            logger.warning(f"No background tasks available, processing synchronously for {file_id}")
+            logger.warning(
+                f"No background tasks available, processing synchronously for {file_id}"
+            )
             await knowledge_base_manager.add_document(
                 file_path=file_path,
                 file_type=file_ext,
@@ -227,7 +231,13 @@ async def upload_multiple(
     for file in files:
         try:
             res = await upload_document(
-                file=file, doc_type=doc_type, product_id=product_id, deployment_type=deployment_type, db=db, background_tasks=background_tasks, current_user=current_user
+                file=file,
+                doc_type=doc_type,
+                product_id=product_id,
+                deployment_type=deployment_type,
+                db=db,
+                background_tasks=background_tasks,
+                current_user=current_user,
             )
             results.append(res)
         except Exception as e:
