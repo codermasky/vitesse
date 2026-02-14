@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import apiService from '../services/api';
 import { cn } from '../services/utils';
+import { useNotifications } from '../contexts/NotificationContext';
 import DocumentDetailPanel from '../components/DocumentDetailPanel';
 
 // Types assuming similar structure to what discoverDocuments returns or a general document type
@@ -39,7 +40,20 @@ interface KBDocument {
     deployment_type?: string;
 }
 
+// Helper function to format status for display
+const getStatusMessage = (status: string): string => {
+    const messages: Record<string, string> = {
+        'pending': 'Waiting to process',
+        'processing': 'Extracting knowledge',
+        'completed': 'Ready to search',
+        'indexed': 'Ready to search',
+        'failed': 'Processing failed',
+    };
+    return messages[status] || status;
+};
+
 const KnowledgeBase: React.FC = () => {
+    const { addNotification } = useNotifications();
     const [documents, setDocuments] = useState<KBDocument[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -54,6 +68,7 @@ const KnowledgeBase: React.FC = () => {
     const [productId, setProductId] = useState<string>('credo');
     const [deploymentType, setDeploymentType] = useState<string>('cloud');
     const [availableProducts, setAvailableProducts] = useState<string[]>(['credo', 'enterprise', 'compliance']);
+    const [previousDocIds, setPreviousDocIds] = useState<Set<string>>(new Set());
 
     // Bulk Update State
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
@@ -107,6 +122,25 @@ const KnowledgeBase: React.FC = () => {
             doc.status === 'pending' || doc.status === 'processing'
         );
 
+        // Detect newly completed documents and show notifications
+        documents.forEach(doc => {
+            if ((doc.status === 'completed' || doc.status === 'indexed') && previousDocIds.has(doc.id)) {
+                // This document was being processed and is now complete
+                addNotification({
+                    type: 'success',
+                    message: `✓ "${doc.name}" is ready to search`,
+                    duration: 4000,
+                });
+            } else if (doc.status === 'failed' && previousDocIds.has(doc.id)) {
+                // This document failed processing
+                addNotification({
+                    type: 'error',
+                    message: `✗ Processing failed for "${doc.name}". Please try reupload or contact support.`,
+                    duration: 5000,
+                });
+            }
+        });
+
         if (hasProcessing) {
             const interval = setInterval(() => {
                 fetchDocuments(false);
@@ -114,22 +148,55 @@ const KnowledgeBase: React.FC = () => {
 
             return () => clearInterval(interval);
         }
+
+        // Update the set of document IDs we've seen
+        setPreviousDocIds(new Set(documents.map(d => d.id)));
     }, [documents]);
 
     const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files || files.length === 0) return;
 
+        const fileCount = files.length;
+
         setIsUploading(true);
+        
+        // Show upload started notification
+        addNotification({
+            type: 'info',
+            message: `Uploading ${fileCount} file${fileCount > 1 ? 's' : ''}... Please wait.`,
+            duration: 0, // Keep visible until upload completes
+        });
+
         try {
             if (files.length === 1) {
                 await apiService.uploadDocument(files[0], uploadType, productId, deploymentType);
             } else {
                 await apiService.uploadDocumentsBulk(files, uploadType, productId, deploymentType);
             }
+            
+            // Refresh document list
             await fetchDocuments();
-        } catch (error) {
+            
+            // Show success notification
+            addNotification({
+                type: 'success',
+                message: `Successfully uploaded ${fileCount} file${fileCount > 1 ? 's' : ''}. Processing in background...`,
+                duration: 5000,
+            });
+        } catch (error: any) {
             console.error('Upload failed:', error);
+            
+            // Show error notification
+            const errorMessage = error?.response?.data?.detail 
+                || error?.message 
+                || 'Failed to upload files. Please try again.';
+            
+            addNotification({
+                type: 'error',
+                message: `Upload failed: ${errorMessage}`,
+                duration: 6000,
+            });
         } finally {
             setIsUploading(false);
             event.target.value = '';
@@ -738,7 +805,7 @@ const KnowledgeBase: React.FC = () => {
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-bold text-surface-950 dark:text-white max-w-xs truncate" title={doc.name}>{doc.name}</span>
                                                     <span className="text-[10px] text-surface-500 uppercase font-bold tracking-wider">
-                                                        {doc.status || 'pending'}
+                                                        {getStatusMessage(doc.status)}
                                                     </span>
                                                 </div>
                                             </div>
