@@ -14,15 +14,15 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "20260214_003"
-down_revision = "20260214_002"
+down_revision = "20260214_001"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
     """Upgrade schema - Recreate documents table with comprehensive metadata."""
-    # Drop existing table
-    op.drop_table("documents")
+    # Drop existing table if exists
+    op.drop_table("documents", if_exists=True)
 
     # Create new comprehensive documents table
     op.create_table(
