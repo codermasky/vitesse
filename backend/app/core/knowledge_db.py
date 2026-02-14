@@ -109,21 +109,15 @@ class ChromaDBKnowledge(KnowledgeDB):
         """Initialize ChromaDB client."""
         try:
             import chromadb
-            from chromadb.config import Settings
 
             # Create persist directory if needed
             os.makedirs(self.persist_directory, exist_ok=True)
 
-            # Initialize with persistence
-            settings = Settings(
-                chroma_db_impl="duckdb+parquet",
-                persist_directory=self.persist_directory,
-                anonymized_telemetry=False,
-            )
+            # Use modern PersistentClient to avoid migration warnings
+            self.client = chromadb.PersistentClient(path=self.persist_directory)
 
-            self.client = chromadb.Client(settings)
             logger.info(
-                "ChromaDB initialized",
+                "ChromaDB initialized (Modern API)",
                 persist_directory=self.persist_directory,
                 embedding_model=self.embedding_model,
             )
@@ -341,10 +335,12 @@ class QdrantKnowledge(KnowledgeDB):
             from sentence_transformers import SentenceTransformer
 
             # Initialize client
+            # Use gRPC only if specifically requested and reachable
             self.client = QdrantClient(
                 url=self.url,
                 api_key=self.api_key,
                 prefer_grpc=self.prefer_grpc,
+                timeout=10,
             )
 
             # Initialize embedder
@@ -528,6 +524,8 @@ class QdrantKnowledge(KnowledgeDB):
 
         except Exception as e:
             logger.error("Search failed in Qdrant", collection=collection, error=str(e))
+            # If Qdrant fails, we should return empty list or handle gracefully
+            # Discovery agent will try fallback or LLM
             return []
 
     async def get_document(
@@ -658,18 +656,28 @@ class KnowledgeDBManager:
         self.db: Optional[KnowledgeDB] = None
 
     async def initialize(self) -> None:
-        """Initialize the configured backend."""
-        if self.backend == "chromadb":
-            self.db = ChromaDBKnowledge(**self.kwargs)
-        elif self.backend == "qdrant":
-            self.db = QdrantKnowledge(**self.kwargs)
-        elif self.backend == "pinecone":
-            self.db = PineconeKnowledge(**self.kwargs)
-        else:
-            raise ValueError(f"Unknown knowledge DB backend: {self.backend}")
+        """Initialize the configured backend with fallback logic."""
+        try:
+            if self.backend == "chromadb":
+                self.db = ChromaDBKnowledge(**self.kwargs)
+            elif self.backend == "qdrant":
+                self.db = QdrantKnowledge(**self.kwargs)
+            elif self.backend == "pinecone":
+                self.db = PineconeKnowledge(**self.kwargs)
+            else:
+                raise ValueError(f"Unknown knowledge DB backend: {self.backend}")
 
-        await self.db.initialize()
-        logger.info("Knowledge DB manager initialized", backend=self.backend)
+            await self.db.initialize()
+            logger.info("Knowledge DB manager initialized", backend=self.backend)
+        except Exception as e:
+            logger.warning(f"Failed to initialize primary backend {self.backend}: {e}")
+            if self.backend != "chromadb":
+                logger.info("Falling back to ChromaDB for knowledge storage")
+                self.db = ChromaDBKnowledge()
+                await self.db.initialize()
+                self.backend = "chromadb"
+            else:
+                raise
 
     # Delegate methods to the backend
     async def add_documents(self, *args, **kwargs):

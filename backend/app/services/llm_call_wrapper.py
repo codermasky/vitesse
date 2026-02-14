@@ -15,6 +15,7 @@ transparent instrumentation without modifying agent code.
 
 import time
 import structlog
+import asyncio
 from typing import Any, Optional, Dict
 from datetime import datetime
 
@@ -93,8 +94,15 @@ class LLMCallWrapper:
                 model=model_name,
             )
 
-            # Invoke LLM
-            response = await llm_instance.ainvoke(prompt)
+            # Invoke LLM with timeout
+            try:
+                response = await asyncio.wait_for(
+                    llm_instance.ainvoke(prompt), timeout=30.0
+                )
+            except asyncio.TimeoutError:
+                logger.error("llm_call_timeout", agent_id=agent_id, operation=op_name)
+                raise Exception(f"LLM call timed out after 30s for {op_name}")
+
             output_text = (
                 response.content if hasattr(response, "content") else str(response)
             )
@@ -296,9 +304,36 @@ class LLMCallWrapper:
                 else None,
             )
 
-            # Invoke with structured output
+            # Invoke with structured output and timeout
             structured_llm = llm_instance.with_structured_output(schema)
-            response = await structured_llm.ainvoke(prompt)
+            try:
+                response = await asyncio.wait_for(
+                    structured_llm.ainvoke(prompt), timeout=60.0
+                )
+            except asyncio.TimeoutError:
+                logger.error(
+                    "llm_structured_call_timeout", agent_id=agent_id, operation=op_name
+                )
+                raise Exception(
+                    f"Structured LLM call timed out after 60s for {op_name}"
+                )
+            except Exception as parse_err:
+                # If it's a validation error, let's try to get the raw content for debugging
+                logger.error("llm_structured_parsing_failed", error=str(parse_err))
+                # Fallback: try standard invoke to see what the model actually returned
+                try:
+                    raw_resp = await llm_instance.ainvoke(prompt)
+                    raw_content = (
+                        raw_resp.content
+                        if hasattr(raw_resp, "content")
+                        else str(raw_resp)
+                    )
+                    logger.info(
+                        "llm_raw_response_for_debug", raw_content=raw_content[:1000]
+                    )
+                except:
+                    pass
+                raise
 
             elapsed_time = time.time() - start_time
 

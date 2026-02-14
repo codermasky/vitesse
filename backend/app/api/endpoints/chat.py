@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from typing import List, Any
 from app.api import deps
 from app.services.chat import chat_service
@@ -70,6 +70,7 @@ async def get_stats(current_user: Any = Depends(deps.get_current_user)):
 @router.websocket("/ws/{session_id}")
 async def chat_ws(websocket: WebSocket, session_id: str):
     """WebSocket endpoint for real-time chat."""
+    await websocket.accept()
     # We'll use the service to manage the full lifecycle
     await chat_service.create_session(websocket, session_id)
     try:

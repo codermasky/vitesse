@@ -167,17 +167,26 @@ class VitesseDiscoveryAgent(VitesseAgent):
             results.extend(known_results)
             logger.info(f"Found {len(known_results)} results from known APIs")
 
-            # Step 2: Search Knowledge Base (Harvested Data)
-            kb_results = await self._search_knowledge_base(query, limit)
-            results.extend(kb_results)
-            logger.info(f"Found {len(kb_results)} results from Knowledge Base")
+            # If we found matches in the catalog, return them immediately to avoid slow LLM calls
+            if len(results) > 0:
+                logger.info(
+                    f"Found {len(results)} results in catalog, skipping KB and LLM search for latency"
+                )
+            else:
+                # Step 2: Search Knowledge Base (Harvested Data)
+                kb_results = await self._search_knowledge_base(query, limit)
+                results.extend(kb_results)
+                logger.info(f"Found {len(kb_results)} results from Knowledge Base")
 
-            # Step 3: If we don't have enough results, use LLM discovery
-            if len(results) < limit:
-                remaining_limit = limit - len(results)
-                llm_results = await self._llm_discovery(query, remaining_limit)
-                results.extend(llm_results)
-                logger.info(f"Found {len(llm_results)} additional results from LLM")
+                # Step 3: If we still don't have enough results, use LLM discovery
+                if len(results) < limit:
+                    remaining_limit = limit - len(results)
+                    logger.info(
+                        f"Searching for {remaining_limit} more results using LLM"
+                    )
+                    llm_results = await self._llm_discovery(query, remaining_limit)
+                    results.extend(llm_results)
+                    logger.info(f"Found {len(llm_results)} additional results from LLM")
 
             # Step 3: Sort by confidence score
             results.sort(key=lambda x: x.confidence_score, reverse=True)

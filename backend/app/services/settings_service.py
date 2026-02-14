@@ -186,7 +186,7 @@ class SettingsService:
     def get_whitelabel_config(self) -> dict:
         """Get whitelabel configuration for branding."""
         default_config = {
-            "brand_name": "Vitesse",
+            "brand_name": "Vitesse AI",
             "creator": "Your Company",
             "logo_url": None,
             "primary_color": "#EF4444",
