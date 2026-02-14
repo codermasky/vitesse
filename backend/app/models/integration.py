@@ -16,8 +16,10 @@ from sqlalchemy import (
     Enum as SQLEnum,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql import func
+from typing import Optional
+from datetime import datetime
 from app.db.session import Base
 import enum
 
@@ -49,38 +51,42 @@ class Integration(Base):
 
     __tablename__ = "integrations"
 
-    id = Column(String(255), primary_key=True, index=True)
-    name = Column(String(255), nullable=False, index=True)
-    status = Column(
-        SQLEnum(IntegrationStatusEnum),
-        default=IntegrationStatusEnum.INITIALIZING,
+    id: Mapped[str] = Column(String(255), primary_key=True, index=True)
+    name: Mapped[str] = Column(String(255), nullable=False, index=True)
+    status: Mapped[str] = Column(
+        SQLEnum(IntegrationStatusEnum, native_enum=False),
+        default=IntegrationStatusEnum.INITIALIZING.value,
         index=True,
     )
 
-    # API Specifications (stored as JSON)
-    source_api_spec = Column(JSON, nullable=False)
-    dest_api_spec = Column(JSON, nullable=False)
+    # Discovery Results (stored for reference)
+    source_discovery: Mapped[Optional[dict]] = Column(JSON, nullable=True)
+    dest_discovery: Mapped[Optional[dict]] = Column(JSON, nullable=True)
 
-    # Mapping Configuration
-    mapping_logic = Column(JSON, nullable=True)
+    # API Specifications (populated after ingest step)
+    source_api_spec: Mapped[Optional[dict]] = Column(JSON, nullable=True)
+    dest_api_spec: Mapped[Optional[dict]] = Column(JSON, nullable=True)
+
+    # Mapping Configuration (populated after map step)
+    mapping_logic: Mapped[Optional[dict]] = Column(JSON, nullable=True)
 
     # Deployment Configuration
-    deployment_config = Column(JSON, nullable=False)
-    deployment_target = Column(SQLEnum(DeploymentTargetEnum), nullable=False)
-    container_id = Column(String(255), nullable=True)
+    deployment_config: Mapped[dict] = Column(JSON, nullable=False)
+    deployment_target: Mapped[str] = Column(SQLEnum(DeploymentTargetEnum, native_enum=False), nullable=False)
+    container_id: Mapped[Optional[str]] = Column(String(255), nullable=True)
 
     # Health & Monitoring
-    health_score = Column(JSON, nullable=True)
-    error_log = Column(Text, nullable=True)
-    last_health_check = Column(DateTime, nullable=True)
+    health_score: Mapped[Optional[dict]] = Column(JSON, nullable=True)
+    error_log: Mapped[Optional[str]] = Column(Text, nullable=True)
+    last_health_check: Mapped[Optional[DateTime]] = Column(DateTime, nullable=True)
 
     # Metadata
-    created_by = Column(String(255), nullable=False, index=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(
+    created_by: Mapped[str] = Column(String(255), nullable=False, index=True)
+    created_at: Mapped[datetime] = Column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = Column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
-    extra_metadata = Column(JSON, default={})
+    extra_metadata: Mapped[dict] = Column(JSON, default={})
 
     # Relationships
     test_results = relationship(

@@ -337,82 +337,487 @@ k8s_manifest = DockerfileGenerator.generate_kubernetes_manifest(
 
 ---
 
-## Integration Lifecycle
+## Integration Lifecycle (Multi-Step Workflow)
 
-### Full Flow Diagram
+### Overview
+
+Vitesse AI implements a **5-step sequential workflow** for creating integrations, aligned with the Vitesse AI Framework baseline. Each step is a separate REST endpoint that progresses the integration through its lifecycle.
+
+### Workflow States
 
 ```
-User Input
-    ↓
-┌─────────────────────────────────────────────┐
-│  POST /api/v1/vitesse/integrations          │
-│  {source_api_url, dest_api_url, ...}        │
-└─────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────┐
-│  Step 1: INGESTOR                           │
-│  Fetch & parse APIs → APISpecification      │
-└─────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────┐
-│  Step 2: MAPPER                             │
-│  Generate field transformations             │
-│  MappingLogic with DataTransformation[]     │
-└─────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────┐
-│  Step 3: GUARDIAN TESTING                   │
-│  Generate synthetic data                    │
-│  Run 100+ shadow calls to both APIs         │
-│  Calculate health score                     │
-└─────────────────────────────────────────────┘
-    ↓
-    Health Score >= 70/100?
-    ├── YES → Ready for Deployment
-    └── NO  → Failed (requires manual intervention)
+DISCOVERING  →  MAPPING  →  TESTING  →  DEPLOYING  →  ACTIVE
+(Step 1)       (Step 2)     (Step 3)     (Step 4)      (Step 5)
+```
+
+### Step 1: CREATE - Discovery Results to Integration
+
+**Endpoint**: `POST /api/v1/vitesse/integrations`
+
+**Input**: Discovery results from user selection
+- `source_discovery`: DiscoveryResult object
+- `dest_discovery`: DiscoveryResult object
+- `user_intent`: User's integration goal
+- `deployment_target`: Where to deploy (local, cloud)
+
+**Process**:
+1. Create Integration record in database
+2. Store discovery results (source and destination)
+3. Set status to `DISCOVERING`
+4. Return integration ID for next steps
+
+**Database Record**:
+```python
+Integration(
+    id=uuid,
+    name="Salesforce to HubSpot",
+    status="discovering",
+    source_discovery={source_discovery.model_dump(mode='json')},
+    dest_discovery={dest_discovery.model_dump(mode='json')},
+    source_api_spec=None,  # Will be populated in step 2
+    dest_api_spec=None,    # Will be populated in step 2
+    deployment_config=deployment_config.model_dump(mode='json'),
+    created_by="system",
+)
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Integration",
+    "source_discovery": {
+      "api_name": "Salesforce",
+      "base_url": "https://api.salesforce.com",
+      "documentation_url": "https://salesforce.com"
+    },
+    "dest_discovery": {
+      "api_name": "HubSpot",
+      "base_url": "https://api.hubspot.com",
+      "documentation_url": "https://hubspot.com"
+    },
+    "user_intent": "Sync contacts",
+    "deployment_target": "local"
+  }'
+```
+
+### Step 2: INGEST - Fetch API Specifications
+
+**Endpoint**: `POST /api/v1/vitesse/integrations/{integration_id}/ingest`
+
+**Input**: API specification URLs
+- `source_spec_url`: URL to source API's OpenAPI/Swagger spec
+- `dest_spec_url`: URL to destination API's OpenAPI/Swagger spec
+
+**Process**:
+1. Fetch both API specifications from provided URLs
+2. Parse OpenAPI/Swagger documents
+3. Extract endpoints, methods, parameters, auth requirements
+4. Store specs in integration record
+5. Update status to `MAPPING`
+6. Return discovered endpoints
+
+**Technology**:
+- Uses Ingestor Agent to parse OpenAPI specs
+- Extracts standardized APISpecification schema
+- Detects authentication methods and pagination patterns
+
+**Database Update**:
+```python
+integration.source_api_spec = {
+    "api_name": "Salesforce",
+    "base_url": "https://api.salesforce.com",
+    "endpoints": [
+        {"path": "/customers", "method": "GET", ...},
+        {"path": "/orders", "method": "GET", ...},
+    ]
+}
+integration.dest_api_spec = {...}
+integration.status = "mapping"
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_spec_url": "https://api.salesforce.com/openapi.json",
+    "dest_spec_url": "https://api.hubspot.com/openapi.json"
+  }'
+```
+
+### Step 3: MAP - Generate Field Mappings
+
+**Endpoint**: `POST /api/v1/vitesse/integrations/{integration_id}/map`
+
+**Input**: Endpoint mapping hints
+- `source_endpoint`: Source API endpoint path (e.g., "/customers")
+- `dest_endpoint`: Destination API endpoint path (e.g., "/contacts")
+- `mapping_hints`: Optional manual mapping hints
+
+**Process**:
+1. Use Mapper Agent to generate semantic mappings
+2. Analyze source and destination schemas
+3. Match fields based on:
+   - Name similarity
+   - Type compatibility
+   - User intent (context)
+   - Manual hints (if provided)
+4. Generate DataTransformation objects for each mapping
+5. Determine complexity score (1-10)
+6. Store mapping logic in integration record
+7. Update status to `TESTING`
+
+**Mapper Agent Output**:
+```python
+result = {
+    "mapping_logic": {
+        "source_endpoint": "/customers",
+        "dest_endpoint": "/contacts",
+        "transformations": [
+            {
+                "source_field": "first_name",
+                "dest_field": "given_name",
+                "transform_type": "direct",
+            },
+            {
+                "source_field": "email",
+                "dest_field": "email_address",
+                "transform_type": "mapping",
+            },
+        ]
+    },
+    "transformation_count": 12,
+    "complexity_score": 5,
+    "status": "success"
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/map \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_endpoint": "/customers",
+    "dest_endpoint": "/contacts",
+    "mapping_hints": {"email": "email_address"}
+  }'
+```
+
+### Step 4: TEST - Run Integration Tests
+
+**Endpoint**: `POST /api/v1/vitesse/integrations/{integration_id}/test`
+
+**Input**: Test configuration
+- `test_sample_size`: Number of test records (1-100, default: 5)
+- `skip_destructive`: Skip tests that modify data (default: true)
+
+**Process**:
+1. Use Guardian Agent to run comprehensive tests
+2. Generate synthetic test data matching source schema
+3. Execute shadow calls to both APIs (no real data modified)
+4. Track response times, success rates, error patterns
+5. Detect critical issues:
+   - Authentication failures (401)
+   - Rate limiting (429)
+   - Schema mismatches (400)
+   - Connectivity issues
+6. Calculate health score
+7. Update status to `DEPLOYING` (if health >= 70)
+
+**Health Score Formula**:
+```
+overall_score = (success_rate * 0.7) + (endpoint_coverage * 0.3)
+Passing: >= 70/100
+```
+
+**Guardian Agent Output**:
+```python
+result = {
+    "health_score": {
+        "overall": 85,
+        "data_quality": 90,
+        "reliability": 80,
+    },
+    "test_count": 10,
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "status": "success"
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "test_sample_size": 10,
+    "skip_destructive": true
+  }'
+```
+
+### Step 5: DEPLOY - Deploy Integration to Target
+
+**Endpoint**: `POST /api/v1/vitesse/integrations/{integration_id}/deploy`
+
+**Input**: Deployment configuration
+- `replicas`: Number of replicas (default: 1)
+- `memory_mb`: Memory in MB (default: 512)
+- `cpu_cores`: CPU cores (default: 0.5)
+- `auto_scale`: Enable autoscaling (default: false)
+
+**Process**:
+1. Use Deployer Agent to deploy to target environment
+2. Generate Dockerfile with integration logic
+3. Build container image
+4. Deploy to target:
+   - **local**: Docker containers with Traefik routing
+   - **cloud**: Kubernetes/ECS with managed scaling
+5. Assign service URL
+6. Update status to `ACTIVE`
+7. Store container ID and service URL
+
+**Deployer Support**:
+- **Local**: Docker + Traefik
+- **Kubernetes (EKS)**: Deployments, Services, Ingress
+- **AWS ECS**: Fargate tasks with ALB routing
+
+**Deployer Agent Output**:
+```python
+result = {
+    "container_id": "vitesse-ad9cb833",
+    "service_url": "http://localhost:8080/vitesse-ad9cb833",
+    "deployment_time_seconds": 15,
+    "status": "success"
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/deploy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "replicas": 1,
+    "memory_mb": 512,
+    "cpu_cores": 0.5
+  }'
+```
+
+### Workflow Error Handling & Recovery
+
+**Step Failures**:
+- Each step validates inputs and dependencies
+- Returns 400 Bad Request if validation fails
+- Returns 500 Internal Server Error if execution fails
+- Includes detailed error messages for debugging
+
+**State Recovery**:
+- Integration record persists in database
+- Can retry failed step without restarting workflow
+- Each step is idempotent (safe to retry)
+
+**Example Error Responses**:
+```json
+{
+  "status": "failed",
+  "error": "Integration not found",
+  "http_status": 404
+}
 ```
 
 ---
 
-## API Reference
+### Full Flow Diagram
 
-### Create Integration
+```
+User Input (Discovery Results)
+    ↓
+┌─────────────────────────────────────────────┐
+│  STEP 1: CREATE                             │
+│  POST /integrations                         │
+│  Create Integration(status=DISCOVERING)     │
+│  Store discovery results                    │
+└─────────────────────────────────────────────┘
+    ↓ (return integration_id)
+┌─────────────────────────────────────────────┐
+│  STEP 2: INGEST                             │
+│  POST /integrations/{id}/ingest             │
+│  Ingestor Agent: Fetch & parse API specs    │
+│  Update status to MAPPING                   │
+└─────────────────────────────────────────────┘
+    ↓ (optional: review endpoints)
+┌─────────────────────────────────────────────┐
+│  STEP 3: MAP                                │
+│  POST /integrations/{id}/map                │
+│  Mapper Agent: Generate transformations     │
+│  Update status to TESTING                   │
+└─────────────────────────────────────────────┘
+    ↓ (optional: review mappings)
+┌─────────────────────────────────────────────┐
+│  STEP 4: TEST                               │
+│  POST /integrations/{id}/test               │
+│  Guardian Agent: Run synthetic tests        │
+│  Calculate health_score                     │
+│  Update status to DEPLOYING                 │
+└─────────────────────────────────────────────┘
+    ↓ (if health_score >= 70)
+┌─────────────────────────────────────────────┐
+│  STEP 5: DEPLOY                             │
+│  POST /integrations/{id}/deploy             │
+│  Deployer Agent: Build & deploy container  │
+│  Update status to ACTIVE                    │
+│  Ready for data synchronization              │
+└─────────────────────────────────────────────┘
+    ↓
+Integration Active in Production
+```
+
+### Full Flow Diagram (Legacy Single-Endpoint Model)
+
+**Deprecated** - These step are now handled sequentially via multi-step endpoints.
+
+Before this refactor, integration creation was monolithic:
+
+---
+
+## API Reference - Multi-Step Workflow
+
+### Discovery
+**GET** `/api/v1/vitesse/discover?query=Salesforce&limit=5`
+
+Returns discovered APIs matching search query.
+
+### Step 1: Create Integration
 **POST** `/api/v1/vitesse/integrations`
 
+Request:
 ```json
 {
-  "source_api_url": "https://api.shopify.com/swagger.json",
-  "source_api_name": "Shopify",
-  "dest_api_url": "https://api.credo.com/openapi.json",
-  "dest_api_name": "Credo CRM",
-  "user_intent": "Sync customers from Shopify to Credo",
-  "deployment_target": "local",
-  "source_auth": {
-    "type": "oauth2",
-    "token": "shppa_..."
-  },
-  "dest_auth": {
-    "type": "api_key",
-    "key": "sk_live_..."
+  "name": "Salesforce to HubSpot",
+  "source_discovery": {...discovery result...},
+  "dest_discovery": {...discovery result...},
+  "user_intent": "Sync contacts",
+  "deployment_target": "local"
+}
+```
+
+Response:
+```json
+{
+  "status": "success",
+  "integration_id": "uuid",
+  "current_step": "DISCOVERING",
+  "data": {
+    "integration": {...},
+    "next_step": "ingest",
+    "next_endpoint": "/integrations/{id}/ingest"
   }
 }
 ```
 
-**Response**:
+### Step 2: Ingest Specifications
+**POST** `/api/v1/vitesse/integrations/{integration_id}/ingest`
+
+Request:
+```json
+{
+  "source_spec_url": "https://api.salesforce.com/openapi.json",
+  "dest_spec_url": "https://api.hubspot.com/openapi.json"
+}
+```
+
+Response:
 ```json
 {
   "status": "success",
-  "integration_id": "integ_xyz789",
-  "integration": {
-    "id": "integ_xyz789",
-    "name": "Shopify → Credo CRM",
-    "status": "active|failed",
-    "health_score": {
-      "overall_score": 87.5,
-      "success_rate": 95.0,
-      "endpoint_coverage": 80.0,
-      "critical_issues": []
-    }
+  "integration_id": "uuid",
+  "current_step": "MAPPING",
+  "data": {
+    "source_endpoints": [...],
+    "dest_endpoints": [...],
+    "next_step": "map",
+    "next_endpoint": "/integrations/{id}/map"
+  }
+}
+```
+
+### Step 3: Generate Mappings
+**POST** `/api/v1/vitesse/integrations/{integration_id}/map`
+
+Request:
+```json
+{
+  "source_endpoint": "/customers",
+  "dest_endpoint": "/contacts",
+  "mapping_hints": {...}
+}
+```
+
+Response:
+```json
+{
+  "status": "success",
+  "integration_id": "uuid",
+  "current_step": "TESTING",
+  "data": {
+    "transformation_count": 12,
+    "complexity_score": 5,
+    "next_step": "test",
+    "next_endpoint": "/integrations/{id}/test"
+  }
+}
+```
+
+### Step 4: Run Tests
+**POST** `/api/v1/vitesse/integrations/{integration_id}/test`
+
+Request:
+```json
+{
+  "test_sample_size": 10,
+  "skip_destructive": true
+}
+```
+
+Response:
+```json
+{
+  "status": "success",
+  "integration_id": "uuid",
+  "current_step": "DEPLOYING",
+  "data": {
+    "health_score": {"overall": 85, "data_quality": 90, "reliability": 80},
+    "test_count": 10,
+    "passed_tests": 10,
+    "next_step": "deploy",
+    "next_endpoint": "/integrations/{id}/deploy"
+  }
+}
+```
+
+### Step 5: Deploy Integration
+**POST** `/api/v1/vitesse/integrations/{integration_id}/deploy`
+
+Request:
+```json
+{
+  "replicas": 1,
+  "memory_mb": 512,
+  "cpu_cores": 0.5
+}
+```
+
+Response:
+```json
+{
+  "status": "success",
+  "integration_id": "uuid",
+  "current_step": "ACTIVE",
+  "data": {
+    "container_id": "vitesse-xyz",
+    "service_url": "http://localhost:8080/xyz",
+    "deployment_time_seconds": 15
   }
 }
 ```
@@ -420,14 +825,22 @@ User Input
 ### Get Integration Status
 **GET** `/api/v1/vitesse/integrations/{integration_id}`
 
-### Update Integration
-**PUT** `/api/v1/vitesse/integrations/{integration_id}`
+Returns current status and health score.
 
-### Manual Sync
-**POST** `/api/v1/vitesse/integrations/{integration_id}/sync`
+### List All Integrations
+**GET** `/api/v1/vitesse/integrations`
+
+Returns paginated list of all integrations.
+
+### Delete Integration
+**DELETE** `/api/v1/vitesse/integrations/{integration_id}`
+
+Deletes integration and its resources.
 
 ### System Status
 **GET** `/api/v1/vitesse/status`
+
+Returns orchestrator and agent statuses.
 
 ---
 
@@ -437,14 +850,37 @@ User Input
 
 **integrations**
 - `id`: UUID (primary key)
-- `name`: string
-- `status`: enum (initializing, discovering, mapping, testing, deploying, active, failed)
-- `source_api_spec`: JSON
-- `dest_api_spec`: JSON
-- `mapping_logic`: JSON
-- `deployment_config`: JSON
-- `health_score`: JSON
-- `created_by`: string
+- `name`: string - Integration name
+- `status`: enum (discovering, mapping, testing, deploying, active, failed)
+- `source_discovery`: JSON - Discovery result for source API
+  - `api_name`: string
+  - `base_url`: string
+  - `documentation_url`: string
+  - `confidence_score`: float
+  - `source`: string (catalog, github, etc)
+  - `discovered_at`: timestamp
+- `dest_discovery`: JSON - Discovery result for destination API (same structure)
+- `source_api_spec`: JSON - OpenAPI/Swagger spec for source (populated in Step 2: INGEST)
+  - `endpoints`: array of endpoint objects
+  - `auth_type`: string
+  - `pagination_type`: string
+- `dest_api_spec`: JSON - OpenAPI/Swagger spec for destination (same structure)
+- `mapping_logic`: JSON - Field mappings (populated in Step 3: MAP)
+  - `transformations`: array of DataTransformation objects
+  - `complexity_score`: float (1-10)
+- `health_score`: JSON - Health metrics (populated in Step 4: TEST)
+  - `overall`: float (0-100)
+  - `data_quality`: float
+  - `reliability`: float
+- `deployment_config`: JSON - Deployment settings
+  - `target`: string (local, eks, ecs)
+  - `replicas`: int
+  - `memory_mb`: int
+  - `cpu_cores`: float
+- `container_id`: string - Container ID (populated in Step 5: DEPLOY)
+- `deployment_target`: string - Where deployment happens (local, cloud_eks, cloud_ecs)
+- `created_by`: string - User who created integration
+- `extra_metadata`: JSON - Additional metadata
 - `created_at`: timestamp
 - `updated_at`: timestamp
 

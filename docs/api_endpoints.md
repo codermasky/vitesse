@@ -213,46 +213,336 @@ GET /api/v1/agent-collaboration/stats/overview
 }
 ```
 
-## Integration Builder
+## Vitesse Integration Factory (Multi-Step Workflow)
 
-### Integrations
+The integration creation process follows a **5-step sequential workflow** aligned with the Vitesse AI Framework baseline:
 
-#### List Integrations
+### Workflow Overview
+
+```
+Step 1: CREATE          Step 2: INGEST           Step 3: MAP            Step 4: TEST              Step 5: DEPLOY
+(DISCOVERING)   →      (MAPPING)        →       (TESTING)      →      (DEPLOYING)      →       (ACTIVE)
+  |                       |                        |                     |                        |
+  Create from          Fetch API specs       Generate mappings     Run Guardian tests       Deploy to target
+  discovery results    from URLs             using Mapper agent    (health score)          environment
+```
+
+### Step 1: Discover APIs
+
+#### Discover APIs by Search Query
 ```http
-GET /api/v1/integration-builder/
+GET /api/v1/vitesse/discover?query=Salesforce&limit=5
 ```
 
 **Query Parameters:**
-- `skip` (int, optional): Number of integrations to skip (default: 0)
-- `limit` (int, optional): Maximum number of integrations to return (default: 50, max: 100)
-- `status` (str, optional): Filter by integration status
+- `query` (str, required): Natural language search query (e.g., "Salesforce", "payment APIs")
+- `limit` (int, optional): Maximum results (default: 5, max: 20)
 
-#### Create Integration
+**Response:**
+```json
+{
+  "status": "success",
+  "results": [
+    {
+      "api_name": "Salesforce",
+      "description": "CRM Platform",
+      "base_url": "https://api.salesforce.com",
+      "documentation_url": "https://salesforce.com/docs",
+      "confidence_score": 0.95,
+      "source": "catalog",
+      "tags": ["crm", "enterprise"]
+    }
+  ]
+}
+```
+
+### Step 1: Create Integration from Discovery Results
+
+#### POST /integrations - Create Integration
 ```http
-POST /api/v1/integration-builder/
+POST /api/v1/vitesse/integrations
 ```
 
 **Request Body:**
 ```json
 {
-  "name": "Shopify to Credo CRM Integration",
-  "description": "Sync customer data from Shopify to Credo CRM",
-  "source_api": "Shopify API",
-  "target_api": "Credo CRM API"
+  "name": "Salesforce to HubSpot Sync",
+  "source_discovery": {
+    "api_name": "Salesforce",
+    "description": "CRM Platform",
+    "base_url": "https://api.salesforce.com",
+    "documentation_url": "https://salesforce.com/docs",
+    "confidence_score": 0.95,
+    "source": "catalog"
+  },
+  "dest_discovery": {
+    "api_name": "HubSpot",
+    "description": "Marketing Platform",
+    "base_url": "https://api.hubspot.com",
+    "documentation_url": "https://hubspot.com/docs",
+    "confidence_score": 0.95,
+    "source": "catalog"
+  },
+  "user_intent": "Sync customer contacts from Salesforce to HubSpot",
+  "deployment_target": "local"
 }
 ```
 
-#### Get Integration
+**Response (201 Created):**
+```json
+{
+  "status": "success",
+  "integration_id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+  "current_step": "DISCOVERING",
+  "data": {
+    "integration": {
+      "id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+      "name": "Salesforce to HubSpot Sync",
+      "status": "discovering",
+      "source_discovery": { ... },
+      "dest_discovery": { ... }
+    },
+    "next_step": "ingest",
+    "next_endpoint": "/integrations/ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba/ingest"
+  }
+}
+```
+
+### Step 2: Ingest API Specifications
+
+#### POST /integrations/{id}/ingest - Fetch API Specs
+```http
+POST /api/v1/vitesse/integrations/{integration_id}/ingest
+```
+
+**Request Body:**
+```json
+{
+  "source_spec_url": "https://api.salesforce.com/openapi.json",
+  "dest_spec_url": "https://api.hubspot.com/openapi.json"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "integration_id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+  "current_step": "MAPPING",
+  "data": {
+    "source_endpoints": ["/customers", "/contacts"],
+    "dest_endpoints": ["/contacts", "/deals"],
+    "next_step": "map",
+    "next_endpoint": "/integrations/ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba/map"
+  }
+}
+```
+
+### Step 3: Generate Field Mappings
+
+#### POST /integrations/{id}/map - Generate Mappings
+```http
+POST /api/v1/vitesse/integrations/{integration_id}/map
+```
+
+**Request Body:**
+```json
+{
+  "source_endpoint": "/customers",
+  "dest_endpoint": "/contacts",
+  "mapping_hints": {
+    "email": "email_address",
+    "name": "full_name"
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "integration_id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+  "current_step": "TESTING",
+  "data": {
+    "transformation_count": 12,
+    "complexity_score": 5,
+    "next_step": "test",
+    "next_endpoint": "/integrations/ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba/test"
+  }
+}
+```
+
+### Step 4: Run Tests
+
+#### POST /integrations/{id}/test - Execute Tests
+```http
+POST /api/v1/vitesse/integrations/{integration_id}/test
+```
+
+**Request Body:**
+```json
+{
+  "test_sample_size": 10,
+  "skip_destructive": true
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "integration_id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+  "current_step": "DEPLOYING",
+  "data": {
+    "health_score": {
+      "overall": 85,
+      "data_quality": 90,
+      "reliability": 80
+    },
+    "test_count": 10,
+    "passed_tests": 10,
+    "next_step": "deploy",
+    "next_endpoint": "/integrations/ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba/deploy"
+  }
+}
+```
+
+### Step 5: Deploy Integration
+
+#### POST /integrations/{id}/deploy - Deploy
+```http
+POST /api/v1/vitesse/integrations/{integration_id}/deploy
+```
+
+**Request Body:**
+```json
+{
+  "replicas": 1,
+  "memory_mb": 512,
+  "cpu_cores": 0.5,
+  "auto_scale": false
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "integration_id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+  "current_step": "ACTIVE",
+  "data": {
+    "container_id": "vitesse-ad9cb833",
+    "service_url": "http://localhost:8080/ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+    "deployment_time_seconds": 15
+  }
+}
+```
+
+### Workflow Status Endpoints
+
+#### GET /integrations - List All Integrations
+```http
+GET /api/v1/vitesse/integrations
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+      "name": "Salesforce to HubSpot Sync",
+      "status": "active",
+      "health_score": {
+        "overall": 85,
+        "data_quality": 90,
+        "reliability": 80
+      },
+      "created_at": "2026-02-14T22:35:19",
+      "created_by": "system"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### GET /integrations/{id} - Get Integration Status
+```http
+GET /api/v1/vitesse/integrations/{integration_id}
+```
+
+**Response (200 OK):**
+```json
+{
+  "integration_id": "ad9cb833-cd8d-4a49-8fcc-4a98bb3dbbba",
+  "status": "active",
+  "health_score": {
+    "overall": 85,
+    "data_quality": 90,
+    "reliability": 80
+  },
+  "last_updated": "2026-02-14T22:36:31.507280"
+}
+```
+
+#### DELETE /integrations/{id} - Delete Integration
+```http
+DELETE /api/v1/vitesse/integrations/{integration_id}
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Integration and resources deleted"
+}
+```
+
+### System Status
+
+#### GET /status - Get Vitesse System Status
+```http
+GET /api/v1/vitesse/status
+```
+
+**Response (200 OK):**
+```json
+{
+  "orchestrator_id": "vitesse-orchestrator-001",
+  "ingestor_status": { "status": "ready" },
+  "mapper_status": { "status": "ready" },
+  "guardian_status": { "status": "ready" }
+}
+```
+
+---
+
+## Legacy Integration Builder (Deprecated)
+
+The following endpoints are for reference only and have been superseded by the multi-step workflow:
+
+### List Integrations
+```http
+GET /api/v1/integration-builder/
+```
+
+### Create Integration (Legacy)
+```http
+POST /api/v1/integration-builder/
+```
+
+### Get Integration (Legacy)
 ```http
 GET /api/v1/integration-builder/{integration_id}
 ```
 
-#### Update Integration
+### Update Integration (Legacy)
 ```http
 PUT /api/v1/integration-builder/{integration_id}
 ```
 
-#### Delete Integration
+### Delete Integration (Legacy)
 ```http
 DELETE /api/v1/integration-builder/{integration_id}
 ```

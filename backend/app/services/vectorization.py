@@ -878,25 +878,19 @@ class VectorizationService:
         self.vector_store = self._get_vector_store()
 
     def _get_embeddings(self):
-        """Get embeddings model."""
+        """Get embeddings model using local HuggingFace (free, no API key needed)."""
         try:
             from langchain_huggingface import HuggingFaceEmbeddings
 
+            logger.info("Initializing HuggingFace embeddings (all-MiniLM-L6-v2)")
             return HuggingFaceEmbeddings(
                 model_name="all-MiniLM-L6-v2", cache_folder="/models"
             )
-        except ImportError:
-            logger.warning(
-                "HuggingFace embeddings not available, falling back to OpenAI"
+        except Exception as e:
+            logger.error(f"Failed to initialize HuggingFace embeddings: {e}")
+            raise ValueError(
+                "Failed to initialize local embeddings. Ensure HuggingFace models can be downloaded."
             )
-            if settings.OPENAI_API_KEY:
-                from langchain_openai import OpenAIEmbeddings
-
-                return OpenAIEmbeddings(
-                    model="text-embedding-ada-002",
-                    openai_api_key=settings.OPENAI_API_KEY,
-                )
-            raise ValueError("No embedding model available")
 
     def _get_vector_store(self):
         """Get vector store based on configuration."""

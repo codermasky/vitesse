@@ -22,7 +22,7 @@ from sqlalchemy import select, update
 from app import models
 from app.api import deps
 from app.core.config import settings
-from app.db.session import get_db
+from app.db.session import get_db, async_session_factory
 from app.services.knowledge_base import knowledge_base_manager
 from app.services.metadata_service import get_metadata_service
 from app.services.vectorization import get_vectorization_service
@@ -130,6 +130,9 @@ async def upload_document(
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """Upload and process a document."""
+    # Capture user_id early to avoid lazy loading issues in error handler
+    user_id = current_user.id
+
     try:
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
@@ -139,7 +142,7 @@ async def upload_document(
         safe_filename = f"{file_id}.{file_ext}" if file_ext else file_id
         file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
 
-        logger.info(f"Uploading file: {file.filename} for user {current_user.id}")
+        logger.info(f"Uploading file: {file.filename} for user {user_id}")
 
         # 1. Create SQL record first
         new_doc = Document(
@@ -148,7 +151,7 @@ async def upload_document(
             type=file_ext,
             location=file_path,
             size=file.size,
-            user_id=current_user.id,
+            user_id=user_id,
             doc_type=doc_type,
             category=doc_type,
             extraction_status=ExtractionStatus.PENDING,
@@ -179,28 +182,33 @@ async def upload_document(
             "deployment_type": deployment_type,
         }
 
-        # 4. Trigger ingestion
+        # 4. Trigger ingestion with database session management
+        async def process_document_with_db():
+            """Wrapper to handle db session for background task."""
+            async with async_session_factory() as db:
+                await knowledge_base_manager.add_document(
+                    file_path=file_path,
+                    file_type=file_ext,
+                    document_id=file_id,
+                    metadata=metadata,
+                    db_session=db,
+                )
+
         if background_tasks:
-            background_tasks.add_task(
-                knowledge_base_manager.add_document,
-                file_path=file_path,
-                file_type=file_ext,
-                document_id=file_id,
-                metadata=metadata,
-                db_session=None,
-            )
+            background_tasks.add_task(process_document_with_db)
             logger.info(f"Background task queued for document {file_id}")
         else:
             logger.warning(
                 f"No background tasks available, processing synchronously for {file_id}"
             )
-            await knowledge_base_manager.add_document(
-                file_path=file_path,
-                file_type=file_ext,
-                document_id=file_id,
-                metadata=metadata,
-                db_session=db,
-            )
+            async with async_session_factory() as db:
+                await knowledge_base_manager.add_document(
+                    file_path=file_path,
+                    file_type=file_ext,
+                    document_id=file_id,
+                    metadata=metadata,
+                    db_session=db,
+                )
 
         logger.info(f"File upload successful: {file_id} ({file.filename})")
         return {
@@ -211,8 +219,12 @@ async def upload_document(
         }
 
     except Exception as e:
-        await db.rollback()
-        logger.error("File upload failed", error=str(e), user_id=current_user.id)
+        try:
+            await db.rollback()
+        except Exception:
+            pass  # Ignore rollback errors
+
+        logger.error(f"File upload failed: {str(e)}", user_id=user_id)
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
@@ -713,6 +725,76 @@ async def get_all_tags(
     except Exception as e:
         logger.error("Failed to get tags", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get tags: {str(e)}")
+
+
+@router.post("/{document_id}/revectorize/")
+async def revectorize_document(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """Re-process and re-vectorize a document to update vector embeddings."""
+    try:
+        # Verify ownership and get document
+        result = await db.execute(select(Document).filter(Document.id == document_id))
+        doc_record = result.scalar_one_or_none()
+
+        if not doc_record:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        if doc_record.user_id != current_user.id:
+            raise HTTPException(
+                status_code=403, detail="Not authorized to revectorize this document"
+            )
+
+        # Reset status to PENDING for re-processing
+        doc_record.extraction_status = ExtractionStatus.PENDING
+        doc_record.extraction_error = None
+        await db.commit()
+        logger.info(
+            f"Document {document_id} status reset to PENDING for revectorization"
+        )
+
+        # Prepare metadata
+        metadata = {
+            "original_filename": doc_record.name,
+            "doc_type": doc_record.doc_type,
+            "category": doc_record.category,
+            "db_id": document_id,
+            "product_id": doc_record.product_id,
+            "deployment_type": doc_record.deployment_type,
+            "revectorization": True,  # Flag to indicate this is a re-vectorization
+        }
+
+        # Queue background task for revectorization with database session
+        async def revectorize_with_db():
+            """Wrapper to handle db session for revectorization task."""
+            async with async_session_factory() as new_db:
+                await knowledge_base_manager.revectorize_document(
+                    document_id=document_id,
+                    file_path=doc_record.location,
+                    file_type=doc_record.type,
+                    metadata=metadata,
+                    db_session=new_db,
+                )
+
+        background_tasks.add_task(revectorize_with_db)
+        logger.info(f"Revectorization task queued for document {document_id}")
+
+        return {
+            "status": "success",
+            "message": f"Document {doc_record.name} queued for re-vectorization",
+            "document_id": document_id,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to revectorize document", error=str(e), doc_id=document_id
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to revectorize: {str(e)}")
 
 
 @router.get("/{document_id}/download")

@@ -3,11 +3,71 @@ VITESSE AI: AGENTIC SYSTEM DESIGN & MEMORY ARCHITECTURE
 ========================================================
 
 A comprehensive guide to the newly extended Vitesse AI system with:
-1. Collaborative Intelligence (Shared Whiteboard)
-2. Persistent Memory & Context Preservation (Vector DB)
-3. Knowledge Harvesting (Financial Services)
-4. Enhanced Agentic Workflow
+1. Multi-Step Integration Workflow (Sequential REST API)
+2. Collaborative Intelligence (Shared Whiteboard)
+3. Persistent Memory & Context Preservation (Vector DB)
+4. Knowledge Harvesting (Financial Services)
+5. Enhanced Agentic Workflow
 """
+
+# ===== 0. MULTI-STEP INTEGRATION WORKFLOW =====
+
+## Overview
+
+Vitesse AI now implements a **5-step sequential workflow** for integration creation, replacing the previous monolithic approach. This design provides transparency, control, and clear state management throughout the integration lifecycle.
+
+### Workflow Architecture
+
+```
+REST API Layer (Frontend-facing)
+  │
+  ├─ POST /integrations               → Step 1: CREATE (DISCOVERING)
+  ├─ POST /integrations/{id}/ingest   → Step 2: INGEST (MAPPING) 
+  ├─ POST /integrations/{id}/map      → Step 3: MAP (TESTING)
+  ├─ POST /integrations/{id}/test     → Step 4: TEST (DEPLOYING)
+  ├─ POST /integrations/{id}/deploy   → Step 5: DEPLOY (ACTIVE)
+  └─ GET  /integrations/{id}          → Check status
+```
+
+### State Progression
+
+```
+DISCOVERING → MAPPING → TESTING → DEPLOYING → ACTIVE
+    ↓            ↓         ↓          ↓         ↓
+  Step 1       Step 2    Step 3     Step 4    Step 5
+  Create       Ingest    Map        Test      Deploy
+  discovery    API       field      Guardian  Deployer
+  results      specs     mappings   tests     Agent
+```
+
+### Key Benefits
+
+- **Transparency**: User sees progress at each step
+- **Control**: User decides when to proceed
+- **Debuggability**: Issues isolated to specific step
+- **Reliability**: Each step independently tested
+- **Repeatability**: Can retry failed steps
+- **Human Review**: Optional step for complex integrations
+
+### Implementation
+
+**Base Endpoint**: `/api/v1/vitesse`
+
+**Orchestrator**: `VitesseOrchestrator` manages step progression
+
+**Agents Used**:
+- Step 2: `VitesseIngestor` - Parses API specs
+- Step 3: `VitesseMapper` - Generates field mappings
+- Step 4: `VitesseGuardian` - Runs integration tests
+- Step 5: `Deployer` - Deploys to target environment
+
+**Persistence**: All state stored in PostgreSQL Integration table
+
+### Full Documentation
+
+See [Multi-Step Workflow Guide](./multi_step_workflow.md) for detailed step-by-step instructions.
+
+---
 
 # ===== 1. SHARED WHITEBOARD (COLLABORATIVE INTELLIGENCE) =====
 
@@ -48,6 +108,7 @@ Each agent reads the current state, adds its insights, and the next agent builds
 ### 1.3 Usage Example in Agents
 
 ```python
+```
 from app.core.shared_state import SharedWhiteboardState
 
 async def agent_execute_with_shared_state(

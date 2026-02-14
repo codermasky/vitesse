@@ -76,6 +76,9 @@ const KnowledgeBase: React.FC = () => {
     const [bulkUpdateProduct, setBulkUpdateProduct] = useState<string>('');
     const [bulkUpdateDeployment, setBulkUpdateDeployment] = useState<string>('');
 
+    // Revectorization State
+    const [revectorizingId, setRevectorizingId] = useState<string | null>(null);
+
     useEffect(() => {
         fetchDocuments();
         fetchAvailableProducts();
@@ -145,8 +148,8 @@ const KnowledgeBase: React.FC = () => {
                 // This document failed processing
                 addNotification({
                     type: 'error',
-                    message: `✗ Processing failed for "${doc.name}". Please try reupload or contact support.`,
-                    duration: 5000,
+                    message: `✗ "${doc.name}" failed processing. This is usually due to missing embedding models (OpenAI API key not configured). Documents uploaded successfully but need vectorization enabled.`,
+                    duration: 7000,
                 });
             }
         });
@@ -168,7 +171,6 @@ const KnowledgeBase: React.FC = () => {
         if (!files || files.length === 0) return;
 
         const fileCount = files.length;
-        const fileNames = Array.from(files).map(f => f.name);
 
         setIsUploading(true);
         
@@ -209,7 +211,7 @@ const KnowledgeBase: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // Refresh document list
-            const docsFetched = await fetchDocuments();
+            await fetchDocuments();
             console.log('Documents after upload:', documents);
             
             // Show success notification
@@ -235,6 +237,43 @@ const KnowledgeBase: React.FC = () => {
         } finally {
             setIsUploading(false);
             event.target.value = '';
+        }
+    };
+
+    const handleRevectorize = async (documentId: string, documentName: string) => {
+        setRevectorizingId(documentId);
+        addNotification({
+            type: 'info',
+            message: `Re-vectorizing \"${documentName}\"... Processing in background.`,
+            duration: 0,
+        });
+
+        try {
+            const response = await apiService.revectorizeDocument(documentId);
+            console.log('Revectorization response:', response);
+
+            addNotification({
+                type: 'success',
+                message: `✓ \"${documentName}\" queued for re-vectorization. Updated embeddings will be ready soon.`,
+                duration: 5000,
+            });
+
+            // Refresh documents to show updated status
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await fetchDocuments(false);
+        } catch (error: any) {
+            console.error('Revectorization failed:', error);
+            const errorMessage = error?.response?.data?.detail 
+                || error?.message 
+                || 'Failed to revectorize document';
+            
+            addNotification({
+                type: 'error',
+                message: `Revectorization failed for \"${documentName}\": ${errorMessage}`,
+                duration: 6000,
+            });
+        } finally {
+            setRevectorizingId(null);
         }
     };
 
@@ -664,7 +703,23 @@ const KnowledgeBase: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                handleRevectorize(doc.id, doc.name);
+                                            }}
+                                            disabled={revectorizingId === doc.id}
+                                            className="p-2 bg-blue-100 dark:bg-blue-500/10 hover:bg-blue-200 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg transition-colors border border-blue-200 dark:border-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title="Re-vectorize Document"
+                                        >
+                                            {revectorizingId === doc.id ? (
+                                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <RefreshCw className="w-4 h-4" />
+                                            )}
+                                        </button>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -878,7 +933,23 @@ const KnowledgeBase: React.FC = () => {
                                         </td>
                                         <td className="p-4 text-sm text-surface-500 dark:text-surface-400 font-mono">{formatSize(doc.size)}</td>
                                         <td className="p-4 text-sm text-surface-500 dark:text-surface-400">{formatDate(doc.last_modified)}</td>
-                                        <td className="p-4 text-right">
+                                        <td className="p-4 text-right flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleRevectorize(doc.id, doc.name);
+                                                }}
+                                                disabled={revectorizingId === doc.id}
+                                                className="p-2 hover:bg-blue-500/20 text-surface-400 hover:text-blue-500 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title="Re-vectorize"
+                                            >
+                                                {revectorizingId === doc.id ? (
+                                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <RefreshCw className="w-4 h-4" />
+                                                )}
+                                            </button>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();

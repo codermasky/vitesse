@@ -12,8 +12,8 @@ from app.schemas.integration import DataTransformation
 from app.core.config import settings
 from app.services.llm_provider import LLMProviderService
 
-# We'll use langchain-openai for embeddings
-from langchain_openai import OpenAIEmbeddings
+# Use local HuggingFace embeddings (free, no API key needed)
+from langchain_huggingface import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,9 @@ class SemanticLayer:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        # Initialize embedding model
-        self.embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small", api_key=settings.OPENAI_API_KEY
+        # Initialize embedding model (local, free)
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name="all-MiniLM-L6-v2", cache_folder="/models"
         )
 
     async def _generate_embedding(self, text: str) -> List[float]:

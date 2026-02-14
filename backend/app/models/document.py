@@ -66,7 +66,9 @@ class Document(Base):
 
     # Extraction flow tracking
     extraction_status: Mapped[str] = Column(
-        SQLEnum(ExtractionStatus), nullable=False, default=ExtractionStatus.PENDING
+        SQLEnum(ExtractionStatus, native_enum=False),
+        nullable=False,
+        default=ExtractionStatus.PENDING.value,
     )
     extraction_started_at: Mapped[Optional[datetime]] = Column(DateTime, nullable=True)
     extraction_completed_at: Mapped[Optional[datetime]] = Column(

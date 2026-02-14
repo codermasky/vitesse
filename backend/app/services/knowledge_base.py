@@ -66,6 +66,30 @@ class KnowledgeBaseManager:
             logger.error(
                 "Failed to add document to KB", error=str(e), document_id=document_id
             )
+
+            # Update document status to failed if db_session is available
+            if db_session:
+                try:
+                    from sqlalchemy import select, update
+                    from app.models.document import Document, ExtractionStatus
+
+                    # Update document status to failed
+                    stmt = (
+                        update(Document)
+                        .where(Document.id == document_id)
+                        .values(
+                            extraction_status=ExtractionStatus.FAILED.value,
+                            extraction_error=str(e)[
+                                :500
+                            ],  # Store first 500 chars of error
+                        )
+                    )
+                    await db_session.execute(stmt)
+                    await db_session.commit()
+                    logger.info(f"Updated document {document_id} status to FAILED")
+                except Exception as update_error:
+                    logger.error(f"Failed to update document status: {update_error}")
+
             return {
                 "success": False,
                 "error": str(e),

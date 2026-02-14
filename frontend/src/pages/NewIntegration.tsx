@@ -160,28 +160,66 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
         setError(null);
         try {
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
-            const payload = {
-                name: `${selectedSource.api_name} -> ${selectedDest.api_name}`,
+            
+            // Step 1: Create integration from discovery results
+            const createPayload = {
+                name: `${selectedSource.api_name} → ${selectedDest.api_name}`,
+                source_discovery: selectedSource,
+                dest_discovery: selectedDest,
                 user_intent: userIntent || `Sync data from ${selectedSource.api_name} to ${selectedDest.api_name}`,
-                source_api_spec: selectedSource, // Pass the whole result as the spec/context
-                dest_api_spec: selectedDest,     // Pass the whole result as the spec/context
-                deployment_target: deploymentTarget
+                deployment_target: deploymentTarget,
+                metadata: {
+                    created_from_workflow: true
+                }
             };
 
-            await axios.post(`${apiUrl}/vitesse/integrations`, payload, {
+            const createResponse = await axios.post(`${apiUrl}/vitesse/integrations`, createPayload, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                 }
             });
 
+            if (createResponse.data.status !== 'success') {
+                throw new Error(createResponse.data.error || 'Failed to create integration');
+            }
+
+            const integrationId = createResponse.data.integration_id;
+            console.log('Integration created:', integrationId);
+
+            // Step 2: Ingest API specifications
+            const ingestPayload = {
+                source_spec_url: selectedSource.spec_url,
+                dest_spec_url: selectedDest.spec_url
+            };
+
+            const ingestResponse = await axios.post(
+                `${apiUrl}/vitesse/integrations/${integrationId}/ingest`,
+                ingestPayload,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                }
+            );
+
+            if (ingestResponse.data.status !== 'success') {
+                throw new Error(ingestResponse.data.error || 'Failed to ingest specifications');
+            }
+
+            console.log('Specifications ingested');
+
+            // For now, redirect to integrations list
+            // In a full UI, we would continue with Step 3 (map), Step 4 (test), Step 5 (deploy)
+            // and show progress through each step
+
             setShowSuccess(true);
             setTimeout(() => {
-                navigate('/integrations');
+                navigate(`/integrations?id=${integrationId}`);
             }, 2500);
 
         } catch (error) {
             console.error('Creation failed:', error);
-            setError('Failed to create integration. Please try again.');
+            setError(`Failed to create integration: ${error instanceof Error ? error.message : 'Unknown error'}`);
             setIsCreating(false);
         }
     };

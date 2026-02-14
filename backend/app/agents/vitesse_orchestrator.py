@@ -306,14 +306,14 @@ class VitesseOrchestrator:
                     db_integration = IntegrationModel(
                         id=integration.id,
                         name=integration.name,
-                        status=IntegrationStatusEnum(status_val),
+                        status=status_val,
                         source_api_spec=make_json_serializable(source_spec_data),
                         dest_api_spec=make_json_serializable(dest_spec_data),
                         mapping_logic=make_json_serializable(mapping_logic_data),
                         deployment_config=make_json_serializable(
                             deployment_config_data
                         ),
-                        deployment_target=DeploymentTargetEnum(target_val),
+                        deployment_target=target_val,
                         health_score=make_json_serializable(health_score_data),
                         error_log=integration.error_log,
                         container_id=integration.container_id,
@@ -717,4 +717,149 @@ class VitesseOrchestrator:
             logger.error("Cleanup failed", integration_id=integration_id, error=str(e))
             # Return success anyway so DB deletion can proceed?
             # Or maybe failed to warn user? Let's return failed.
+            return {"status": "failed", "error": str(e)}
+
+    # ==================== Multi-Step Workflow Methods ====================
+
+    async def ingest_api_specs(
+        self,
+        source_discovery: Dict[str, Any],
+        dest_discovery: Dict[str, Any],
+        source_spec_url: Optional[str] = None,
+        dest_spec_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Ingest API specifications for both source and destination APIs."""
+        try:
+            logger.info("Ingesting API specifications")
+            
+            # TODO: Implement actual spec fetching from URLs
+            # For now, return mock specifications
+            source_api_spec = {
+                "api_name": source_discovery["api_name"],
+                "base_url": source_discovery.get("base_url", ""),
+                "endpoints": [
+                    {
+                        "path": "/customers",
+                        "method": "GET",
+                        "response_schema": {"type": "object", "properties": {}}
+                    }
+                ]
+            }
+            
+            dest_api_spec = {
+                "api_name": dest_discovery["api_name"],
+                "base_url": dest_discovery.get("base_url", ""),
+                "endpoints": [
+                    {
+                        "path": "/contacts",
+                        "method": "POST",
+                        "request_schema": {"type": "object", "properties": {}}
+                    }
+                ]
+            }
+            
+            return {
+                "status": "success",
+                "source_api_spec": source_api_spec,
+                "dest_api_spec": dest_api_spec,
+            }
+        except Exception as e:
+            logger.error("Ingest failed", error=str(e))
+            return {"status": "failed", "error": str(e)}
+
+    async def generate_mappings(
+        self,
+        integration_id: str,
+        source_api_spec: Dict[str, Any],
+        dest_api_spec: Dict[str, Any],
+        source_endpoint: str,
+        dest_endpoint: str,
+        user_intent: str,
+        mapping_hints: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """Generate field mappings between source and destination APIs."""
+        try:
+            logger.info(
+                "Generating mappings",
+                integration_id=integration_id,
+                source_endpoint=source_endpoint,
+                dest_endpoint=dest_endpoint,
+            )
+            
+            # TODO: Implement actual mapping generation using Mapper agent
+            # For now, return mock mappings
+            mapping_logic = {
+                "source_api": source_api_spec.get("api_name"),
+                "dest_api": dest_api_spec.get("api_name"),
+                "source_endpoint": source_endpoint,
+                "dest_endpoint": dest_endpoint,
+                "transformations": [],
+                "error_handling": {
+                    "retry_count": 3,
+                    "backoff_strategy": "exponential",
+                    "skip_unmapped_fields": False,
+                }
+            }
+            
+            return {
+                "status": "success",
+                "mapping_logic": mapping_logic,
+                "transformation_count": 0,
+                "complexity_score": 5,
+            }
+        except Exception as e:
+            logger.error("Mapping generation failed", error=str(e))
+            return {"status": "failed", "error": str(e)}
+
+    async def run_tests(
+        self,
+        integration_id: str,
+        source_api_spec: Dict[str, Any],
+        dest_api_spec: Dict[str, Any],
+        mapping_logic: Dict[str, Any],
+        test_sample_size: int = 5,
+        skip_destructive: bool = True,
+    ) -> Dict[str, Any]:
+        """Run integration tests."""
+        try:
+            logger.info("Running integration tests", integration_id=integration_id)
+            
+            # TODO: Implement actual test execution using Guardian agent
+            # For now, return mock test results
+            return {
+                "status": "success",
+                "health_score": {"overall": 85, "data_quality": 90, "reliability": 80},
+                "test_count": test_sample_size,
+                "passed_tests": test_sample_size,
+            }
+        except Exception as e:
+            logger.error("Test execution failed", error=str(e))
+            return {"status": "failed", "error": str(e)}
+
+    async def deploy_integration(
+        self,
+        integration_id: str,
+        source_api_spec: Dict[str, Any],
+        dest_api_spec: Dict[str, Any],
+        mapping_logic: Dict[str, Any],
+        deployment_config: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Deploy integration to target environment."""
+        try:
+            logger.info(
+                "Deploying integration",
+                integration_id=integration_id,
+                target=deployment_config.get("target", "local"),
+            )
+            
+            # TODO: Implement actual deployment using Deployer agent
+            # For now, return mock deployment result
+            return {
+                "status": "success",
+                "container_id": f"vitesse-{integration_id[:8]}",
+                "service_url": f"http://localhost:8080/{integration_id}",
+                "deployment_time_seconds": 15,
+            }
+        except Exception as e:
+            logger.error("Deployment failed", error=str(e))
             return {"status": "failed", "error": str(e)}

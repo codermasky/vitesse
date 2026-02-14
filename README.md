@@ -7,47 +7,70 @@
 ## 🎯 Mission
 Design a system where a user provides an API URL, and Vitesse AI delivers a live, containerized integration in **minutes**.
 
-## 🏗️ Core Architecture
+## 🚀 Quick Start
 
-### The Agentic Integration Factory
+### Creating an Integration (5-Step Workflow)
 
-**Discovery Agent (Search & Identify)**
-- Search for APIs using natural language queries
-- Curated catalog of popular APIs and Linedata products
-- LLM-powered discovery for unknown APIs
-- Input: Search query (e.g., "Shopify", "payment APIs")
-- Output: Ranked API candidates with confidence scores
+Vitesse AI implements a **sequential 5-step workflow** for transparent, controllable integration creation:
 
-**1. The Ingestor Agent (Specification)**
-- Autonomously parses API endpoints, headers, and authentication logic
-- Generates standardized integration specifications
-- Input: API Documentation URL or Swagger/OpenAPI spec
-- Output: Ready-to-deploy integration module
+```
+Step 1: CREATE     → POST /integrations (DISCOVERING)
+Step 2: INGEST     → POST /integrations/{id}/ingest (MAPPING)
+Step 3: MAP        → POST /integrations/{id}/map (TESTING)
+Step 4: TEST       → POST /integrations/{id}/test (DEPLOYING)
+Step 5: DEPLOY     → POST /integrations/{id}/deploy (ACTIVE)
+```
 
-**2. The Semantic Mapper (Logic)**
-- Maps source data to destination schemas using semantic reasoning
-- Handles complex transformations (date formatting, data type conversions, name splitting)
-- Input: User Intent (e.g., "Sync Shopify customers to Credo CRM")
-- Output: Logic-flow configuration file
+**[👉 Full Multi-Step Workflow Guide →](./docs/multi_step_workflow.md)**
 
-**3. The Guardian Agent (Quality & Self-Healing)**
-- Spins up sandbox environments with synthetic test data
-- Runs 100+ shadow calls to verify integration success
-- Detects failures and autonomously triggers re-mapping if API schema changes
-- Output: Health Score report
+**Example**: Create a Salesforce → HubSpot integration
 
-**4. The Vitesse Deployer (Pluggable Delivery)**
-- **Local Mode**: Docker/Traefik on Ubuntu VPS
-- **Cloud Mode**: EKS/ECS with ECR integration
-- Configurable via `--target` flag for seamless scaling
-- All instances are stateless, using external PostgreSQL (Supabase) for state
+```bash
+# Step 1: Create integration from discovered APIs
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Salesforce to HubSpot",
+    "source_discovery": {...salesforce discovery...},
+    "dest_discovery": {...hubspot discovery...},
+    "user_intent": "Sync contacts",
+    "deployment_target": "local"
+  }'
+# Returns: integration_id
 
-### Typical Integration Pattern
+# Step 2: Ingest API specifications
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/ingest \
+  -d '{"source_spec_url": "...", "dest_spec_url": "..."}'
 
-**External API → Linedata Product**
-- Source: Third-party APIs (Shopify, Stripe, GitHub, market data providers, etc.)
-- Destination: Linedata products (CapitalStream, Longview, Ekip, MFEX)
-- Use Case: Enrich Linedata platforms with external data sources for asset management, compliance, and insurance workflows
+# Step 3: Generate field mappings
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/map \
+  -d '{"source_endpoint": "/customers", "dest_endpoint": "/contacts"}'
+
+# Step 4: Run validation tests
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/test \
+  -d '{"test_sample_size": 10}'
+
+# Step 5: Deploy to target
+curl -X POST http://localhost:9001/api/v1/vitesse/integrations/{id}/deploy \
+  -d '{"replicas": 1, "memory_mb": 512}'
+
+# Integration is now ACTIVE and ready for use!
+```
+
+---
+
+## 📖 Documentation
+
+- **[Multi-Step Workflow Guide](./docs/multi_step_workflow.md)** - Detailed step-by-step guide
+- **[API Endpoints](./docs/api_endpoints.md)** - Complete REST API reference
+- **[Architecture Design](./docs/architecture_design.md)** - System architecture & design patterns
+- **[Implementation Guide](./docs/implementation_guide.md)** - Developer reference & database schema
+- **[Deployment Guide](./docs/deployment.md)** - Production deployment instructions
+- **[Testing Guide](./docs/testing.md)** - Integration testing strategies
+
+---
+
+## 🔧 Configuration
 
 ## 🚀 Quick Start
 

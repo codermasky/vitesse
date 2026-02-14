@@ -3,9 +3,10 @@ API endpoints for Vitesse AI integration factory.
 Exposes the full integration lifecycle via REST API.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -13,7 +14,7 @@ from sqlalchemy import select
 from app.agents.vitesse_orchestrator import VitesseOrchestrator
 from app.agents.base import AgentContext
 from app.schemas.integration import DeploymentTarget, DeploymentConfig
-from app.schemas.discovery import DiscoveryRequest, DiscoveryResponse
+from app.schemas.discovery import DiscoveryRequest, DiscoveryResponse, DiscoveryResult
 from app.db.session import get_db
 
 logger = structlog.get_logger(__name__)
@@ -36,20 +37,62 @@ def get_orchestrator() -> VitesseOrchestrator:
 # ==================== Request/Response Models ====================
 
 
-class CreateIntegrationRequest(BaseModel):
-    """Request to create a new integration."""
+# Step 1: Create Integration from Discovery Results
+class CreateIntegrationFromDiscoveryRequest(BaseModel):
+    """Request to create integration from discovery results."""
 
-    source_api_url: str
-    source_api_name: str
-    dest_api_url: str
-    dest_api_name: str
-    user_intent: str
-    deployment_target: DeploymentTarget = DeploymentTarget.LOCAL
-    source_auth: Optional[Dict[str, Any]] = None
-    dest_auth: Optional[Dict[str, Any]] = None
-    source_spec_url: Optional[str] = None
-    dest_spec_url: Optional[str] = None
+    name: str = Field(..., description="Human-readable integration name")
+    source_discovery: DiscoveryResult = Field(..., description="Source API discovery result")
+    dest_discovery: DiscoveryResult = Field(..., description="Destination API discovery result")
+    user_intent: str = Field(..., description="User's integration goal (e.g., 'Sync Shopify customers to CRM')")
+    deployment_target: DeploymentTarget = Field(default=DeploymentTarget.LOCAL)
     metadata: Optional[Dict[str, Any]] = None
+
+
+# Step 2: Ingest Specifications
+class IngestIntegrationRequest(BaseModel):
+    """Request to ingest detailed API specifications."""
+
+    source_spec_url: Optional[str] = Field(None, description="URL to source API OpenAPI/Swagger spec")
+    dest_spec_url: Optional[str] = Field(None, description="URL to dest API OpenAPI/Swagger spec")
+
+
+# Step 3: Generate Mappings
+class MapIntegrationRequest(BaseModel):
+    """Request to generate field mappings."""
+
+    source_endpoint: str = Field(..., description="Source API endpoint path to map from")
+    dest_endpoint: str = Field(..., description="Destination API endpoint path to map to")
+    mapping_hints: Optional[Dict[str, str]] = Field(None, description="Manual mapping hints from user")
+
+
+# Step 4: Run Tests
+class TestIntegrationRequest(BaseModel):
+    """Request to run integration tests."""
+
+    test_sample_size: int = Field(default=5, ge=1, le=100, description="Number of test records to use")
+    skip_destructive: bool = Field(default=True, description="Skip tests that modify data")
+
+
+# Step 5: Deploy
+class DeployIntegrationRequest(BaseModel):
+    """Request to deploy integration."""
+
+    replicas: int = Field(default=1, ge=1, description="Number of replicas")
+    memory_mb: int = Field(default=512, ge=256, description="Memory in MB")
+    cpu_cores: float = Field(default=0.5, ge=0.1, description="CPU cores")
+    auto_scale: bool = Field(default=False, description="Enable autoscaling")
+
+
+# Response Models
+class IntegrationStepResponse(BaseModel):
+    """Response from integration step."""
+
+    status: str = Field(..., description="success|failed")
+    integration_id: str = Field(..., description="Integration ID")
+    current_step: str = Field(..., description="Current workflow step")
+    data: Dict[str, Any] = Field(default_factory=dict, description="Step-specific data")
+    error: Optional[str] = None
 
 
 class DeploymentSetup(BaseModel):
@@ -142,99 +185,399 @@ async def discover_apis(
 
 
 # ==================== Integration Lifecycle Endpoints ====================
+
+# Step 1: Create Integration from Discovery Results
 @router.post(
     "/integrations",
-    response_model=CreateIntegrationResponse,
-    summary="Create new integration",
-    description="End-to-end integration creation: discovery → mapping → testing → ready for deployment",
+    response_model=IntegrationStepResponse,
+    summary="Create integration from discovery results",
+    description="Step 1: Initiate integration using source and destination discovery results.",
 )
-async def create_integration(
-    request: CreateIntegrationRequest,
-    background_tasks: BackgroundTasks,
-    orchestrator: VitesseOrchestrator = Depends(get_orchestrator),
+async def create_integration_from_discovery(
+    request: CreateIntegrationFromDiscoveryRequest,
+    db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     """
-    Create a complete integration between two APIs.
-
-    Process:
-    1. **Ingestor**: Discover source and destination APIs
-    2. **Mapper**: Generate semantic field mappings
-    3. **Guardian**: Run comprehensive tests (100+ shadow calls)
-    4. **Status**: Ready for deployment if health score ≥ 70/100
-
-    For APIs with OpenAPI/Swagger specs available:
-    ```json
-    {
-        "source_api_url": "https://api.shopify.com/swagger.json",
-        "source_api_name": "Shopify",
-        "dest_api_url": "https://api.credo.com/openapi.json",
-        "dest_api_name": "Credo CRM",
-        "user_intent": "Sync customers and orders from Shopify to Credo",
-        "deployment_target": "local"
-    }
-    ```
-
-    For APIs without public specs (use spec_url parameter):
-    ```json
-    {
-        "source_api_url": "https://api.coingecko.com/api/v3",
-        "source_api_name": "CoinGecko",
-        "source_spec_url": "https://api.coingecko.com/swagger.json",
-        "dest_api_url": "https://your-crm.com/api",
-        "dest_api_name": "Your CRM",
-        "dest_spec_url": "https://your-crm.com/api/openapi.json",
-        "user_intent": "Sync cryptocurrency data",
-        "deployment_target": "local"
-    }
-    ```
+    Create an integration from discovery results.
+    
+    This is Step 1 of the multi-step integration workflow:
+    - Takes source and dest discovery results
+    - Creates integration record (status=DISCOVERING)
+    - Returns integration ID for next steps
+    
+    Next: Call POST /integrations/{id}/ingest
     """
     try:
+        import uuid
+        from app.models.integration import Integration, IntegrationStatusEnum
+        from app.schemas.integration import DeploymentConfig
+        
         logger.info(
-            "Creating integration",
-            source=request.source_api_name,
-            dest=request.dest_api_name,
+            "Creating integration from discovery",
+            name=request.name,
+            source=request.source_discovery.api_name,
+            dest=request.dest_discovery.api_name,
         )
-
-        # Build deployment config
+        
+        integration_id = str(uuid.uuid4())
+        
+        # Create deployment config from request
         deployment_config = DeploymentConfig(
             target=request.deployment_target,
             memory_mb=512,
             cpu_cores=0.5,
         )
-
-        # Create integration
-        result = await orchestrator.create_integration(
-            source_api_url=request.source_api_url,
-            source_api_name=request.source_api_name,
-            dest_api_url=request.dest_api_url,
-            dest_api_name=request.dest_api_name,
-            user_intent=request.user_intent,
-            deployment_config=deployment_config,
-            created_by="system",  # TODO: Get from auth context
-            source_auth=request.source_auth,
-            dest_auth=request.dest_auth,
-            source_spec_url=request.source_spec_url,
-            dest_spec_url=request.dest_spec_url,
-            metadata=request.metadata,
+        
+        # Create integration record (specs will be populated in ingest step)
+        integration = Integration(
+            id=integration_id,
+            name=request.name,
+            status=IntegrationStatusEnum.DISCOVERING.value,
+            source_discovery=request.source_discovery.model_dump(mode='json'),
+            dest_discovery=request.dest_discovery.model_dump(mode='json'),
+            source_api_spec=None,  # Populated in ingest
+            dest_api_spec=None,    # Populated in ingest
+            deployment_config=deployment_config.model_dump(mode='json'),
+            deployment_target=request.deployment_target.value,
+            created_by="system",
+            extra_metadata=request.metadata or {},
         )
-
-        if result["status"] == "failed":
-            error_msg = result.get("error", "Unknown error")
-            # Map common user errors to 400/422
-            status_code = (
-                400
-                if "Could not fetch" in error_msg
-                or "403" in error_msg
-                or "404" in error_msg
-                else 500
-            )
-            raise HTTPException(status_code=status_code, detail=error_msg)
-
-        return result
-
+        
+        db.add(integration)
+        await db.commit()
+        
+        logger.info("Integration created", integration_id=integration_id)
+        
+        return {
+            "status": "success",
+            "integration_id": integration_id,
+            "current_step": "DISCOVERING",
+            "data": {
+                "integration": {
+                    "id": integration.id,
+                    "name": integration.name,
+                    "status": integration.status,
+                    "source_discovery": integration.source_discovery,
+                    "dest_discovery": integration.dest_discovery,
+                },
+                "next_step": "ingest",
+                "next_endpoint": f"/integrations/{integration_id}/ingest",
+            },
+        }
+        
     except Exception as e:
         logger.error("Integration creation failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Step 2: Ingest API Specifications
+@router.post(
+    "/integrations/{integration_id}/ingest",
+    response_model=IntegrationStepResponse,
+    summary="Ingest API specifications",
+    description="Step 2: Fetch detailed API specs from OpenAPI/Swagger URLs.",
+)
+async def ingest_integration_specs(
+    integration_id: str,
+    request: IngestIntegrationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    orchestrator: VitesseOrchestrator = Depends(get_orchestrator),
+) -> Dict[str, Any]:
+    """
+    Ingest detailed API specifications.
+    
+    This is Step 2 of the workflow:
+    - Fetches OpenAPI/Swagger specs from provided URLs
+    - Stores specs in integration record
+    - Updates status to MAPPING
+    
+    Next: Call POST /integrations/{id}/map
+    """
+    try:
+        from app.models.integration import Integration, IntegrationStatusEnum
+        
+        # Fetch integration
+        stmt = select(Integration).where(Integration.id == integration_id)
+        result = await db.execute(stmt)
+        integration = result.scalars().first()
+        
+        if not integration:
+            raise HTTPException(status_code=404, detail="Integration not found")
+        
+        logger.info("Ingesting specifications", integration_id=integration_id)
+        
+        # Call orchestrator ingest method
+        ingest_result = await orchestrator.ingest_api_specs(
+            source_discovery=integration.source_discovery,
+            dest_discovery=integration.dest_discovery,
+            source_spec_url=request.source_spec_url,
+            dest_spec_url=request.dest_spec_url,
+        )
+        
+        if ingest_result["status"] != "success":
+            raise HTTPException(status_code=400, detail=ingest_result.get("error"))
+        
+        # Update integration with specs
+        integration.source_api_spec = ingest_result["source_api_spec"]
+        integration.dest_api_spec = ingest_result["dest_api_spec"]
+        integration.status = IntegrationStatusEnum.MAPPING.value
+        integration.updated_at = datetime.utcnow()
+        
+        await db.commit()
+        
+        logger.info("Ingest complete", integration_id=integration_id)
+        
+        return {
+            "status": "success",
+            "integration_id": integration_id,
+            "current_step": "MAPPING",
+            "data": {
+                "source_endpoints": [ep.get("path") for ep in ingest_result["source_api_spec"].get("endpoints", [])],
+                "dest_endpoints": [ep.get("path") for ep in ingest_result["dest_api_spec"].get("endpoints", [])],
+                "next_step": "map",
+                "next_endpoint": f"/integrations/{integration_id}/map",
+            },
+        }
+        
+    except Exception as e:
+        logger.error("Ingest failed", error=str(e), integration_id=integration_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Step 3: Generate Field Mappings
+@router.post(
+    "/integrations/{integration_id}/map",
+    response_model=IntegrationStepResponse,
+    summary="Generate field mappings",
+    description="Step 3: Generate semantic field mappings between APIs.",
+)
+async def map_integration_fields(
+    integration_id: str,
+    request: MapIntegrationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    orchestrator: VitesseOrchestrator = Depends(get_orchestrator),
+) -> Dict[str, Any]:
+    """
+    Generate field mappings for integration.
+    
+    This is Step 3 of the workflow:
+    - Uses Mapper agent to generate semantic mappings
+    - Stores mapping logic in integration
+    - Updates status to TESTING
+    
+    Next: Call POST /integrations/{id}/test
+    """
+    try:
+        from app.models.integration import Integration, IntegrationStatusEnum
+        from datetime import datetime
+        
+        # Fetch integration
+        stmt = select(Integration).where(Integration.id == integration_id)
+        result = await db.execute(stmt)
+        integration = result.scalars().first()
+        
+        if not integration or not integration.source_api_spec or not integration.dest_api_spec:
+            raise HTTPException(status_code=404, detail="Integration not found or not ingested")
+        
+        logger.info("Generating mappings", integration_id=integration_id)
+        
+        # Call orchestrator mapper
+        mapping_result = await orchestrator.generate_mappings(
+            integration_id=integration_id,
+            source_api_spec=integration.source_api_spec,
+            dest_api_spec=integration.dest_api_spec,
+            source_endpoint=request.source_endpoint,
+            dest_endpoint=request.dest_endpoint,
+            user_intent=integration.extra_metadata.get("user_intent", ""),
+            mapping_hints=request.mapping_hints,
+        )
+        
+        if mapping_result["status"] != "success":
+            raise HTTPException(status_code=400, detail=mapping_result.get("error"))
+        
+        # Update integration with mappings
+        integration.mapping_logic = mapping_result["mapping_logic"]
+        integration.status = IntegrationStatusEnum.TESTING.value
+        integration.updated_at = datetime.utcnow()
+        
+        await db.commit()
+        
+        logger.info("Mapping complete", integration_id=integration_id)
+        
+        return {
+            "status": "success",
+            "integration_id": integration_id,
+            "current_step": "TESTING",
+            "data": {
+                "transformation_count": mapping_result.get("transformation_count", 0),
+                "complexity_score": mapping_result.get("complexity_score", 0),
+                "next_step": "test",
+                "next_endpoint": f"/integrations/{integration_id}/test",
+            },
+        }
+        
+    except Exception as e:
+        logger.error("Mapping failed", error=str(e), integration_id=integration_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Step 4: Run Tests
+@router.post(
+    "/integrations/{integration_id}/test",
+    response_model=IntegrationStepResponse,
+    summary="Run integration tests",
+    description="Step 4: Run comprehensive tests with Guardian agent.",
+)
+async def test_integration(
+    integration_id: str,
+    request: TestIntegrationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    orchestrator: VitesseOrchestrator = Depends(get_orchestrator),
+) -> Dict[str, Any]:
+    """
+    Run integration tests.
+    
+    This is Step 4 of the workflow:
+    - Uses Guardian agent to run tests
+    - Generates health score
+    - Updates status to DEPLOYING if tests pass
+    
+    Next: Call POST /integrations/{id}/deploy
+    """
+    try:
+        from app.models.integration import Integration, IntegrationStatusEnum
+        from datetime import datetime
+        
+        # Fetch integration
+        stmt = select(Integration).where(Integration.id == integration_id)
+        result = await db.execute(stmt)
+        integration = result.scalars().first()
+        
+        if not integration or not integration.mapping_logic:
+            raise HTTPException(status_code=404, detail="Integration not found or not mapped")
+        
+        logger.info("Running tests", integration_id=integration_id)
+        
+        # Call orchestrator test
+        test_result = await orchestrator.run_tests(
+            integration_id=integration_id,
+            source_api_spec=integration.source_api_spec,
+            dest_api_spec=integration.dest_api_spec,
+            mapping_logic=integration.mapping_logic,
+            test_sample_size=request.test_sample_size,
+            skip_destructive=request.skip_destructive,
+        )
+        
+        if test_result["status"] != "success":
+            raise HTTPException(status_code=400, detail=test_result.get("error"))
+        
+        # Update integration with test results
+        integration.health_score = test_result.get("health_score")
+        integration.status = IntegrationStatusEnum.DEPLOYING.value
+        integration.updated_at = datetime.utcnow()
+        
+        await db.commit()
+        
+        logger.info("Tests complete", integration_id=integration_id)
+        
+        return {
+            "status": "success",
+            "integration_id": integration_id,
+            "current_step": "DEPLOYING",
+            "data": {
+                "health_score": test_result.get("health_score"),
+                "test_count": test_result.get("test_count", 0),
+                "passed_tests": test_result.get("passed_tests", 0),
+                "next_step": "deploy",
+                "next_endpoint": f"/integrations/{integration_id}/deploy",
+            },
+        }
+        
+    except Exception as e:
+        logger.error("Testing failed", error=str(e), integration_id=integration_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Step 5: Deploy Integration
+@router.post(
+    "/integrations/{integration_id}/deploy",
+    response_model=IntegrationStepResponse,
+    summary="Deploy integration",
+    description="Step 5: Deploy integration to target environment.",
+)
+async def deploy_integration(
+    integration_id: str,
+    request: DeployIntegrationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    orchestrator: VitesseOrchestrator = Depends(get_orchestrator),
+) -> Dict[str, Any]:
+    """
+    Deploy integration.
+    
+    This is Step 5 of the workflow:
+    - Uses Deployer agent to deploy
+    - Updates status to ACTIVE
+    - Integration is now ready for use
+    """
+    try:
+        from app.models.integration import Integration, IntegrationStatusEnum
+        from datetime import datetime
+        
+        # Fetch integration
+        stmt = select(Integration).where(Integration.id == integration_id)
+        result = await db.execute(stmt)
+        integration = result.scalars().first()
+        
+        if not integration:
+            raise HTTPException(status_code=404, detail="Integration not found")
+        
+        logger.info("Deploying integration", integration_id=integration_id)
+        
+        # Call orchestrator deploy
+        deploy_result = await orchestrator.deploy_integration(
+            integration_id=integration_id,
+            source_api_spec=integration.source_api_spec,
+            dest_api_spec=integration.dest_api_spec,
+            mapping_logic=integration.mapping_logic,
+            deployment_config={
+                "replicas": request.replicas,
+                "memory_mb": request.memory_mb,
+                "cpu_cores": request.cpu_cores,
+                "auto_scale": request.auto_scale,
+            },
+        )
+        
+        if deploy_result["status"] != "success":
+            raise HTTPException(status_code=400, detail=deploy_result.get("error"))
+        
+        # Update integration to active
+        integration.container_id = deploy_result.get("container_id")
+        integration.status = IntegrationStatusEnum.ACTIVE.value
+        integration.updated_at = datetime.utcnow()
+        
+        await db.commit()
+        
+        logger.info("Deployment complete", integration_id=integration_id)
+        
+        return {
+            "status": "success",
+            "integration_id": integration_id,
+            "current_step": "ACTIVE",
+            "data": {
+                "container_id": deploy_result.get("container_id"),
+                "service_url": deploy_result.get("service_url"),
+                "deployment_time_seconds": deploy_result.get("deployment_time_seconds", 0),
+            },
+        }
+        
+    except Exception as e:
+        logger.error("Deployment failed", error=str(e), integration_id=integration_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get(
@@ -244,7 +587,7 @@ async def create_integration(
 )
 async def get_integration_status(
     integration_id: str,
-    orchestrator: VitesseOrchestrator = Depends(get_orchestrator),
+    db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Get current status and health of an integration.
@@ -252,7 +595,12 @@ async def get_integration_status(
     Status values: initializing, discovering, mapping, testing, deploying, active, failed
     """
     try:
-        integration = orchestrator.context.get_state(f"integration_{integration_id}")
+        from app.models.integration import Integration
+        
+        # Fetch integration from database
+        statement = select(Integration).where(Integration.id == integration_id)
+        result = await db.execute(statement)
+        integration = result.scalar_one_or_none()
 
         if not integration:
             raise HTTPException(
@@ -261,11 +609,13 @@ async def get_integration_status(
 
         return {
             "integration_id": integration_id,
-            "status": integration.get("status", "unknown"),
-            "health_score": integration.get("health_score"),
-            "last_updated": integration.get("updated_at"),
+            "status": integration.status,
+            "health_score": integration.health_score,
+            "last_updated": integration.updated_at.isoformat() if integration.updated_at else None,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "Status retrieval failed", integration_id=integration_id, error=str(e)

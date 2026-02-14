@@ -309,6 +309,10 @@ class ApiService {
     return this.axiosInstance.get(`/documents/${documentId}/extraction-flow/`);
   }
 
+  async revectorizeDocument(documentId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/documents/${documentId}/revectorize/`);
+  }
+
   async getDocumentChunks(
     documentId: string,
     page: number = 0,
@@ -810,6 +814,72 @@ class ApiService {
 
   async getIntegrationStats(): Promise<AxiosResponse> {
     return this.axiosInstance.get("/integration-builder/stats/overview");
+  }
+
+  // ==================== Vitesse Multi-Step Integration Workflow ====================
+
+  // Step 1: Create integration from discovery results
+  async createVitesseIntegration(payload: {
+    name: string;
+    source_discovery: any;
+    dest_discovery: any;
+    user_intent: string;
+    deployment_target?: string;
+    metadata?: any;
+  }): Promise<AxiosResponse> {
+    return this.axiosInstance.post("/vitesse/integrations", payload);
+  }
+
+  // Step 2: Ingest API specifications
+  async ingestIntegrationSpecs(
+    integrationId: string,
+    payload: {
+      source_spec_url?: string;
+      dest_spec_url?: string;
+    }
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/ingest`, payload);
+  }
+
+  // Step 3: Generate field mappings
+  async mapIntegrationFields(
+    integrationId: string,
+    payload: {
+      source_endpoint: string;
+      dest_endpoint: string;
+      mapping_hints?: any;
+    }
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/map`, payload);
+  }
+
+  // Step 4: Run integration tests
+  async testVitesseIntegration(
+    integrationId: string,
+    payload?: {
+      test_sample_size?: number;
+      skip_destructive?: boolean;
+    }
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/test`, payload || {});
+  }
+
+  // Step 5: Deploy integration
+  async deployVitesseIntegration(
+    integrationId: string,
+    payload?: {
+      replicas?: number;
+      memory_mb?: number;
+      cpu_cores?: number;
+      auto_scale?: boolean;
+    }
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/deploy`, payload || {});
+  }
+
+  // Get integration details and status
+  async getVitesseIntegrationStatus(integrationId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.get(`/vitesse/integrations/${integrationId}`);
   }
 
   // Agent Activity Dashboard methods

@@ -48,7 +48,7 @@ async def monitor_integrations_loop():
             async with async_session_factory() as db:
                 # Select active integrations
                 stmt = select(Integration).where(
-                    Integration.status == IntegrationStatusEnum.ACTIVE
+                    Integration.status == IntegrationStatusEnum.ACTIVE.value
                 )
                 result = await db.execute(stmt)
                 integrations = result.scalars().all()
