@@ -14,7 +14,7 @@ Welcome to **Vitesse AI**, a professional-grade platform for API discovery, fiel
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
-cd AgentStack
+cd vitesse
 ```
 
 ### 2. Backend Setup

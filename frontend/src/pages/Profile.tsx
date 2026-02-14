@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { User, Key, Mail, Shield, Save, AlertCircle } from 'lucide-react';
-import SectionHeader from '../components/SectionHeader';
 import apiService from '../services/api';
 import { useNotifications } from '../contexts/NotificationContext';
 
@@ -68,14 +67,23 @@ const Profile: React.FC = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto pb-20">
-            <SectionHeader
-                title="My Profile"
-                subtitle="Manage your personal information and security settings."
-                icon={User}
-                variant="premium"
-                className="!p-0 !bg-transparent !border-none"
-            />
+        <div className="space-y-12 max-w-4xl mx-auto pb-20">
+            {/* Header */}
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                        <User className="w-7 h-7 text-brand-500" />
+                    </div>
+                    <div>
+                        <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">My Profile</h1>
+                        <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Manage your personal information and security settings.</p>
+                    </div>
+                </div>
+            </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* User Card */}

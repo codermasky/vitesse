@@ -1,6 +1,6 @@
-# AgentStack User Guide
+# Vitesse AI User Guide
 
-Welcome to the **AgentStack** help center. This guide will help you navigate and use the platform effectively.
+Welcome to the **Vitesse AI** help center. This guide will help you navigate and use the platform effectively.
 
 ## 🧭 Navigation
 The sidebar on the left is your primary navigation tool. You can collapse it to save space or expand it to see full labels.
@@ -76,13 +76,13 @@ To make agents smarter:
 3. Once processed, agents in your workflows will automatically use this information if relevant to your query.
 
 ## ⚙️ Customization
-You can change the look and feel of AgentStack in **Settings > Appearance**.
+You can change the look and feel of Vitesse AI in **Settings > Appearance**.
 - Choose from various professional themes.
 - Toggle between dark and light modes.
 - Adjust UI density and preferences.
 
 ## 🛡️ Privacy & Security
-AgentStack is built with security in mind.
+Vitesse AI is built with security in mind.
 - Your data is protected by industry-standard encryption.
 - PII masking is active to protect sensitive information in logs.
 - You can manage your session and security settings in the **Settings** page.

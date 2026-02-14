@@ -1,17 +1,17 @@
-# Aether Integration in AgentStack
+# Aether Integration in Vitesse AI
 
-**Aether** is the high-performance intelligence layer that powers AgentStack's agentic workflows. By integrating Aether, AgentStack gains enterprise-grade orchestration, resilience, and observability.
+**Aether** is the high-performance intelligence layer that powers Vitesse AI's agentic workflows. By integrating Aether, Vitesse AI gains enterprise-grade orchestration, resilience, and observability.
 
 ## 🚀 Core Features Enabled by Aether
 
 ### 1. Advanced Orchestration (Flux)
-AgentStack uses the **Flux** engine from Aether to manage complex, multi-agent workflows. 
+Vitesse AI uses the **Flux** engine from Aether to manage complex, multi-agent workflows. 
 - **Stateful Workflows**: Built on top of LangGraph, Flux ensures state is preserved across agent boundaries.
 - **Conditional Routing**: Intelligent logic determine the next step in a process based on agent outputs.
 - **Human-in-the-Loop**: Seamlessly pause workflows for human approval or data verification.
 
 ### 2. Resilience Layer
-Aether provides a robust set of utilities to ensure AgentStack remains stable even when external LLMs or APIs fail.
+Aether provides a robust set of utilities to ensure Vitesse AI remains stable even when external LLMs or APIs fail.
 - **Graceful Degradation**: Smart fallback mechanisms for LLM calls.
 - **Type-safe Operations**: Validation protocols for all data entering or leaving agents.
 - **Recovery Strategies**: Automated retry and recovery patterns for common failure modes.
@@ -19,7 +19,7 @@ Aether provides a robust set of utilities to ensure AgentStack remains stable ev
 ### 3. Intelligence Protocols
 Standardized interfaces that decouple agent logic from specific LLM providers.
 - **IntelligenceProvider**: A unified protocol for invoking LLMs, allowing for easy swapping of models (OpenAI, Anthropic, Ollama).
-- **AetherIntelligenceProvider**: The concrete implementation used in AgentStack that wraps these protocols for higher-level usage.
+- **AetherIntelligenceProvider**: The concrete implementation used in Vitesse AI that wraps these protocols for higher-level usage.
 
 ### 4. Observability & Security
 - **PII Masking**: Automatic detection and hashing of sensitive data (SSNs, emails, etc.) before logging or sending to LLMs.
@@ -28,7 +28,7 @@ Standardized interfaces that decouple agent logic from specific LLM providers.
 
 ## 📦 Dependency Integration
 
-Aether is integrated as a **proper local package** in the AgentStack backend.
+Aether is integrated as a **proper local package** in the Vitesse AI backend.
 
 ### pyproject.toml
 ```toml

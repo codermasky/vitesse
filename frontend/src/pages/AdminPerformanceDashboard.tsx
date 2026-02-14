@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import apiService from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import SectionHeader from '../components/SectionHeader';
 import { cn } from '../services/utils';
 
 interface CacheStats {
@@ -172,14 +171,23 @@ const AdminPerformanceDashboard: React.FC = () => {
     const highCount = recommendations.filter(r => r.priority === 'HIGH').length;
 
     return (
-        <div className="space-y-8 pb-20 relative">
-            <SectionHeader
-                icon={Activity}
-                title="Admin Performance Dashboard"
-                subtitle="System performance metrics, caching statistics, and optimization recommendations"
-                variant="premium"
-                className="!p-0 !bg-transparent !border-none"
-            />
+        <div className="space-y-12">
+            {/* Header */}
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                        <Activity className="w-7 h-7 text-brand-500" />
+                    </div>
+                    <div>
+                        <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Admin Performance Dashboard</h1>
+                        <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">System performance metrics, caching statistics, and optimization recommendations</p>
+                    </div>
+                </div>
+            </motion.div>
 
             {/* Tab Navigation */}
             <div className="flex flex-wrap gap-1 p-1 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 rounded-2xl w-fit shadow-sm">

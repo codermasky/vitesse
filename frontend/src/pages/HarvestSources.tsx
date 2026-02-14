@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import apiService from '../services/api';
 import { cn } from '../services/utils';
-import SectionHeader from '../components/SectionHeader';
 
 // Types for harvest sources
 interface HarvestSource {
@@ -244,17 +243,28 @@ const HarvestSources: React.FC = () => {
       case 'marketplace': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'github': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
       case 'documentation': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+      default: return 'bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300';
     }
   };
 
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        title="Harvest Sources"
-        subtitle="Manage API sources for knowledge harvesting"
-        icon={Database}
-      />
+    <div className="space-y-12">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+            <Database className="w-7 h-7 text-brand-500" />
+          </div>
+          <div>
+            <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Harvest Sources</h1>
+            <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Manage API sources for knowledge harvesting</p>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Stats Overview */}
       {stats && (
@@ -462,9 +472,9 @@ const HarvestSources: React.FC = () => {
                         {source.enabled ? (
                           <CheckCircle2 className="w-4 h-4 text-green-500" />
                         ) : (
-                          <Pause className="w-4 h-4 text-gray-400" />
+                          <Pause className="w-4 h-4 text-brand-400" />
                         )}
-                        <span className={cn("text-sm", source.enabled ? "text-green-600 dark:text-green-400" : "text-gray-500")}>
+                        <span className={cn("text-sm", source.enabled ? "text-green-600 dark:text-green-400" : "text-brand-500")}>
                           {source.enabled ? 'Enabled' : 'Disabled'}
                         </span>
                       </div>

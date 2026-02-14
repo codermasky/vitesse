@@ -338,7 +338,7 @@ const UserManagement: React.FC = () => {
                                                     type="checkbox"
                                                     checked={editingUser.is_active}
                                                     onChange={(e) => setEditingUser(prev => ({ ...prev, is_active: e.target.checked }))}
-                                                    className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                                                    className="w-4 h-4 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
                                                 />
                                                 Active User
                                             </label>
@@ -347,7 +347,7 @@ const UserManagement: React.FC = () => {
                                                     type="checkbox"
                                                     checked={editingUser.is_superuser}
                                                     onChange={(e) => setEditingUser(prev => ({ ...prev, is_superuser: e.target.checked }))}
-                                                    className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                                                    className="w-4 h-4 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
                                                 />
                                                 Superadmin
                                             </label>

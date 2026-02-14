@@ -117,7 +117,7 @@ const AgentCollaborationHub: React.FC = () => {
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <Info className="w-4 h-4 text-gray-500" />;
+        return <Info className="w-4 h-4 text-brand-400" />;
     }
   };
 
@@ -130,7 +130,7 @@ const AgentCollaborationHub: React.FC = () => {
       case 'error':
         return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-brand-100 text-brand-800';
     }
   };
 
@@ -145,7 +145,7 @@ const AgentCollaborationHub: React.FC = () => {
       case 'review_feedback':
         return <MessageSquare className="w-4 h-4 text-orange-500" />;
       default:
-        return <MessageSquare className="w-4 h-4 text-gray-500" />;
+        return <MessageSquare className="w-4 h-4 text-brand-400" />;
     }
   };
 
@@ -158,7 +158,7 @@ const AgentCollaborationHub: React.FC = () => {
       case 'low':
         return 'text-green-600 bg-green-50';
       default:
-        return 'text-gray-600 bg-gray-50';
+        return 'text-brand-600 bg-brand-50';
     }
   };
 
@@ -365,11 +365,11 @@ const AgentCollaborationHub: React.FC = () => {
                 onChange={(e) => setCommunicationFilter(e.target.value)}
                 className="text-sm bg-white/10 text-white border border-white/20 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-transparent"
               >
-                <option value="all" className="bg-gray-800">All Types</option>
-                <option value="task_assignment" className="bg-gray-800">Task Assignment</option>
-                <option value="task_update" className="bg-gray-800">Task Update</option>
-                <option value="content_review" className="bg-gray-800">Content Review</option>
-                <option value="review_feedback" className="bg-gray-800">Review Feedback</option>
+                <option value="all" className="bg-brand-900">All Types</option>
+                <option value="task_assignment" className="bg-brand-900">Task Assignment</option>
+                <option value="task_update" className="bg-brand-900">Task Update</option>
+                <option value="content_review" className="bg-brand-900">Content Review</option>
+                <option value="review_feedback" className="bg-brand-900">Review Feedback</option>
               </motion.select>
             </div>
           </div>

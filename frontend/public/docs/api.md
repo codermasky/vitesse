@@ -1,6 +1,6 @@
-# AgentStack API Reference
+# Vitesse AI API Reference
 
-AgentStack provides a RESTful API for managing users, LLM configurations, agent workflows, and knowledge base documents.
+Vitesse AI provides a RESTful API for managing users, LLM configurations, agent workflows, and knowledge base documents.
 
 ## 🔑 Authentication
 Most endpoints require a valid JWT bearer token.

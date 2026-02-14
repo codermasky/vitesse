@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Save, AlertCircle, CheckCircle2, Copy, RefreshCw, Activity, ExternalLink } from 'lucide-react';
-import SectionHeader from '../components/SectionHeader';
 import { cn } from '../services/utils';
 import { apiService } from '../services/api';
 
@@ -164,14 +163,23 @@ const LangFuseConfig: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 pb-20 relative">
-      <SectionHeader
-        title="LangFuse Configuration"
-        subtitle="Manage observability and LLM trace collection via LangFuse."
-        icon={Activity}
-        variant="premium"
-        className="!p-0 !bg-transparent !border-none"
-      />
+    <div className="space-y-12">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+            <Activity className="w-7 h-7 text-brand-500" />
+          </div>
+          <div>
+            <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">LangFuse Configuration</h1>
+            <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Manage observability and LLM trace collection via LangFuse.</p>
+          </div>
+        </div>
+      </motion.div>
 
       {statusMsg && (
         <motion.div
@@ -244,7 +252,7 @@ const LangFuseConfig: React.FC = () => {
         className="glass rounded-2xl p-8 space-y-8"
       >
         {/* Enable Switch */}
-        <div className="flex items-center justify-between pb-8 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between pb-8 border-b border-brand-200 dark:border-brand-800">
           <div>
             <h3 className="font-bold text-surface-950 dark:text-white text-lg">Enable Integration</h3>
             <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
@@ -255,7 +263,7 @@ const LangFuseConfig: React.FC = () => {
             onClick={() => handleInputChange('enabled', !config.enabled)}
             className={cn(
               "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface-50 dark:focus:ring-offset-[#0A0F1E]",
-              config.enabled ? "bg-brand-primary" : "bg-gray-200 dark:bg-surface-700"
+              config.enabled ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
             )}
           >
             <span
@@ -347,7 +355,7 @@ const LangFuseConfig: React.FC = () => {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between pt-6 border-t border-brand-200 dark:border-brand-800">
           <button
             onClick={handleTestConnection}
             disabled={testing || !config.enabled}

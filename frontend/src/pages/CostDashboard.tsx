@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 import {
   LineChart,
@@ -15,7 +16,6 @@ import {
   Cell,
 } from 'recharts';
 import { TrendingUp, DollarSign, Zap, Clock, Calendar } from 'lucide-react';
-import SectionHeader from '../components/SectionHeader';
 import { cn } from '../services/utils';
 
 interface CostData {
@@ -129,14 +129,23 @@ export default function CostDashboard() {
   const avgLatency = costData?.models.length ? safeDiv(totalLatency, costData.models.length) : 0;
 
   return (
-    <div className="space-y-8 pb-20 relative">
-      <SectionHeader
-        title="LLM Cost Analytics"
-        subtitle="Monitor and optimize LLM usage and costs across your organization"
-        icon={DollarSign}
-        variant="premium"
-        className="!p-0 !bg-transparent !border-none"
-      />
+    <div className="space-y-12">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+            <DollarSign className="w-7 h-7 text-brand-500" />
+          </div>
+          <div>
+            <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">LLM Cost Analytics</h1>
+            <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Monitor and optimize LLM usage and costs across your organization</p>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Date Range Selector */}
       <div className="flex gap-2 p-1 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 rounded-2xl w-fit shadow-sm">

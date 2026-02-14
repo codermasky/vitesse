@@ -150,7 +150,7 @@ const AgentActivityDashboard: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      idle: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
+      idle: 'bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300',
       running: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
       completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
       error: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
@@ -160,7 +160,7 @@ const AgentActivityDashboard: React.FC = () => {
 
   const getWorkflowStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
+      pending: 'bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300',
       running: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
       completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
       failed: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
@@ -330,7 +330,7 @@ const AgentActivityDashboard: React.FC = () => {
                       "w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium",
                       step.status === 'completed' ? 'bg-green-500' :
                         step.status === 'running' ? 'bg-blue-500' :
-                          step.status === 'failed' ? 'bg-red-500' : 'bg-gray-400'
+                          step.status === 'failed' ? 'bg-red-500' : 'bg-brand-500'
                     )}>
                       {step.status === 'completed' ? <CheckCircle2 className="w-4 h-4" /> :
                         step.status === 'running' ? <RotateCcw className="w-4 h-4 animate-spin" /> :

@@ -708,45 +708,51 @@ const Settings: React.FC = () => {
     }
 
     return (
-        <div className="space-y-10 pb-20 relative">
+        <div className="space-y-12">
             {/* Header */}
-            <SectionHeader
-                title={
-                    activeTab === 'appearance' ? 'Appearance' :
-                        activeTab === 'whitelabel' ? 'Branding & Whitelabel' :
-                            activeTab === 'sidekick' ? 'Vitesse AI Assistant' :
-                                activeTab === 'wayfinder' ? 'Vitesse AI Navigator' :
-                                    activeTab === 'features' ? 'Feature Matrix' :
-                                        activeTab === 'users' ? 'User Management' :
-                                            activeTab === 'monitoring' ? 'LLM Monitoring' :
-                                                'LLM Services'
-                }
-                subtitle={
-                    activeTab === 'appearance' ? "Personalize your experience with curated color themes and modern design aesthetics." :
-                        activeTab === 'sidekick' ? "Configure your proactive AI companion's behavior and intelligence level." :
-                            activeTab === 'wayfinder' ? "Manage your always-on navigation assistant and help system." :
-                                activeTab === 'integrations' ? "Connect external services like Email for automated ingestion pipelines." :
-                                    activeTab === 'features' ? "Enable or disable Vitesse AI features and use cases for your organization." :
-                                        activeTab === 'whitelabel' ? "Customize the platform's brand name, logo, and core identity." :
-                                            activeTab === 'users' ? "Manage users, roles, and access permissions." :
-                                                activeTab === 'monitoring' ? "Monitor LLM performance, traces, costs, and analytics via Langfuse integration." :
-                                                    "Configure your enterprise AI providers, manage API gateways, and assign specialized models."
-                }
-                icon={
-                    activeTab === 'appearance' ? BrainCircuit :
-                        activeTab === 'sidekick' ? Sparkles :
-                            activeTab === 'wayfinder' ? Bot :
-                                activeTab === 'integrations' ? Mail :
-                                    activeTab === 'features' ? Zap :
-                                        activeTab === 'whitelabel' ? Palette :
-                                            activeTab === 'users' ? Users :
-                                                activeTab === 'monitoring' ? Activity :
-                                                    Cpu
-                }
-                variant="premium"
-                className="!p-0 !bg-transparent !border-none"
-                actions={(activeTab === 'providers' || (activeTab === 'agents' && activeAgentTab === 'configuration')) && (
-                    <div className="flex flex-col md:flex-row gap-4">
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+            >
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                            {activeTab === 'appearance' ? <BrainCircuit className="w-7 h-7 text-brand-500" /> :
+                             activeTab === 'whitelabel' ? <Palette className="w-7 h-7 text-brand-500" /> :
+                             activeTab === 'sidekick' ? <Sparkles className="w-7 h-7 text-brand-500" /> :
+                             activeTab === 'wayfinder' ? <Bot className="w-7 h-7 text-brand-500" /> :
+                             activeTab === 'features' ? <Zap className="w-7 h-7 text-brand-500" /> :
+                             activeTab === 'users' ? <Users className="w-7 h-7 text-brand-500" /> :
+                             activeTab === 'monitoring' ? <Activity className="w-7 h-7 text-brand-500" /> :
+                             <Cpu className="w-7 h-7 text-brand-500" />}
+                        </div>
+                        <div>
+                            <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">
+                                {activeTab === 'appearance' ? 'Appearance' :
+                                 activeTab === 'whitelabel' ? 'Branding & Whitelabel' :
+                                 activeTab === 'sidekick' ? 'Vitesse AI Assistant' :
+                                 activeTab === 'wayfinder' ? 'Vitesse AI Navigator' :
+                                 activeTab === 'features' ? 'Feature Matrix' :
+                                 activeTab === 'users' ? 'User Management' :
+                                 activeTab === 'monitoring' ? 'LLM Monitoring' :
+                                 'LLM Services'}
+                            </h1>
+                            <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">
+                                {activeTab === 'appearance' ? "Personalize your experience with curated color themes and modern design aesthetics." :
+                                 activeTab === 'sidekick' ? "Configure your proactive AI companion's behavior and intelligence level." :
+                                 activeTab === 'wayfinder' ? "Manage your always-on navigation assistant and help system." :
+                                 activeTab === 'integrations' ? "Connect external services like Email for automated ingestion pipelines." :
+                                 activeTab === 'features' ? "Enable or disable Vitesse AI features and use cases for your organization." :
+                                 activeTab === 'whitelabel' ? "Customize the platform's brand name, logo, and core identity." :
+                                 activeTab === 'users' ? "Manage users, roles, and access permissions." :
+                                 activeTab === 'monitoring' ? "Monitor LLM performance, traces, costs, and analytics via Langfuse integration." :
+                                 "Configure your enterprise AI providers, manage API gateways, and assign specialized models."}
+                            </p>
+                        </div>
+                    </div>
+                    {(activeTab === 'providers' || (activeTab === 'agents' && activeAgentTab === 'configuration')) && (
+                        <div className="flex flex-col md:flex-row gap-4">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -809,7 +815,8 @@ const Settings: React.FC = () => {
                         </motion.div>
                     </div>
                 )}
-            />
+                </div>
+            </motion.div>
 
             {/* Tabs */}
             <div className="flex items-center border-b border-brand-100 dark:border-brand-500/10 mb-8 overflow-x-auto no-scrollbar">

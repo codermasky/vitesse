@@ -34,7 +34,7 @@ const statusConfig = {
   deploying: { icon: RefreshCw, color: 'text-blue-500', bg: 'bg-blue-500/10' },
   active: { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/10' },
   failed: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10' },
-  paused: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-500/10' },
+  paused: { icon: Clock, color: 'text-brand-400', bg: 'bg-brand-500/10' },
 };
 
 export const Integrations: React.FC = () => {
@@ -98,7 +98,7 @@ export const Integrations: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-auto custom-scrollbar">
-      <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
+      <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-12">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -107,7 +107,7 @@ export const Integrations: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <div className="space-y-4">
-              <h1 className="text-4xl lg:text-5xl font-black tracking-tight text-surface-950 dark:text-white">
+              <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white">
                 API Integrations
               </h1>
               <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">

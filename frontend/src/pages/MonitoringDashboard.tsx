@@ -86,7 +86,7 @@ const MonitoringDashboard: React.FC = () => {
             case 'healthy': return 'text-green-500 bg-green-500/10 border-green-500/20';
             case 'degraded': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
             case 'critical': return 'text-red-500 bg-red-500/10 border-red-500/20';
-            default: return 'text-gray-500 bg-gray-500/10 border-gray-500/20';
+            default: return 'text-brand-400 bg-brand-500/10 border-brand-500/20';
         }
     };
 

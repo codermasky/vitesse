@@ -12,11 +12,11 @@ class Settings(BaseSettings):
     """Application settings."""
 
     # Project
-    PROJECT_NAME: str = "Vitesse AI - Integration Factory"
+    PROJECT_NAME: str = "Vitesse AI"
     API_V1_STR: str = "/api/v1"
 
     # Server
-    SERVER_NAME: str = "Vitesse"
+    SERVER_NAME: str = "Vitesse AI"
     SERVER_HOST: AnyHttpUrl = "http://localhost"
     SERVER_PORT: int = 8000
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Edit2, RotateCcw, MessageSquare, Terminal, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
-import SectionHeader from '../components/SectionHeader';
+import { motion } from 'framer-motion';
 import { cn } from '../services/utils';
 
 interface PromptTemplate {
@@ -160,16 +160,23 @@ export default function PromptManagement() {
   };
 
   return (
-    <div className="space-y-8 pb-20 relative">
-      <div>
-        <SectionHeader
-          title="Prompt Management"
-          subtitle="Manage, version, and test LLM prompts across all agents"
-          icon={Terminal}
-          variant="premium"
-          className="!p-0 !bg-transparent !border-none"
-        />
-      </div>
+    <div className="space-y-12">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+            <Terminal className="w-7 h-7 text-brand-500" />
+          </div>
+          <div>
+            <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Prompt Management</h1>
+            <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Manage, version, and test LLM prompts across all agents</p>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Agent Selector */}
       <div className="flex flex-wrap gap-2">

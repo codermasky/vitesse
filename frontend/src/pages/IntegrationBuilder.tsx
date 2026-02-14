@@ -12,7 +12,6 @@ import {
   Zap,
   Trash2
 } from 'lucide-react';
-import SectionHeader from '../components/SectionHeader';
 import apiService from '../services/api';
 
 interface Integration {
@@ -154,7 +153,7 @@ const IntegrationBuilder: React.FC = () => {
       case 'inactive':
         return <XCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <AlertCircle className="w-4 h-4 text-gray-500" />;
+        return <AlertCircle className="w-4 h-4 text-brand-400" />;
     }
   };
 
@@ -169,7 +168,7 @@ const IntegrationBuilder: React.FC = () => {
       case 'inactive':
         return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-brand-100 text-brand-800';
     }
   };
 
@@ -182,13 +181,23 @@ const IntegrationBuilder: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* Header */}
-      <SectionHeader
-        title="Integration Builder"
-        subtitle="Create and manage API integrations with visual mapping"
-        variant="premium"
-        actions={
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+              <Zap className="w-7 h-7 text-brand-500" />
+            </div>
+            <div>
+              <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Integration Builder</h1>
+              <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Create and manage API integrations with visual mapping</p>
+            </div>
+          </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -198,8 +207,8 @@ const IntegrationBuilder: React.FC = () => {
             <Plus className="w-4 h-4 mr-2" />
             New Integration
           </motion.button>
-        }
-      />
+        </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Integrations List */}
@@ -683,11 +692,11 @@ const IntegrationBuilder: React.FC = () => {
                   onChange={(e) => setNewMapping({ ...newMapping, data_type: e.target.value })}
                   className="block w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-transparent"
                 >
-                  <option value="string" className="bg-gray-800">String</option>
-                  <option value="number" className="bg-gray-800">Number</option>
-                  <option value="boolean" className="bg-gray-800">Boolean</option>
-                  <option value="object" className="bg-gray-800">Object</option>
-                  <option value="array" className="bg-gray-800">Array</option>
+                  <option value="string" className="bg-brand-900">String</option>
+                  <option value="number" className="bg-brand-900">Number</option>
+                  <option value="boolean" className="bg-brand-900">Boolean</option>
+                  <option value="object" className="bg-brand-900">Object</option>
+                  <option value="array" className="bg-brand-900">Array</option>
                 </select>
               </motion.div>
 

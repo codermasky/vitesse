@@ -14,7 +14,6 @@ import {
   Plus
 } from 'lucide-react';
 import apiService from '../services/api';
-import SectionHeader from '../components/SectionHeader';
 
 interface HarvestJob {
   id: string;
@@ -123,7 +122,7 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
       case 'queued':
         return <Clock className="w-4 h-4 text-yellow-500" />;
       default:
-        return <AlertCircle className="w-4 h-4 text-gray-500" />;
+        return <AlertCircle className="w-4 h-4 text-brand-400" />;
     }
   };
 
@@ -138,7 +137,7 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
       case 'queued':
         return 'bg-yellow-100 text-yellow-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-brand-100 text-brand-800';
     }
   };
 
@@ -151,14 +150,23 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-12">
       {/* Header */}
-      <SectionHeader
-        title="Knowledge Harvester Dashboard"
-        subtitle="Monitor and manage knowledge harvesting operations with real-time insights and automated workflows."
-        icon={Database}
-        variant="premium"
-        actions={
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+              <Database className="w-7 h-7 text-brand-500" />
+            </div>
+            <div>
+              <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Knowledge Harvester Dashboard</h1>
+              <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Monitor and manage knowledge harvesting operations with real-time insights and automated workflows.</p>
+            </div>
+          </div>
           <div className="flex items-center gap-4">
             <select
               value={newJobType}
@@ -182,8 +190,8 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
               {isCreatingJob ? 'Starting...' : 'Start Harvest'}
             </motion.button>
           </div>
-        }
-      />
+        </div>
+      </motion.div>
 
       <div className="flex justify-end -mt-6 mb-6">
         <a href="/knowledge-base" className="text-sm text-brand-500 hover:text-brand-400 font-medium flex items-center gap-1">

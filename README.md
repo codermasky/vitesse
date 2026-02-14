@@ -1,4 +1,4 @@
-# Vitesse AI - High-Velocity Integration Factory
+# Vitesse AI
 
 *Autonomous Integration Factory*
 
