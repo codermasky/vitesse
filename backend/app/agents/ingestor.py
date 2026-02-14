@@ -61,10 +61,71 @@ class VitesseIngestor(IngestorAgent):
             has_spec_url=spec_url is not None,
         )
 
+        # Detect placeholder URLs that can't be fetched
+        is_placeholder = self._is_placeholder_url(api_url) or (
+            spec_url and self._is_placeholder_url(spec_url)
+        )
+
         try:
-            # Step 1: Fetch documentation
-            spec_content = await self._fetch_spec(api_url, spec_url)
-            logger.info("Specification fetched", bytes_size=len(spec_content))
+            # If we have placeholder URLs, skip fetching and go straight to LLM synthesis
+            if is_placeholder:
+                logger.info(
+                    "Detected placeholder URL, using autonomous LLM synthesis",
+                    api_name=api_name,
+                )
+                # Fetch the documentation URL instead
+                doc_url = input_data.get("documentation_url", api_url)
+                if not self._is_placeholder_url(doc_url):
+                    spec_content = await self._fetch_spec(doc_url, None)
+                    api_spec = await self._synthesize_spec_from_html(
+                        html_content=spec_content,
+                        api_url=api_url,
+                        api_name=api_name,
+                        auth_details=auth_details,
+                    )
+                else:
+                    # Even the doc URL is a placeholder, use LLM with minimal context
+                    logger.warning(
+                        "All URLs are placeholders, synthesizing from API name only"
+                    )
+                    api_spec = await self._synthesize_spec_from_name(
+                        api_name=api_name,
+                        api_url=api_url,
+                        auth_details=auth_details,
+                    )
+
+                endpoints = api_spec.endpoints
+                auth_type = api_spec.auth_type
+
+            else:
+                try:
+                    # Step 1: Fetch documentation
+                    spec_content = await self._fetch_spec(api_url, spec_url)
+                    logger.info("Specification fetched", bytes_size=len(spec_content))
+                except Exception as e:
+                    logger.warning(
+                        "Failed to fetch spec/docs, falling back to autonomous synthesis",
+                        error=str(e),
+                    )
+                    api_spec = await self._synthesize_spec_from_name(
+                        api_name=api_name,
+                        api_url=api_url,
+                        auth_details=auth_details,
+                    )
+
+                    endpoints = api_spec.endpoints
+                    auth_type = api_spec.auth_type
+
+                    return {
+                        "status": "success",
+                        "api_spec": api_spec.model_dump(),
+                        "endpoints_count": len(endpoints),
+                        "auth_type": auth_type.value,
+                        "discovery_time_seconds": (
+                            datetime.utcnow()
+                            - context.get("start_time", datetime.utcnow())
+                        ).total_seconds(),
+                    }
 
             # Step 2: Try to parse as Swagger/OpenAPI JSON
             try:
@@ -155,7 +216,27 @@ class VitesseIngestor(IngestorAgent):
             4. Detect authentication mechanisms.
             5. Identify the Base URL.
             
-            Output strictly a valid APISpecification object.
+            Output strictly a valid JSON object matching this structure:
+            {{
+                "source_url": "{api_url}",
+                "api_name": "{api_name}",
+                "api_version": "1.0.0",
+                "base_url": "THE_BASE_URL_YOU_FIND",
+                "auth_type": "one of: oauth2, api_key, bearer_token, basic, none",
+                "endpoints": [
+                    {{
+                        "path": "/example",
+                        "method": "GET",
+                        "description": "...",
+                        "parameters": {{ "param_name": {{ "in": "query", "type": "string" }} }},
+                        "response_schema": {{}}
+                    }}
+                ]
+            }}
+
+            IMPORTANT: 
+            1. Return raw JSON only. DO NOT use markdown code blocks.
+            2. "parameters" MUST be a dictionary keyed by parameter name, NOT a list.
             
             Raw Documentation HTML (Truncated):
             {truncated_html}
@@ -447,3 +528,159 @@ class VitesseIngestor(IngestorAgent):
             if isinstance(first_server, dict):
                 return first_server.get("url", api_url)
         return api_url
+
+    def _is_placeholder_url(self, url: str) -> bool:
+        """Detect if a URL is a placeholder that can't be fetched."""
+        if not url:
+            return True
+        # Common placeholder patterns
+        placeholder_indicators = [
+            "yourInstance",
+            "{shop}",
+            "{instance}",
+            "{tenant}",
+            "example.com",
+            # "localhost" is valid for testing, so we don't block it
+        ]
+        return any(indicator in url for indicator in placeholder_indicators)
+
+    async def _synthesize_spec_from_name(
+        self,
+        api_name: str,
+        api_url: str,
+        auth_details: Dict[str, Any],
+    ) -> APISpecification:
+        """
+        Synthesize an API specification using only the API name and LLM knowledge.
+        Used when even documentation URLs are placeholders.
+        """
+        try:
+            llm = await LLMProviderService.create_llm(agent_id=self.agent_id)
+
+            prompt = f"""You are an expert API architect. Generate a realistic API specification for the following API.
+
+Target API: {api_name}
+Placeholder Base URL: {api_url}
+
+Your Goal:
+Create a valid, working API specification that mimics the real-world API as closely as possible, based on your internal knowledge of this API's structure, endpoints, and authentication.
+
+Instructions:
+1. Recall the standard endpoints for {api_name} from your training data, documentation you have seen, and general web knowledge.
+2. Recall the authentication method (OAuth2, API Key, etc.).
+3. Define at least 3-5 core endpoints with their HTTP methods and paths.
+4. Include realistic rate limits and headers.
+
+4. Include realistic rate limits and headers.
+
+If you cannot find specific details, use industry standard patterns for this type of service.
+
+Output strictly a valid JSON object matching this structure:
+{{
+    "source_url": "{api_url}",
+    "api_name": "{api_name}",
+    "api_version": "1.0.0",
+    "base_url": "THE_BASE_URL_YOU_DETERMINE",
+    "auth_type": "one of: oauth2, api_key, bearer_token, basic, none",
+    "endpoints": [
+        {{
+            "path": "/example",
+            "method": "GET",
+            "description": "...",
+            "parameters": {{ "param_name": {{ "in": "query", "type": "string" }} }}, 
+            "response_schema": {{}}
+        }}
+    ]
+}}
+
+IMPORTANT: 
+1. Return raw JSON only. DO NOT use markdown code blocks.
+2. "parameters" MUST be a dictionary keyed by parameter name, NOT a list.
+"""
+
+            from pydantic import BaseModel, Field
+            from typing import List
+
+            class SynthesizedEndpoint(BaseModel):
+                path: str
+                method: str
+                description: str
+                parameters: Dict[str, Any] = Field(default_factory=dict)
+                response_schema: Dict[str, Any] = Field(default_factory=dict)
+
+            class SynthesizedSpec(BaseModel):
+                base_url: str
+                auth_type: str
+                auth_config: Dict[str, Any] = Field(default_factory=dict)
+                endpoints: List[SynthesizedEndpoint]
+                headers: Dict[str, str] = Field(default_factory=dict)
+                rate_limits: Dict[str, Any] = Field(default_factory=dict)
+
+            logger.info("Invoking LLM for spec synthesis from name", api_name=api_name)
+
+            synthesized = await LLMProviderService.invoke_structured_with_monitoring(
+                llm_instance=llm,
+                prompt=prompt,
+                schema=SynthesizedSpec,
+                agent_id=self.agent_id,
+                operation_name="synthesize_spec_from_name",
+                db=self.context.db_session,
+            )
+
+            # Convert to APISpecification
+            auth_type_map = {
+                "oauth2": APIAuthType.OAUTH2,
+                "api_key": APIAuthType.API_KEY,
+                "bearer": APIAuthType.BEARER_TOKEN,
+                "basic": APIAuthType.BASIC,
+                "none": APIAuthType.NONE,
+            }
+            auth_type = auth_type_map.get(
+                synthesized.auth_type.lower(), APIAuthType.API_KEY
+            )
+
+            endpoints = [
+                APIEndpoint(
+                    path=ep.path,
+                    method=ep.method,
+                    description=ep.description,
+                    parameters=ep.parameters,
+                    response_schema=ep.response_schema,
+                )
+                for ep in synthesized.endpoints
+            ]
+
+            api_spec = APISpecification(
+                source_url=api_url,
+                api_name=api_name,
+                api_version="1.0.0",
+                base_url=synthesized.base_url or api_url,
+                auth_type=auth_type,
+                auth_config=synthesized.auth_config or auth_details,
+                endpoints=endpoints,
+                headers=synthesized.headers,
+                rate_limits=synthesized.rate_limits,
+                pagination_style=None,
+            )
+
+            logger.info(
+                "Successfully synthesized spec from name",
+                endpoints_count=len(endpoints),
+            )
+            return api_spec
+
+        except Exception as e:
+            logger.error("Failed to synthesize spec from name", error=str(e))
+            # Return a minimal fallback spec
+            return APISpecification(
+                source_url=api_url,
+                api_name=api_name,
+                api_version="1.0.0",
+                base_url=api_url,
+                auth_type=APIAuthType.API_KEY,
+                auth_config=auth_details,
+                endpoints=[],
+                headers={},
+                rate_limits=None,
+                pagination_style=None,
+            )

@@ -16,7 +16,7 @@ import Help from './pages/Help';
 import Layout from './components/Layout';
 import Notifications from './components/Notifications';
 import { SettingsProvider } from './contexts/SettingsContext';
-import { FeatureFlagsProvider, useFeatureFlags } from './contexts/FeatureFlagsContext';
+import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -54,6 +54,7 @@ const AppRoutes: React.FC = () => {
         <Route path="chat" element={<Chat />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="integrations/new" element={<NewIntegration />} />
+        <Route path="integrations/:id/edit" element={<NewIntegration isEditMode={true} />} />
         <Route path="knowledge" element={<KnowledgeBase />} />
         <Route path="settings" element={<Settings />} />
         <Route path="profile" element={<Profile />} />

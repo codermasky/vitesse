@@ -66,6 +66,35 @@ class VitesseDiscoveryAgent(VitesseAgent):
                 "base_url": "https://petstore.swagger.io/v2",
                 "tags": ["demo", "testing"],
             },
+            # Salesforce APIs
+            "salesforce": {
+                "name": "Salesforce REST API",
+                "doc_url": "https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/",
+                "spec_url": None,  # Salesforce doesn't provide OpenAPI spec
+                "base_url": "https://yourInstance.salesforce.com/services/data/v59.0",
+                "tags": ["salesforce", "crm", "enterprise", "cloud"],
+            },
+            "salesforce_financial": {
+                "name": "Salesforce Financial Services Cloud",
+                "doc_url": "https://developer.salesforce.com/docs/atlas.en-us.financial_services_cloud_api_ref.meta/financial_services_cloud_api_ref/",
+                "spec_url": None,
+                "base_url": "https://yourInstance.salesforce.com/services/data/v59.0",
+                "tags": [
+                    "salesforce",
+                    "financial-services",
+                    "banking",
+                    "wealth-management",
+                    "finance",
+                    "cloud",
+                ],
+            },
+            "salesforce_commerce": {
+                "name": "Salesforce Commerce Cloud API",
+                "doc_url": "https://developer.salesforce.com/docs/commerce/commerce-api/overview",
+                "spec_url": None,
+                "base_url": "https://yourInstance.commercecloud.salesforce.com",
+                "tags": ["salesforce", "ecommerce", "retail", "commerce", "cloud"],
+            },
             # Linedata Products (Common Destinations)
             "capitalstream": {
                 "name": "Linedata CapitalStream",
@@ -204,12 +233,31 @@ For each API you identify, provide:
 4. OpenAPI/Swagger spec URL (if known, otherwise leave empty)
 5. Base URL for API calls (if known)
 6. Confidence score (0.0-1.0) based on how well it matches the query
-7. Tags/categories
+7. Tags/categories (as an array of strings)
 
 Focus on official, well-documented APIs. Prioritize APIs with OpenAPI/Swagger specifications.
 Return up to {limit} results.
 
-Output as a JSON array of objects with keys: api_name, description, documentation_url, spec_url, base_url, confidence_score, tags
+IMPORTANT: Return a JSON object with a "results" field containing an array of API objects.
+If you cannot find any relevant APIs, return: {{"results": []}}
+DO NOT return any conversational text, apologies, or explanations. OUTPUT ONLY JSON.
+Each API object should have: api_name, description, documentation_url, spec_url, base_url, confidence_score, tags, source (set to "llm")
+
+Example format:
+{{
+  "results": [
+    {{
+      "api_name": "Example API",
+      "description": "An example API",
+      "documentation_url": "https://example.com/docs",
+      "spec_url": "https://example.com/openapi.json",
+      "base_url": "https://api.example.com",
+      "confidence_score": 0.95,
+      "tags": ["example", "demo"],
+      "source": "llm"
+    }}
+  ]
+}}
 """
 
             logger.info("Invoking LLM for API discovery", query=query)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Zap,
@@ -8,7 +8,9 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '../services/utils';
 import axios from 'axios';
@@ -22,17 +24,6 @@ interface Integration {
   deployment_target: 'local' | 'eks' | 'ecs';
   created_at: string;
   health_score?: Record<string, any>;
-}
-
-interface DiscoveryResult {
-  api_name: string;
-  description: string;
-  documentation_url: string;
-  spec_url?: string;
-  base_url?: string;
-  confidence_score: number;
-  source: string;
-  tags: string[];
 }
 
 const statusConfig = {
@@ -74,91 +65,22 @@ export const Integrations: React.FC = () => {
     }
   };
 
-  const searchAPIs = async (query: string) => {
+  const deployIntegration = async (id: string) => {
     try {
-      setIsSearching(true);
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
+      // Optimistic update
+      setIntegrations(prev => prev.map(i => i.id === id ? { ...i, status: 'deploying' } : i));
+      setSelectedIntegration(prev => prev?.id === id ? { ...prev, status: 'deploying' } : prev);
 
-      const response = await axios.get(`${apiUrl}/vitesse/discover`, {
-        params: { query, limit: 5 },
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
+      await axios.post(`${apiUrl}/vitesse/integrations/${id}/deploy`, {}, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
-
-      setDiscoveryResults(response.data.results || []);
+      alert('Deployment triggered successfully!');
     } catch (error) {
-      console.error('API discovery failed:', error);
-      setCreateError('Failed to discover APIs. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const createIntegration = async () => {
-    try {
-      setIsCreating(true);
-      setCreateError('');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
-
-      await axios.post(`${apiUrl}/vitesse/integrations`, formData, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // Reset form and close modal
-      resetModal();
-
-      // Refresh integrations list
+      console.error('Failed to deploy integration:', error);
+      alert('Failed to trigger deployment');
+      // Revert optimistic update
       fetchIntegrations();
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || error.message || 'Failed to create integration';
-      setCreateError(errorMsg);
-      console.error('Integration creation error:', error);
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const resetModal = () => {
-    setShowCreateModal(false);
-    setModalStep('search');
-    setSearchQuery('');
-    setDiscoveryResults([]);
-    setSelectedSource(null);
-    setSelectedDest(null);
-    setFormData({
-      source_api_url: '',
-      source_api_name: '',
-      dest_api_url: '',
-      dest_api_name: '',
-      user_intent: '',
-      deployment_target: 'local',
-      source_spec_url: '',
-      dest_spec_url: '',
-    });
-    setCreateError('');
-  };
-
-  const handleSelectAPI = (result: DiscoveryResult, type: 'source' | 'dest') => {
-    if (type === 'source') {
-      setSelectedSource(result);
-      setFormData(prev => ({
-        ...prev,
-        source_api_name: result.api_name,
-        source_api_url: result.base_url || result.documentation_url,
-        source_spec_url: result.spec_url || '',
-      }));
-    } else {
-      setSelectedDest(result);
-      setFormData(prev => ({
-        ...prev,
-        dest_api_name: result.api_name,
-        dest_api_url: result.base_url || result.documentation_url,
-        dest_spec_url: result.spec_url || '',
-      }));
     }
   };
 
@@ -271,8 +193,8 @@ export const Integrations: React.FC = () => {
 
                   <div className="space-y-2 text-sm text-surface-600 dark:text-surface-400 mb-4">
                     <p><span className="font-medium">Target:</span> {integration.deployment_target}</p>
-                    <p><span className="font-medium">Source:</span> {integration.source_api_spec?.title || 'Unknown'}</p>
-                    <p><span className="font-medium">Destination:</span> {integration.dest_api_spec?.title || 'Unknown'}</p>
+                    <p><span className="font-medium">Source:</span> {integration.source_api_spec?.api_name || integration.source_api_spec?.info?.title || integration.source_api_spec?.title || 'Unknown'}</p>
+                    <p><span className="font-medium">Destination:</span> {integration.dest_api_spec?.api_name || integration.dest_api_spec?.info?.title || integration.dest_api_spec?.title || 'Unknown'}</p>
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-surface-200 dark:border-surface-800">
@@ -286,257 +208,79 @@ export const Integrations: React.FC = () => {
         </div>
       </div>
 
-      <AnimatePresence>
-        {/* Create Integration Modal */}
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowCreateModal(false)}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      {/* Integration Detail Modal */}
+      {selectedIntegration && (
+        <div
+          onClick={() => setSelectedIntegration(null)}
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-surface-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-8 relative z-[101]"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white dark:bg-surface-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-8"
-            >
-              <div className="flex items-start justify-between mb-6">
-                <h2 className="text-2xl font-bold text-surface-950 dark:text-white">
-                  Create New Integration
-                </h2>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="text-surface-400 hover:text-surface-600"
-                >
-                  ✕
-                </button>
+            <div className="flex items-start justify-between mb-6">
+              <h2 className="text-2xl font-bold text-surface-950 dark:text-white">
+                {selectedIntegration.name}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setSelectedIntegration(null)}
+                className="text-surface-400 hover:text-surface-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-surface-950 dark:text-white mb-3">Status</h3>
+                <div className="inline-flex items-center gap-2">
+                  <div className={cn(
+                    'p-2 rounded-lg',
+                    statusConfig[selectedIntegration.status].bg
+                  )}>
+                    {React.createElement(statusConfig[selectedIntegration.status].icon, {
+                      className: cn('w-5 h-5', statusConfig[selectedIntegration.status].color)
+                    })}
+                  </div>
+                  <span className="font-medium text-surface-950 dark:text-white capitalize">
+                    {selectedIntegration.status.replace('_', ' ')}
+                  </span>
+                </div>
               </div>
 
-              {createError && (
-                <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <p className="text-red-600 dark:text-red-400 text-sm">{createError}</p>
-                </div>
-              )}
-
-              <div className="space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                      Source API Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Shopify, GitHub"
-                      value={formData.source_api_name}
-                      onChange={(e) => setFormData({ ...formData, source_api_name: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                      Source API URL
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="https://api.example.com/swagger.json"
-                      value={formData.source_api_url}
-                      onChange={(e) => setFormData({ ...formData, source_api_url: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                      Source Spec URL <span className="text-xs text-surface-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Direct OpenAPI/Swagger spec URL"
-                      value={formData.source_spec_url}
-                      onChange={(e) => setFormData({ ...formData, source_spec_url: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
-                    />
-                    <p className="text-xs text-surface-400 mt-1">Use if API doesn't expose spec at standard paths</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                      Destination API Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Stripe, Salesforce"
-                      value={formData.dest_api_name}
-                      onChange={(e) => setFormData({ ...formData, dest_api_name: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                      Destination API URL
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="https://api.example.com/openapi.json"
-                      value={formData.dest_api_url}
-                      onChange={(e) => setFormData({ ...formData, dest_api_url: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                      Destination Spec URL <span className="text-xs text-surface-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Direct OpenAPI/Swagger spec URL"
-                      value={formData.dest_spec_url}
-                      onChange={(e) => setFormData({ ...formData, dest_spec_url: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
-                    />
-                    <p className="text-xs text-surface-400 mt-1">Use if API doesn't expose spec at standard paths</p>
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    User Intent
-                  </label>
-                  <textarea
-                    placeholder="Describe what you want to sync (e.g., 'Sync customers and orders from Shopify to Salesforce')"
-                    value={formData.user_intent}
-                    onChange={(e) => setFormData({ ...formData, user_intent: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
-                    Deployment Target
-                  </label>
-                  <select
-                    value={formData.deployment_target}
-                    onChange={(e) => setFormData({ ...formData, deployment_target: e.target.value as any })}
-                    className="w-full px-4 py-2.5 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                  >
-                    <option value="local">Local (Docker)</option>
-                    <option value="eks">AWS EKS (Kubernetes)</option>
-                    <option value="ecs">AWS ECS (Fargate)</option>
-                  </select>
-                </div>
-
-                <div className="flex gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
-                  <button
-                    onClick={() => setShowCreateModal(false)}
-                    className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={createIntegration}
-                    disabled={isCreating || !formData.source_api_url || !formData.dest_api_url || !formData.user_intent}
-                    className="flex-1 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                  >
-                    {isCreating ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      'Create Integration'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Integration Detail Modal */}
-        {selectedIntegration && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedIntegration(null)}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white dark:bg-surface-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-8"
-            >
-              <div className="flex items-start justify-between mb-6">
-                <h2 className="text-2xl font-bold text-surface-950 dark:text-white">
-                  {selectedIntegration.name}
-                </h2>
-                <button
-                  onClick={() => setSelectedIntegration(null)}
-                  className="text-surface-400 hover:text-surface-600"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-surface-950 dark:text-white mb-3">Status</h3>
-                  <div className="inline-flex items-center gap-2">
-                    <div className={cn(
-                      'p-2 rounded-lg',
-                      statusConfig[selectedIntegration.status].bg
-                    )}>
-                      {React.createElement(statusConfig[selectedIntegration.status].icon, {
-                        className: cn('w-5 h-5', statusConfig[selectedIntegration.status].color)
-                      })}
-                    </div>
-                    <span className="font-medium text-surface-950 dark:text-white capitalize">
-                      {selectedIntegration.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Source API</h4>
-                    <p className="font-medium text-surface-950 dark:text-white">
-                      {selectedIntegration.source_api_spec?.title || 'Unknown'}
+                  <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Source API</h4>
+                  <p className="font-medium text-surface-950 dark:text-white">
+                    {selectedIntegration.source_api_spec?.api_name || selectedIntegration.source_api_spec?.info?.title || selectedIntegration.source_api_spec?.title || 'Unknown'}
+                  </p>
+                  {selectedIntegration.source_api_spec?.base_url && (
+                    <p className="text-xs text-surface-500 mt-1 truncate">
+                      {selectedIntegration.source_api_spec.base_url}
                     </p>
-                    {selectedIntegration.source_api_spec?.servers?.[0]?.url && (
-                      <p className="text-xs text-surface-500 mt-1">
-                        {selectedIntegration.source_api_spec.servers[0].url}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Destination API</h4>
-                    <p className="font-medium text-surface-950 dark:text-white">
-                      {selectedIntegration.dest_api_spec?.title || 'Unknown'}
-                    </p>
-                    {selectedIntegration.dest_api_spec?.servers?.[0]?.url && (
-                      <p className="text-xs text-surface-500 mt-1">
-                        {selectedIntegration.dest_api_spec.servers[0].url}
-                      </p>
-                    )}
-                  </div>
+                  )}
                 </div>
+                <div>
+                  <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Destination API</h4>
+                  <p className="font-medium text-surface-950 dark:text-white">
+                    {selectedIntegration.dest_api_spec?.api_name || selectedIntegration.dest_api_spec?.info?.title || selectedIntegration.dest_api_spec?.title || 'Unknown'}
+                  </p>
+                  {selectedIntegration.dest_api_spec?.base_url && (
+                    <p className="text-xs text-surface-500 mt-1 truncate">
+                      {selectedIntegration.dest_api_spec.base_url}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-                {selectedIntegration.health_score && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-3">Health Metrics</h4>
-                    <div className="space-y-2">
-                      {Object.entries(selectedIntegration.health_score).map(([key, value]) => (
+              {selectedIntegration.health_score && (
+                <div>
+                  <h4 className="text-xs font-semibold text-surface-500 uppercase mb-3">Health Metrics</h4>
+                  <div className="space-y-2 mb-4">
+                    {Object.entries(selectedIntegration.health_score)
+                      .filter(([key]) => !['test_results', 'critical_issues', 'warnings'].includes(key))
+                      .map(([key, value]) => (
                         <div key={key} className="flex justify-between items-center text-sm">
                           <span className="text-surface-600 dark:text-surface-400 capitalize">
                             {key.replace(/_/g, ' ')}
@@ -546,27 +290,101 @@ export const Integrations: React.FC = () => {
                           </span>
                         </div>
                       ))}
-                    </div>
                   </div>
-                )}
 
-                <div className="flex gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
-                  <button className="flex-1 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition-colors">
-                    Deploy
-                  </button>
-                  <button className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors">
-                    Edit
-                  </button>
-                  <button className="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-lg font-medium transition-colors">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  {/* Test Results */}
+                  {selectedIntegration.health_score.test_results && selectedIntegration.health_score.test_results.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Test Results</h4>
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                        {selectedIntegration.health_score.test_results.map((test: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-surface-50 dark:bg-surface-800 text-sm">
+                            <div className="flex items-center gap-2">
+                              {test.success ? (
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-500" />
+                              )}
+                              <span className="font-mono text-xs">{test.method} {test.endpoint}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className={cn(
+                                "text-xs font-medium px-1.5 py-0.5 rounded",
+                                test.success ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
+                              )}>
+                                {test.status_code}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              <div className="flex gap-3 pt-4 border-t border-surface-200 dark:border-surface-800 relative z-50">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Deploy button clicked');
+                    if (selectedIntegration) {
+                      console.log('Valid integration selected - deploying', selectedIntegration.id);
+                      deployIntegration(selectedIntegration.id);
+                    } else {
+                      console.error('No selected integration for deployment');
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition-colors shadow-sm"
+                >
+                  Deploy
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Edit button clicked');
+                    if (selectedIntegration) {
+                      console.log('Navigating to edit', selectedIntegration.id);
+                      navigate(`/integrations/${selectedIntegration.id}/edit`);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors shadow-sm"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    console.log('Delete button clicked');
+                    if (selectedIntegration && window.confirm('Are you sure you want to delete this integration and ALL associated resources (Container, Image, Code, DB)?')) {
+                      try {
+                        console.log('Deleting integration', selectedIntegration.id);
+                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
+                        await axios.delete(`${apiUrl}/vitesse/integrations/${selectedIntegration.id}`, {
+                          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                        });
+                        console.log('Integration deleted successfully');
+                        setIntegrations(prev => prev.filter(i => i.id !== selectedIntegration.id));
+                        setSelectedIntegration(null);
+                      } catch (err) {
+                        console.error('Failed to delete integration:', err);
+                        alert('Failed to delete integration');
+                      }
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-lg font-medium transition-colors shadow-sm"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div >
   );
 };
 

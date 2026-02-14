@@ -3,73 +3,75 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
     Search,
-    Sparkles,
-    ArrowRight,
     ArrowLeft,
     CheckCircle,
-    ExternalLink,
+    Loader2,
+    Sparkles,
+    Globe,
+    ExternalLink, // Added import
+    Database,
+    Cloud,
+    Server,
     Zap,
-    Loader2
+    Layout
 } from 'lucide-react';
-import { cn } from '../services/utils';
 import axios from 'axios';
 
+// Interfaces
 interface DiscoveryResult {
     api_name: string;
     description: string;
-    documentation_url: string;
-    spec_url?: string;
-    base_url?: string;
+    category: string;
     confidence_score: number;
-    source: string;
-    tags: string[];
+    base_url?: string;
+    auth_type?: string;
+    source?: string; // 'google' | 'directory' | 'spec'
+    spec_url?: string; // If available
 }
 
-type WizardStep = 'search-source' | 'search-dest' | 'configure' | 'review';
+interface NewIntegrationProps {
+    isEditMode?: boolean;
+}
 
-export const NewIntegration: React.FC = () => {
+export const NewIntegration: React.FC<NewIntegrationProps> = () => {
     const navigate = useNavigate();
-    const [currentStep, setCurrentStep] = useState<WizardStep>('search-source');
-
-    // Search state
+    const [currentStep, setCurrentStep] = useState<'search-source' | 'search-dest' | 'configure' | 'review'>('search-source');
     const [sourceQuery, setSourceQuery] = useState('');
     const [destQuery, setDestQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [sourceResults, setSourceResults] = useState<DiscoveryResult[]>([]);
     const [destResults, setDestResults] = useState<DiscoveryResult[]>([]);
-
-    // Selection state
     const [selectedSource, setSelectedSource] = useState<DiscoveryResult | null>(null);
     const [selectedDest, setSelectedDest] = useState<DiscoveryResult | null>(null);
-
-    // Configuration state
     const [userIntent, setUserIntent] = useState('');
     const [deploymentTarget, setDeploymentTarget] = useState<'local' | 'eks' | 'ecs'>('local');
-
-    // Creation state
     const [isCreating, setIsCreating] = useState(false);
-    const [error, setError] = useState('');
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null); // Added error state
+
 
     const searchAPIs = async (query: string, type: 'source' | 'dest') => {
-        try {
-            setIsSearching(true);
-            setError('');
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
+        if (!query.trim()) return;
 
-            const response = await axios.get(`${apiUrl}/vitesse/discover`, {
-                params: { query, limit: 5 },
+        setIsSearching(true);
+        setError(null);
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
+            const response = await axios.post(`${apiUrl}/vitesse/discover`, {
+                query: query
+            }, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                 }
             });
 
             if (type === 'source') {
-                setSourceResults(response.data.results || []);
+                setSourceResults(response.data.data.results || []);
             } else {
-                setDestResults(response.data.results || []);
+                setDestResults(response.data.data.results || []);
             }
-        } catch (err) {
-            console.error('API discovery failed:', err);
+        } catch (error) {
+            console.error('Discovery failed:', error);
             setError('Failed to discover APIs. Please try again.');
         } finally {
             setIsSearching(false);
@@ -89,179 +91,170 @@ export const NewIntegration: React.FC = () => {
     const createIntegration = async () => {
         if (!selectedSource || !selectedDest) return;
 
+        setIsCreating(true);
+        setError(null);
         try {
-            setIsCreating(true);
-            setError('');
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
+            const payload = {
+                name: `${selectedSource.api_name} -> ${selectedDest.api_name}`,
+                user_intent: userIntent || `Sync data from ${selectedSource.api_name} to ${selectedDest.api_name}`,
+                source_api_spec: selectedSource, // Pass the whole result as the spec/context
+                dest_api_spec: selectedDest,     // Pass the whole result as the spec/context
+                deployment_target: deploymentTarget
+            };
 
-            await axios.post(`${apiUrl}/vitesse/integrations`, {
-                source_api_url: selectedSource.base_url || selectedSource.documentation_url,
-                source_api_name: selectedSource.api_name,
-                source_spec_url: selectedSource.spec_url || '',
-                dest_api_url: selectedDest.base_url || selectedDest.documentation_url,
-                dest_api_name: selectedDest.api_name,
-                dest_spec_url: selectedDest.spec_url || '',
-                user_intent: userIntent,
-                deployment_target: deploymentTarget,
-            }, {
+            await axios.post(`${apiUrl}/vitesse/integrations`, payload, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                 }
             });
 
-            // Navigate back to integrations page
-            navigate('/integrations');
-        } catch (err: any) {
-            const errorMsg = err.response?.data?.detail || err.message || 'Failed to create integration';
-            setError(errorMsg);
-            console.error('Integration creation error:', err);
-        } finally {
+            setShowSuccess(true);
+            setTimeout(() => {
+                navigate('/integrations');
+            }, 2500);
+
+        } catch (error) {
+            console.error('Creation failed:', error);
+            setError('Failed to create integration. Please try again.');
             setIsCreating(false);
         }
     };
 
-    const stepProgress = {
-        'search-source': 25,
-        'search-dest': 50,
-        'configure': 75,
-        'review': 100,
-    };
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-surface-50 via-white to-brand-50/30 dark:from-surface-950 dark:via-surface-900 dark:to-surface-950">
-            <div className="max-w-5xl mx-auto px-6 py-12">
-                {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="max-w-4xl mx-auto p-6 md:p-8"
+        >
+            <div className="mb-8">
+                <button
+                    onClick={() => navigate('/integrations')}
+                    className="text-surface-500 hover:text-surface-950 dark:hover:text-white transition-colors flex items-center gap-2 mb-4"
                 >
-                    <button
-                        onClick={() => navigate('/integrations')}
-                        className="flex items-center gap-2 text-surface-600 dark:text-surface-400 hover:text-brand-500 transition-colors mb-4"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to Integrations
-                    </button>
-
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-3 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl">
-                            <Sparkles className="w-6 h-6 text-white" />
-                        </div>
-                        <h1 className="text-3xl font-bold text-surface-950 dark:text-white">
-                            Create New Integration
-                        </h1>
-                    </div>
-                    <p className="text-surface-600 dark:text-surface-400">
-                        Search for APIs and let our agents build the integration for you
-                    </p>
-                </motion.div>
-
-                {/* Progress Bar */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="mb-8"
-                >
-                    <div className="h-2 bg-surface-200 dark:bg-surface-800 rounded-full overflow-hidden">
-                        <motion.div
-                            className="h-full bg-gradient-to-r from-brand-500 to-brand-600"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${stepProgress[currentStep]}%` }}
-                            transition={{ duration: 0.3 }}
-                        />
-                    </div>
-                    <div className="flex justify-between mt-2 text-xs text-surface-500">
-                        <span className={cn(currentStep === 'search-source' && 'text-brand-500 font-semibold')}>
-                            Source API
-                        </span>
-                        <span className={cn(currentStep === 'search-dest' && 'text-brand-500 font-semibold')}>
-                            Destination API
-                        </span>
-                        <span className={cn(currentStep === 'configure' && 'text-brand-500 font-semibold')}>
-                            Configure
-                        </span>
-                        <span className={cn(currentStep === 'review' && 'text-brand-500 font-semibold')}>
-                            Review
-                        </span>
-                    </div>
-                </motion.div>
-
-                {/* Error Display */}
-                <AnimatePresence>
-                    {error && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400"
-                        >
-                            {error}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Step Content */}
-                <AnimatePresence mode="wait">
-                    {currentStep === 'search-source' && (
-                        <SearchStep
-                            key="search-source"
-                            title="Search for Source API"
-                            description="What API do you want to pull data from?"
-                            query={sourceQuery}
-                            setQuery={setSourceQuery}
-                            onSearch={() => searchAPIs(sourceQuery, 'source')}
-                            results={sourceResults}
-                            isSearching={isSearching}
-                            onSelect={(result) => handleSelectAPI(result, 'source')}
-                            selectedAPI={selectedSource}
-                        />
-                    )}
-
-                    {currentStep === 'search-dest' && (
-                        <SearchStep
-                            key="search-dest"
-                            title="Search for Destination API"
-                            description="Where do you want to send the data?"
-                            query={destQuery}
-                            setQuery={setDestQuery}
-                            onSearch={() => searchAPIs(destQuery, 'dest')}
-                            results={destResults}
-                            isSearching={isSearching}
-                            onSelect={(result) => handleSelectAPI(result, 'dest')}
-                            selectedAPI={selectedDest}
-                            onBack={() => setCurrentStep('search-source')}
-                        />
-                    )}
-
-                    {currentStep === 'configure' && (
-                        <ConfigureStep
-                            key="configure"
-                            userIntent={userIntent}
-                            setUserIntent={setUserIntent}
-                            deploymentTarget={deploymentTarget}
-                            setDeploymentTarget={setDeploymentTarget}
-                            onBack={() => setCurrentStep('search-dest')}
-                            onNext={() => setCurrentStep('review')}
-                        />
-                    )}
-
-                    {currentStep === 'review' && (
-                        <ReviewStep
-                            key="review"
-                            source={selectedSource!}
-                            dest={selectedDest!}
-                            userIntent={userIntent}
-                            deploymentTarget={deploymentTarget}
-                            onBack={() => setCurrentStep('configure')}
-                            onCreate={createIntegration}
-                            isCreating={isCreating}
-                        />
-                    )}
-                </AnimatePresence>
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Integrations
+                </button>
+                <h1 className="text-3xl font-bold text-surface-950 dark:text-white">
+                    Create New Integration
+                </h1>
+                <p className="text-surface-500 dark:text-surface-400 mt-2">
+                    Use AI agents to discover, map, and deploy a new integration pipeline.
+                </p>
             </div>
-        </div>
+
+            {/* Error Message */}
+            <AnimatePresence>
+                {error && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400"
+                    >
+                        {error}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Step Content */}
+            <AnimatePresence mode="wait">
+                {currentStep === 'search-source' && (
+                    <SearchStep
+                        key="search-source"
+                        title="Search for Source API"
+                        description="What API do you want to pull data from?"
+                        query={sourceQuery}
+                        setQuery={setSourceQuery}
+                        onSearch={() => searchAPIs(sourceQuery, 'source')}
+                        results={sourceResults}
+                        isSearching={isSearching}
+                        onSelect={(result) => handleSelectAPI(result, 'source')}
+                        selectedAPI={selectedSource}
+                    />
+                )}
+
+                {currentStep === 'search-dest' && (
+                    <SearchStep
+                        key="search-dest"
+                        title="Search for Destination API"
+                        description="Where do you want to send the data?"
+                        query={destQuery}
+                        setQuery={setDestQuery}
+                        onSearch={() => searchAPIs(destQuery, 'dest')}
+                        results={destResults}
+                        isSearching={isSearching}
+                        onSelect={(result) => handleSelectAPI(result, 'dest')}
+                        selectedAPI={selectedDest}
+                        onBack={() => setCurrentStep('search-source')}
+                    />
+                )}
+
+                {currentStep === 'configure' && (
+                    <ConfigureStep
+                        key="configure"
+                        userIntent={userIntent}
+                        setUserIntent={setUserIntent}
+                        deploymentTarget={deploymentTarget}
+                        setDeploymentTarget={setDeploymentTarget}
+                        onBack={() => setCurrentStep('search-dest')}
+                        onNext={() => setCurrentStep('review')}
+                    />
+                )}
+
+                {currentStep === 'review' && (
+                    <ReviewStep
+                        key="review"
+                        source={selectedSource!}
+                        dest={selectedDest!}
+                        userIntent={userIntent}
+                        deploymentTarget={deploymentTarget}
+                        onBack={() => setCurrentStep('configure')}
+                        onCreate={createIntegration}
+                        isCreating={isCreating}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Success Overlay */}
+            <AnimatePresence>
+                {showSuccess && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-surface-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-white dark:bg-surface-900 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-surface-200 dark:border-surface-700"
+                        >
+                            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-surface-950 dark:text-white mb-2">
+                                Integration Started!
+                            </h3>
+                            <p className="text-surface-600 dark:text-surface-400 mb-8">
+                                Our agents are now building your integration in the background. You can track progress on the dashboard.
+                            </p>
+                            <div className="w-full bg-surface-100 dark:bg-surface-800 rounded-full h-1.5 overflow-hidden">
+                                <motion.div
+                                    className="h-full bg-green-500"
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: "100%" }}
+                                    transition={{ duration: 2 }}
+                                />
+                            </div>
+                            <p className="text-xs text-surface-500 mt-4">
+                                Redirecting to dashboard...
+                            </p>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 };
 
@@ -335,63 +328,75 @@ const SearchStep: React.FC<SearchStepProps> = ({
                 </button>
             </div>
 
-            {/* Results */}
-            {results.length > 0 && (
-                <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-3">
-                        Found {results.length} API{results.length !== 1 ? 's' : ''}
-                    </h3>
+            {/* Loading State */}
+            {isSearching && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                >
+                    <div className="w-20 h-20 mx-auto mb-6 relative">
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-brand-500 to-purple-500 opacity-20 animate-pulse" />
+                        <div className="absolute inset-2 rounded-full bg-white dark:bg-surface-900 flex items-center justify-center">
+                            <Zap className="w-8 h-8 text-brand-500 animate-pulse" />
+                        </div>
+                    </div>
+                    <h3 className="text-lg font-semibold text-surface-950 dark:text-white">Discovering API Specs</h3>
+                    <p className="text-surface-500 dark:text-surface-400 mt-2">Our agents are scanning the web...</p>
+                </motion.div>
+            )}
+
+            {/* Results Grid */}
+            {!isSearching && results.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {results.map((result, idx) => (
                         <motion.div
                             key={idx}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.05 }}
+                            transition={{ delay: idx * 0.1 }}
                             onClick={() => onSelect(result)}
-                            className={cn(
-                                "p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg",
-                                selectedAPI?.api_name === result.api_name
-                                    ? "border-brand-500 bg-brand-50 dark:bg-brand-950/20"
-                                    : "border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-brand-300"
-                            )}
+                            className={`
+                                group p-6 rounded-xl border cursor-pointer transition-all
+                                ${selectedAPI === result
+                                    ? 'bg-brand-500/10 border-brand-500/50 ring-1 ring-brand-500/50'
+                                    : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-700 hover:border-brand-500/50 hover:shadow-lg hover:shadow-brand-500/10'
+                                }
+                            `}
                         >
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-semibold text-surface-950 dark:text-white">
-                                            {result.api_name}
-                                        </h4>
-                                        <span className={cn(
-                                            "px-2 py-0.5 rounded text-xs font-medium",
-                                            result.source === 'catalog'
-                                                ? "bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400"
-                                                : "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
-                                        )}>
-                                            {result.source === 'catalog' ? 'Official' : 'AI Found'}
-                                        </span>
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="p-3 bg-surface-100 dark:bg-surface-800 rounded-lg group-hover:bg-white dark:group-hover:bg-surface-700 transition-colors">
+                                    <Globe className="w-6 h-6 text-brand-500" />
+                                </div>
+                                <div className={`
+                                    px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider
+                                    ${result.source === 'google' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'}
+                                `}>
+                                    {result.source}
+                                </div>
+                            </div>
+                            <h3 className="text-lg font-bold text-surface-950 dark:text-white mb-2 group-hover:text-brand-500 transition-colors">
+                                {result.api_name}
+                            </h3>
+                            <p className="text-sm text-surface-600 dark:text-surface-400 mb-4 line-clamp-2">
+                                {result.description}
+                            </p>
+                            <div className="flex items-center justify-between pt-4 border-t border-surface-200 dark:border-surface-800">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 text-xs text-surface-500">
+                                        <Database className="w-3 h-3" />
+                                        JSON
                                     </div>
-                                    <p className="text-sm text-surface-600 dark:text-surface-400 mb-2">
-                                        {result.description}
-                                    </p>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        {result.tags.slice(0, 3).map((tag, i) => (
-                                            <span
-                                                key={i}
-                                                className="px-2 py-0.5 bg-surface-100 dark:bg-surface-700 rounded text-xs text-surface-600 dark:text-surface-300"
-                                            >
-                                                {tag}
-                                            </span>
-                                        ))}
-                                        <a
-                                            href={result.documentation_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
-                                        >
-                                            Docs <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                    </div>
+                                    <div className="w-1 h-1 bg-surface-300 rounded-full" />
+                                    <a
+                                        href={result.base_url || result.spec_url || '#'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
+                                    >
+                                        Docs <ExternalLink className="w-3 h-3" />
+                                    </a>
                                 </div>
                                 <div className="ml-4">
                                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-bold">
@@ -448,71 +453,101 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
             <h2 className="text-2xl font-bold text-surface-950 dark:text-white mb-2">
                 Configure Integration
             </h2>
-            <p className="text-surface-600 dark:text-surface-400 mb-6">
-                Tell us what you want to achieve with this integration
+            <p className="text-surface-600 dark:text-surface-400 mb-8">
+                Tell our agents how you want this integration to behave.
             </p>
 
-            {/* User Intent */}
-            <div className="mb-6">
-                <label className="block text-sm font-semibold text-surface-700 dark:text-surface-300 mb-2">
-                    What do you want to sync?
-                </label>
-                <textarea
-                    value={userIntent}
-                    onChange={(e) => setUserIntent(e.target.value)}
-                    placeholder="e.g., Sync new orders from Shopify to my inventory system every hour"
-                    rows={4}
-                    className="w-full px-4 py-3 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-700 rounded-xl text-surface-950 dark:text-white placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all resize-none"
-                />
-            </div>
-
-            {/* Deployment Target */}
-            <div className="mb-8">
-                <label className="block text-sm font-semibold text-surface-700 dark:text-surface-300 mb-3">
-                    Deployment Target
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                    {(['local', 'eks', 'ecs'] as const).map((target) => (
-                        <button
-                            key={target}
-                            onClick={() => setDeploymentTarget(target)}
-                            className={cn(
-                                "p-4 rounded-xl border-2 transition-all text-left",
-                                deploymentTarget === target
-                                    ? "border-brand-500 bg-brand-50 dark:bg-brand-950/20"
-                                    : "border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-brand-300"
-                            )}
-                        >
-                            <div className="font-semibold text-surface-950 dark:text-white uppercase text-sm">
-                                {target}
-                            </div>
-                            <div className="text-xs text-surface-500 mt-1">
-                                {target === 'local' && 'Docker on VPS'}
-                                {target === 'eks' && 'AWS EKS'}
-                                {target === 'ecs' && 'AWS ECS'}
-                            </div>
-                        </button>
-                    ))}
+            <div className="space-y-8">
+                {/* User Intent */}
+                <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-2">
+                        Integration Goal (Natural Language)
+                    </label>
+                    <textarea
+                        value={userIntent}
+                        onChange={(e) => setUserIntent(e.target.value)}
+                        placeholder="e.g., Every hour, fetch new products from Shopify and update our inventory database..."
+                        className="w-full p-4 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-700 rounded-xl text-surface-950 dark:text-white placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500 min-h-[120px]"
+                    />
+                    <p className="text-xs text-surface-500 mt-2">
+                        Our agents will use this to generate the mapping logic.
+                    </p>
                 </div>
-            </div>
 
-            {/* Navigation */}
-            <div className="flex justify-between">
-                <button
-                    onClick={onBack}
-                    className="px-6 py-3 text-surface-600 dark:text-surface-400 hover:text-brand-500 transition-colors flex items-center gap-2"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back
-                </button>
-                <button
-                    onClick={onNext}
-                    disabled={!userIntent}
-                    className="px-8 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-brand-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                    Continue
-                    <ArrowRight className="w-4 h-4" />
-                </button>
+                {/* Deployment Target */}
+                <div>
+                    <label className="block text-sm font-semibold text-surface-950 dark:text-white mb-4">
+                        Deployment Target
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button
+                            onClick={() => setDeploymentTarget('local')}
+                            className={`
+                                p-4 rounded-xl border text-left transition-all
+                                ${deploymentTarget === 'local'
+                                    ? 'bg-brand-500/10 border-brand-500 ring-1 ring-brand-500'
+                                    : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-700 hover:border-brand-500/50'
+                                }
+                            `}
+                        >
+                            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-3">
+                                <Server className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <h4 className="font-semibold text-surface-950 dark:text-white">Local Docker</h4>
+                            <p className="text-xs text-surface-500 mt-1">Deploy to local container runtime</p>
+                        </button>
+
+                        <button
+                            onClick={() => setDeploymentTarget('eks')}
+                            className={`
+                                p-4 rounded-xl border text-left transition-all
+                                ${deploymentTarget === 'eks'
+                                    ? 'bg-brand-500/10 border-brand-500 ring-1 ring-brand-500'
+                                    : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-700 hover:border-brand-500/50'
+                                }
+                            `}
+                        >
+                            <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-3">
+                                <Cloud className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <h4 className="font-semibold text-surface-950 dark:text-white">AWS EKS</h4>
+                            <p className="text-xs text-surface-500 mt-1">Deploy to Elastic Kubernetes Service</p>
+                        </button>
+
+                        <button
+                            onClick={() => setDeploymentTarget('ecs')}
+                            className={`
+                                p-4 rounded-xl border text-left transition-all
+                                ${deploymentTarget === 'ecs'
+                                    ? 'bg-brand-500/10 border-brand-500 ring-1 ring-brand-500'
+                                    : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-700 hover:border-brand-500/50'
+                                }
+                            `}
+                        >
+                            <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-3">
+                                <Layout className="w-6 h-6 text-green-600 dark:text-green-400" />
+                            </div>
+                            <h4 className="font-semibold text-surface-950 dark:text-white">AWS ECS</h4>
+                            <p className="text-xs text-surface-500 mt-1">Deploy to Elastic Container Service</p>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex justify-between pt-6">
+                    <button
+                        onClick={onBack}
+                        className="px-6 py-3 text-surface-600 dark:text-surface-400 hover:text-brand-500 transition-colors flex items-center gap-2"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back
+                    </button>
+                    <button
+                        onClick={onNext}
+                        className="px-8 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold transition-all shadow-lg shadow-brand-500/20"
+                    >
+                        Review & Create
+                    </button>
+                </div>
             </div>
         </motion.div>
     );
@@ -545,70 +580,42 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
             exit={{ opacity: 0, x: -20 }}
             className="glass rounded-2xl p-8 border border-surface-200/50 dark:border-surface-800/50"
         >
-            <h2 className="text-2xl font-bold text-surface-950 dark:text-white mb-2">
-                Review & Create
+            <h2 className="text-2xl font-bold text-surface-950 dark:text-white mb-6">
+                Review & Launch
             </h2>
-            <p className="text-surface-600 dark:text-surface-400 mb-6">
-                Our agents will now build, test, and deploy your integration
-            </p>
 
-            {/* Integration Flow Visualization */}
-            <div className="mb-8 p-6 bg-gradient-to-br from-brand-50 to-purple-50 dark:from-brand-950/20 dark:to-purple-950/20 rounded-xl border border-brand-200 dark:border-brand-800">
-                <div className="flex items-center justify-between">
+            <div className="space-y-6">
+                <div className="flex items-center gap-4 p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700">
                     <div className="flex-1">
-                        <div className="text-xs font-semibold text-brand-600 dark:text-brand-400 mb-1">SOURCE</div>
-                        <div className="font-bold text-surface-950 dark:text-white">{source.api_name}</div>
+                        <h4 className="text-xs font-semibold text-surface-500 uppercase mb-1">Source</h4>
+                        <p className="font-bold text-surface-950 dark:text-white text-lg">{source.api_name}</p>
                     </div>
-                    <div className="px-4">
-                        <ArrowRight className="w-6 h-6 text-brand-500" />
+                    <div className="text-surface-400">
+                        <ArrowLeft className="w-6 h-6 rotate-180" />
                     </div>
                     <div className="flex-1 text-right">
-                        <div className="text-xs font-semibold text-brand-600 dark:text-brand-400 mb-1">DESTINATION</div>
-                        <div className="font-bold text-surface-950 dark:text-white">{dest.api_name}</div>
+                        <h4 className="text-xs font-semibold text-surface-500 uppercase mb-1">Destination</h4>
+                        <p className="font-bold text-surface-950 dark:text-white text-lg">{dest.api_name}</p>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700">
+                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Integration Goal</h4>
+                    <p className="text-surface-700 dark:text-surface-300 italic">
+                        "{userIntent || 'Default sync behavior'}"
+                    </p>
+                </div>
+
+                <div className="p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700">
+                    <h4 className="text-xs font-semibold text-surface-500 uppercase mb-2">Deployment Target</h4>
+                    <div className="flex items-center gap-2">
+                        <Server className="w-4 h-4 text-brand-500" />
+                        <span className="font-medium text-surface-950 dark:text-white capitalize">{deploymentTarget}</span>
                     </div>
                 </div>
             </div>
 
-            {/* Details */}
-            <div className="space-y-4 mb-8">
-                <div>
-                    <div className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-1">
-                        Integration Goal
-                    </div>
-                    <div className="p-3 bg-surface-100 dark:bg-surface-800 rounded-lg text-surface-950 dark:text-white">
-                        {userIntent}
-                    </div>
-                </div>
-                <div>
-                    <div className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-1">
-                        Deployment
-                    </div>
-                    <div className="p-3 bg-surface-100 dark:bg-surface-800 rounded-lg text-surface-950 dark:text-white uppercase">
-                        {deploymentTarget}
-                    </div>
-                </div>
-            </div>
-
-            {/* What Happens Next */}
-            <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-blue-500 mt-0.5" />
-                    <div>
-                        <div className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                            Autonomous Build Process
-                        </div>
-                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                            <li>• Ingestor Agent: Fetch and parse API specifications</li>
-                            <li>• Mapper Agent: Generate intelligent field mappings</li>
-                            <li>• Guardian Agent: Test endpoints and validate data flow</li>
-                            <li>• Deployer Agent: Build and deploy containerized integration</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex justify-between">
+            <div className="flex justify-between pt-8">
                 <button
                     onClick={onBack}
                     disabled={isCreating}
@@ -620,17 +627,17 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
                 <button
                     onClick={onCreate}
                     disabled={isCreating}
-                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-8 py-3 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/20 flex items-center gap-2 disabled:opacity-70 disabled:cursor-wait"
                 >
                     {isCreating ? (
                         <>
                             <Loader2 className="w-5 h-5 animate-spin" />
-                            Creating Integration...
+                            Building Agents...
                         </>
                     ) : (
                         <>
-                            <CheckCircle className="w-5 h-5" />
-                            Create Integration
+                            <Zap className="w-5 h-5" />
+                            Launch Integration
                         </>
                     )}
                 </button>
@@ -638,3 +645,5 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
         </motion.div>
     );
 };
+
+export default NewIntegration;

@@ -96,11 +96,32 @@ async def seed_llm_configs():
 
         mappings = [
             AgentModelMapping(
-                agent_id="Orchestrator",
+                agent_id="vitesse_orchestrator",
                 provider_id="ollama-remote",
                 model_name="anthropic.claude-3-sonnet-20240229-v1:0",
                 parameters={"temperature": 0.1},
                 role="Orchestrator",
+            ),
+            AgentModelMapping(
+                agent_id="analyst",
+                provider_id="ollama-remote",
+                model_name="anthropic.claude-3-sonnet-20240229-v1:0",
+                parameters={"temperature": 0.1},
+                role="API Schema Analysis",
+            ),
+            AgentModelMapping(
+                agent_id="reviewer",
+                provider_id="ollama-remote",
+                model_name="anthropic.claude-3-sonnet-20240229-v1:0",
+                parameters={"temperature": 0.1},
+                role="Validation",
+            ),
+            AgentModelMapping(
+                agent_id="writer",
+                provider_id="ollama-remote",
+                model_name="anthropic.claude-3-sonnet-20240229-v1:0",
+                parameters={"temperature": 0.1},
+                role="Documentation",
             ),
             AgentModelMapping(
                 agent_id="sentinel",

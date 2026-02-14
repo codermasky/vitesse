@@ -239,6 +239,94 @@ class VitesseOrchestrator:
                 f"integration_{integration_id}", integration.model_dump()
             )
 
+            # Persist to Database
+            try:
+                from app.db.session import async_session_factory
+                from app.models.integration import Integration as IntegrationModel
+                from app.models.integration import (
+                    IntegrationStatusEnum,
+                    DeploymentTargetEnum,
+                )
+
+                # Helper to ensure all fields are JSON serializable
+                def make_json_serializable(obj):
+                    if isinstance(obj, datetime):
+                        return obj.isoformat()
+                    if isinstance(obj, dict):
+                        return {k: make_json_serializable(v) for k, v in obj.items()}
+                    if isinstance(obj, list):
+                        return [make_json_serializable(i) for i in obj]
+                    return obj
+
+                async with async_session_factory() as db:
+                    # Map schema enums to model enums
+                    status_val = (
+                        integration.status.value
+                        if hasattr(integration.status, "value")
+                        else integration.status
+                    )
+                    target_val = (
+                        integration.deployment_config.target.value
+                        if hasattr(integration.deployment_config.target, "value")
+                        else integration.deployment_config.target
+                    )
+
+                    # Prepare data
+                    source_spec_data = (
+                        integration.source_api_spec.model_dump()
+                        if hasattr(integration.source_api_spec, "model_dump")
+                        else integration.source_api_spec
+                    )
+                    dest_spec_data = (
+                        integration.dest_api_spec.model_dump()
+                        if hasattr(integration.dest_api_spec, "model_dump")
+                        else integration.dest_api_spec
+                    )
+                    mapping_logic_data = (
+                        integration.mapping_logic.model_dump()
+                        if integration.mapping_logic
+                        and hasattr(integration.mapping_logic, "model_dump")
+                        else integration.mapping_logic
+                    )
+                    deployment_config_data = (
+                        integration.deployment_config.model_dump(mode="json")
+                        if hasattr(integration.deployment_config, "model_dump")
+                        else integration.deployment_config
+                    )
+                    health_score_data = (
+                        integration.health_score.model_dump()
+                        if hasattr(integration.health_score, "model_dump")
+                        else integration.health_score
+                    )
+
+                    db_integration = IntegrationModel(
+                        id=integration.id,
+                        name=integration.name,
+                        status=IntegrationStatusEnum(status_val),
+                        source_api_spec=make_json_serializable(source_spec_data),
+                        dest_api_spec=make_json_serializable(dest_spec_data),
+                        mapping_logic=make_json_serializable(mapping_logic_data),
+                        deployment_config=make_json_serializable(
+                            deployment_config_data
+                        ),
+                        deployment_target=DeploymentTargetEnum(target_val),
+                        health_score=make_json_serializable(health_score_data),
+                        error_log=integration.error_log,
+                        container_id=integration.container_id,
+                        created_by=integration.created_by,
+                        extra_metadata=make_json_serializable(integration.metadata),
+                    )
+                    db.add(db_integration)
+                    await db.commit()
+                    logger.info(
+                        "Integration persisted to database",
+                        integration_id=integration_id,
+                    )
+
+            except Exception as db_err:
+                logger.error("Failed to persist integration to DB", error=str(db_err))
+                # Don't fail the request, but log critical error
+
             return {
                 "status": "success",
                 "integration_id": integration_id,
@@ -526,3 +614,76 @@ class VitesseOrchestrator:
             "mapper": self.mapper.get_status(),
             "guardian": self.guardian.get_status(),
         }
+
+    async def delete_integration_resources(self, integration_id: str) -> Dict[str, Any]:
+        """
+        Clean up all resources associated with an integration:
+        - Docker container
+        - Docker image
+        - Source code directory
+        """
+        logger.info("Cleaning up integration resources", integration_id=integration_id)
+
+        try:
+            # 1. Stop and remove container
+            # We use the deployer's logic or direct docker commands
+            # Since LocalContainerDeployer doesn't have a delete method, we'll try to implement it there or here
+            # For now, let's use direct docker commands via subprocess for simplicity in this MVP
+            import asyncio
+
+            # Find container name pattern: vitesse-integration-{id}
+            container_name = f"vitesse-integration-{integration_id}"
+
+            # Stop container
+            await asyncio.create_subprocess_shell(
+                f"docker stop {container_name}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            # Remove container
+            await asyncio.create_subprocess_shell(
+                f"docker rm {container_name}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            # 2. Remove Docker image
+            image_name = f"vitesse-integration-{integration_id}:latest"
+            await asyncio.create_subprocess_shell(
+                f"docker rmi -f {image_name}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            # 3. Remove source code directory
+            import shutil
+            import os
+
+            # Assuming standard path based on LocalContainerDeployer.py
+            base_dir = os.getcwd()  # Should be /app/backend or /app
+            # Adjust based on where we are running.
+            # In container: /app
+            # Code gen path: /app/integrations_active/{id} or /app/backend/integrations_active/{id}
+
+            # Try multiple potential paths
+            paths_to_check = [
+                f"integrations_active/{integration_id}",
+                f"backend/integrations_active/{integration_id}",
+                f"/app/integrations_active/{integration_id}",
+            ]
+
+            for path in paths_to_check:
+                if os.path.exists(path):
+                    logger.info("Removing integration directory", path=path)
+                    shutil.rmtree(path)
+                    break
+
+            logger.info("Cleanup complete", integration_id=integration_id)
+            return {"status": "success", "message": "Resources cleaned up"}
+
+        except Exception as e:
+            logger.error("Cleanup failed", integration_id=integration_id, error=str(e))
+            # Return success anyway so DB deletion can proceed?
+            # Or maybe failed to warn user? Let's return failed.
+            return {"status": "failed", "error": str(e)}
