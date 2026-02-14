@@ -24,6 +24,10 @@ def upgrade() -> None:
     # Drop existing table if exists
     op.drop_table("documents", if_exists=True)
 
+    # Drop enum if exists and recreate it
+    op.execute("DROP TYPE IF EXISTS extractionstatus CASCADE")
+    op.execute("CREATE TYPE extractionstatus AS ENUM ('pending', 'processing', 'completed', 'failed')")
+
     # Create new comprehensive documents table
     op.create_table(
         "documents",
@@ -48,7 +52,7 @@ def upgrade() -> None:
         sa.Column(
             "extraction_status",
             sa.Enum(
-                "pending", "processing", "completed", "failed", name="extractionstatus"
+                "pending", "processing", "completed", "failed", name="extractionstatus", native_enum=False
             ),
             nullable=False,
             default="pending",
