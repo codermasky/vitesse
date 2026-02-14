@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "20260207_purge_generic"
-down_revision: Union[str, Sequence[str], None] = "20260204_003"
+revision = "20260207_001"
+down_revision = "20260204_003"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
