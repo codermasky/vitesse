@@ -25,7 +25,9 @@ class HarvestSource(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False, index=True)
-    type = Column(String(50), nullable=False, index=True)  # api_directory, marketplace, github, documentation
+    type = Column(
+        String(50), nullable=False, index=True
+    )  # api_directory, marketplace, github, documentation
     url = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     enabled = Column(Boolean, default=True, nullable=False)

@@ -32,7 +32,19 @@ api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(sharepoint.router, prefix="/sharepoint", tags=["sharepoint"])
 api_router.include_router(integrations.router)
-api_router.include_router(harvest_sources.router, prefix="/harvest-sources", tags=["harvest-sources"])
-api_router.include_router(harvest_jobs.router, prefix="/harvest-jobs", tags=["harvest-jobs"])
-api_router.include_router(agent_collaboration.router, prefix="/agent-collaboration", tags=["agent-collaboration"])
-api_router.include_router(integration_builder.router, prefix="/integration-builder", tags=["integration-builder"])
+api_router.include_router(
+    harvest_sources.router, prefix="/harvest-sources", tags=["harvest-sources"]
+)
+api_router.include_router(
+    harvest_jobs.router, prefix="/harvest-jobs", tags=["harvest-jobs"]
+)
+api_router.include_router(
+    agent_collaboration.router,
+    prefix="/agent-collaboration",
+    tags=["agent-collaboration"],
+)
+api_router.include_router(
+    integration_builder.router,
+    prefix="/integration-builder",
+    tags=["integration-builder"],
+)

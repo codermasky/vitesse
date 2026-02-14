@@ -38,7 +38,9 @@ async def list_harvest_jobs(
     """List harvest jobs with optional filtering."""
     try:
         jobs = HarvestJobService.get_harvest_jobs(db, skip, limit, status, harvest_type)
-        total = len(HarvestJobService.get_harvest_jobs(db, 0, 10000, status, harvest_type))  # Get total count
+        total = len(
+            HarvestJobService.get_harvest_jobs(db, 0, 10000, status, harvest_type)
+        )  # Get total count
 
         return HarvestJobList(
             items=jobs,
@@ -61,7 +63,9 @@ async def create_harvest_job(
     """Create and start a new harvest job."""
     try:
         # Generate unique job ID
-        job_id = f"job-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{str(uuid.uuid4())[:8]}"
+        job_id = (
+            f"job-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{str(uuid.uuid4())[:8]}"
+        )
 
         # Create job in database
         job = HarvestJobService.create_harvest_job(
@@ -108,7 +112,9 @@ async def get_harvest_job_stats(db: Session = Depends(get_db)):
         return HarvestJobStats(**stats)
     except Exception as e:
         logger.error("Failed to get harvest job stats", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to retrieve harvest job statistics")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve harvest job statistics"
+        )
 
 
 @router.post("/{job_id}/cancel")
@@ -126,7 +132,12 @@ async def run_harvest_job(
 ):
     """Background task to run a harvest job."""
     try:
-        logger.info("Starting harvest job", job_id=job_id, harvest_type=harvest_type, source_ids=source_ids)
+        logger.info(
+            "Starting harvest job",
+            job_id=job_id,
+            harvest_type=harvest_type,
+            source_ids=source_ids,
+        )
 
         # Update job status to running
         if db:
@@ -134,6 +145,7 @@ async def run_harvest_job(
 
         # Simulate harvest execution (replace with real harvester logic)
         import asyncio
+
         await asyncio.sleep(2)  # Simulate processing time
 
         # Update progress
@@ -145,8 +157,14 @@ async def run_harvest_job(
         # Complete job
         if db:
             HarvestJobService.update_harvest_job_status(
-                db, job_id, "completed", 100.0,
-                processed_sources=15, successful_harvests=14, failed_harvests=1, apis_harvested=127
+                db,
+                job_id,
+                "completed",
+                100.0,
+                processed_sources=15,
+                successful_harvests=14,
+                failed_harvests=1,
+                apis_harvested=127,
             )
 
         logger.info("Harvest job completed", job_id=job_id)
@@ -154,4 +172,6 @@ async def run_harvest_job(
     except Exception as e:
         logger.error("Harvest job failed", job_id=job_id, error=str(e))
         if db:
-            HarvestJobService.update_harvest_job_status(db, job_id, "failed", error_message=str(e))
+            HarvestJobService.update_harvest_job_status(
+                db, job_id, "failed", error_message=str(e)
+            )

@@ -2,7 +2,17 @@
 Database models for harvest jobs, agent collaboration, and integrations.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float, ForeignKey, JSON
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    Boolean,
+    Float,
+    ForeignKey,
+    JSON,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -30,7 +40,9 @@ class HarvestJob(Base):
     source_ids = Column(JSON, nullable=True)  # List of source IDs to harvest from
 
     # Relationships
-    test_results = relationship("HarvestJobTestResult", back_populates="job", cascade="all, delete-orphan")
+    test_results = relationship(
+        "HarvestJobTestResult", back_populates="job", cascade="all, delete-orphan"
+    )
 
 
 class HarvestJobTestResult(Base):
@@ -62,12 +74,16 @@ class AgentActivity(Base):
     agent_name = Column(String, nullable=False)
     status = Column(String, nullable=False, default="idle", index=True)
     current_task = Column(String, nullable=True)
-    last_activity = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_activity = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     tasks_completed = Column(Integer, default=0)
     success_rate = Column(Float, default=0.0)
     average_response_time = Column(Float, default=0.0)  # in seconds
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class AgentCommunication(Base):
@@ -106,7 +122,9 @@ class AgentMetrics(Base):
     memory_usage_avg = Column(Float, default=0.0)
     active_workflows = Column(Integer, default=0)
     pending_tasks = Column(Integer, default=0)
-    last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_updated = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class IntegrationBuilder(Base):
@@ -123,12 +141,22 @@ class IntegrationBuilder(Base):
     last_sync = Column(DateTime(timezone=True), nullable=True)
     success_rate = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
-    field_mappings = relationship("FieldMapping", back_populates="integration", cascade="all, delete-orphan")
-    transformation_rules = relationship("TransformationRule", back_populates="integration", cascade="all, delete-orphan")
-    test_results = relationship("IntegrationTestResult", back_populates="integration", cascade="all, delete-orphan")
+    field_mappings = relationship(
+        "FieldMapping", back_populates="integration", cascade="all, delete-orphan"
+    )
+    transformation_rules = relationship(
+        "TransformationRule", back_populates="integration", cascade="all, delete-orphan"
+    )
+    test_results = relationship(
+        "IntegrationTestResult",
+        back_populates="integration",
+        cascade="all, delete-orphan",
+    )
 
 
 class FieldMapping(Base):
@@ -137,17 +165,23 @@ class FieldMapping(Base):
     __tablename__ = "field_mappings"
 
     id = Column(String, primary_key=True, index=True)
-    integration_id = Column(String, ForeignKey("ui_builder_integrations.id"), nullable=False, index=True)
+    integration_id = Column(
+        String, ForeignKey("ui_builder_integrations.id"), nullable=False, index=True
+    )
     source_field = Column(String, nullable=False)
     target_field = Column(String, nullable=False)
     data_type = Column(String, default="string")
     required = Column(Boolean, default=True)
-    transformation_rule_id = Column(String, ForeignKey("transformation_rules.id"), nullable=True)
+    transformation_rule_id = Column(
+        String, ForeignKey("transformation_rules.id"), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     integration = relationship("IntegrationBuilder", back_populates="field_mappings")
-    transformation_rule = relationship("TransformationRule", foreign_keys=[transformation_rule_id])
+    transformation_rule = relationship(
+        "TransformationRule", foreign_keys=[transformation_rule_id]
+    )
 
 
 class TransformationRule(Base):
@@ -156,7 +190,9 @@ class TransformationRule(Base):
     __tablename__ = "transformation_rules"
 
     id = Column(String, primary_key=True, index=True)
-    integration_id = Column(String, ForeignKey("ui_builder_integrations.id"), nullable=False)
+    integration_id = Column(
+        String, ForeignKey("ui_builder_integrations.id"), nullable=False
+    )
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     rule_type = Column(String, nullable=False)
@@ -165,10 +201,14 @@ class TransformationRule(Base):
     transformation_logic = Column(JSON, nullable=False)
     enabled = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
-    integration = relationship("IntegrationBuilder", back_populates="transformation_rules")
+    integration = relationship(
+        "IntegrationBuilder", back_populates="transformation_rules"
+    )
 
 
 class IntegrationTestResult(Base):
@@ -177,7 +217,9 @@ class IntegrationTestResult(Base):
     __tablename__ = "integration_test_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    integration_id = Column(String, ForeignKey("ui_builder_integrations.id"), nullable=False)
+    integration_id = Column(
+        String, ForeignKey("ui_builder_integrations.id"), nullable=False
+    )
     status = Column(String, default="running", index=True)
     start_time = Column(DateTime(timezone=True), server_default=func.now())
     end_time = Column(DateTime(timezone=True), nullable=True)

@@ -54,7 +54,9 @@ class HarvestSourceService:
 
     def get_harvest_source_by_id(self, source_id: int) -> Optional[HarvestSource]:
         """Get a harvest source by ID."""
-        return self.db.query(HarvestSource).filter(HarvestSource.id == source_id).first()
+        return (
+            self.db.query(HarvestSource).filter(HarvestSource.id == source_id).first()
+        )
 
     def create_harvest_source(self, source_data: HarvestSourceCreate) -> HarvestSource:
         """Create a new harvest source."""
@@ -186,7 +188,9 @@ class HarvestSourceService:
                 error_details=str(e),
             )
 
-    def update_harvest_stats(self, source_id: int, success: bool, error_msg: Optional[str] = None):
+    def update_harvest_stats(
+        self, source_id: int, success: bool, error_msg: Optional[str] = None
+    ):
         """Update harvest statistics for a source."""
         db_source = self.get_harvest_source_by_id(source_id)
         if not db_source:
@@ -203,21 +207,28 @@ class HarvestSourceService:
     def get_harvest_stats(self) -> Dict[str, Any]:
         """Get overall harvest statistics."""
         total_sources = self.db.query(func.count(HarvestSource.id)).scalar()
-        enabled_sources = self.db.query(func.count(HarvestSource.id)).filter(
-            HarvestSource.enabled == True
-        ).scalar()
+        enabled_sources = (
+            self.db.query(func.count(HarvestSource.id))
+            .filter(HarvestSource.enabled == True)
+            .scalar()
+        )
         disabled_sources = total_sources - enabled_sources
 
         # Count by type
-        type_counts = self.db.query(
-            HarvestSource.type, func.count(HarvestSource.id)
-        ).group_by(HarvestSource.type).all()
+        type_counts = (
+            self.db.query(HarvestSource.type, func.count(HarvestSource.id))
+            .group_by(HarvestSource.type)
+            .all()
+        )
         sources_by_type = {t: c for t, c in type_counts}
 
         # Count by category
-        category_counts = self.db.query(
-            HarvestSource.category, func.count(HarvestSource.id)
-        ).filter(HarvestSource.category.isnot(None)).group_by(HarvestSource.category).all()
+        category_counts = (
+            self.db.query(HarvestSource.category, func.count(HarvestSource.id))
+            .filter(HarvestSource.category.isnot(None))
+            .group_by(HarvestSource.category)
+            .all()
+        )
         sources_by_category = {c: cnt for c, cnt in category_counts}
 
         return {

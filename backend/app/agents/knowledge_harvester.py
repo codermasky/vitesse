@@ -480,10 +480,14 @@ class KnowledgeHarvester(VitesseAgent):
                             try:
                                 # Extract basic API information
                                 api_info = {
-                                    "api_name": spec_info.get("info", {}).get("title", provider),
+                                    "api_name": spec_info.get("info", {}).get(
+                                        "title", provider
+                                    ),
                                     "provider": provider,
                                     "version": version,
-                                    "description": spec_info.get("info", {}).get("description", ""),
+                                    "description": spec_info.get("info", {}).get(
+                                        "description", ""
+                                    ),
                                     "swagger_url": spec_info.get("swaggerUrl"),
                                     "openapi_url": spec_info.get("openapiUrl"),
                                     "categories": spec_info.get("categories", []),
@@ -666,7 +670,10 @@ class KnowledgeHarvester(VitesseAgent):
                 category = self._infer_api_category(repo_name)
 
                 api_info = {
-                    "name": repo_name.replace("-api", "").replace("-sdk", "").replace("_", " ").title(),
+                    "name": repo_name.replace("-api", "")
+                    .replace("-sdk", "")
+                    .replace("_", " ")
+                    .title(),
                     "provider": provider,
                     "repo": repo,
                     "category": category,
@@ -769,7 +776,7 @@ class KnowledgeHarvester(VitesseAgent):
         # Search across multiple collections
         collections_to_search = [
             FINANCIAL_APIS_COLLECTION,  # Financial APIs
-            API_SPECS_COLLECTION,       # General API specifications
+            API_SPECS_COLLECTION,  # General API specifications
         ]
 
         for collection in collections_to_search:

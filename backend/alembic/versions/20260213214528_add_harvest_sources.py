@@ -5,6 +5,7 @@ Revises: vitesse_001
 Create Date: 2026-02-13 21:45:28.954830
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b1603f34b09e'
-down_revision: Union[str, Sequence[str], None] = 'vitesse_001'
+revision: str = "b1603f34b09e"
+down_revision: Union[str, Sequence[str], None] = "vitesse_001"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -45,9 +46,15 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_harvest_sources_id"), "harvest_sources", ["id"], unique=False)
-    op.create_index(op.f("ix_harvest_sources_name"), "harvest_sources", ["name"], unique=False)
-    op.create_index(op.f("ix_harvest_sources_type"), "harvest_sources", ["type"], unique=False)
+    op.create_index(
+        op.f("ix_harvest_sources_id"), "harvest_sources", ["id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_harvest_sources_name"), "harvest_sources", ["name"], unique=False
+    )
+    op.create_index(
+        op.f("ix_harvest_sources_type"), "harvest_sources", ["type"], unique=False
+    )
 
 
 def downgrade() -> None:

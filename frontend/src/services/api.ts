@@ -200,7 +200,6 @@ class ApiService {
     });
   }
 
-
   // Chat endpoints
   async createChatSession(): Promise<AxiosResponse> {
     return this.axiosInstance.post("/chat/sessions");
@@ -492,7 +491,6 @@ class ApiService {
     return this.axiosInstance.delete(`/users/${userId}`);
   }
 
-
   // Email Integration endpoints
   async getEmailConfig(): Promise<AxiosResponse> {
     return this.axiosInstance.get("/queue/email/config");
@@ -628,7 +626,9 @@ class ApiService {
   }
 
   async getLangfuseStats(hours: number = 24): Promise<AxiosResponse> {
-    return this.axiosInstance.get("/monitoring/llm-calls", { params: { hours } });
+    return this.axiosInstance.get("/monitoring/llm-calls", {
+      params: { hours },
+    });
   }
 
   // Harvest Sources endpoints
@@ -650,7 +650,10 @@ class ApiService {
     return this.axiosInstance.post("/harvest-sources/", sourceData);
   }
 
-  async updateHarvestSource(sourceId: number, updateData: any): Promise<AxiosResponse> {
+  async updateHarvestSource(
+    sourceId: number,
+    updateData: any,
+  ): Promise<AxiosResponse> {
     return this.axiosInstance.put(`/harvest-sources/${sourceId}`, updateData);
   }
 
@@ -705,15 +708,24 @@ class ApiService {
   }
 
   async getAgentActivity(hours?: number): Promise<AxiosResponse> {
-    return this.axiosInstance.get("/agent-collaboration/agents/activity", { params: { hours } });
+    return this.axiosInstance.get("/agent-collaboration/agents/activity", {
+      params: { hours },
+    });
   }
 
-  async getCommunicationLog(hours?: number, limit?: number): Promise<AxiosResponse> {
-    return this.axiosInstance.get("/agent-collaboration/communication/log", { params: { hours, limit } });
+  async getCommunicationLog(
+    hours?: number,
+    limit?: number,
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/agent-collaboration/communication/log", {
+      params: { hours, limit },
+    });
   }
 
   async getAgentMetrics(agentId: string): Promise<AxiosResponse> {
-    return this.axiosInstance.get(`/agent-collaboration/agents/${agentId}/metrics`);
+    return this.axiosInstance.get(
+      `/agent-collaboration/agents/${agentId}/metrics`,
+    );
   }
 
   async getCollaborationStats(): Promise<AxiosResponse> {
@@ -742,28 +754,58 @@ class ApiService {
     return this.axiosInstance.post("/integration-builder/", integrationData);
   }
 
-  async updateIntegration(integrationId: string, updateData: any): Promise<AxiosResponse> {
-    return this.axiosInstance.put(`/integration-builder/${integrationId}`, updateData);
+  async updateIntegration(
+    integrationId: string,
+    updateData: any,
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.put(
+      `/integration-builder/${integrationId}`,
+      updateData,
+    );
   }
 
   async deleteIntegration(integrationId: string): Promise<AxiosResponse> {
     return this.axiosInstance.delete(`/integration-builder/${integrationId}`);
   }
 
-  async addFieldMapping(integrationId: string, mappingData: any): Promise<AxiosResponse> {
-    return this.axiosInstance.post(`/integration-builder/${integrationId}/field-mappings`, mappingData);
+  async addFieldMapping(
+    integrationId: string,
+    mappingData: any,
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post(
+      `/integration-builder/${integrationId}/field-mappings`,
+      mappingData,
+    );
   }
 
-  async addTransformationRule(integrationId: string, ruleData: any): Promise<AxiosResponse> {
-    return this.axiosInstance.post(`/integration-builder/${integrationId}/transformations`, ruleData);
+  async addTransformationRule(
+    integrationId: string,
+    ruleData: any,
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post(
+      `/integration-builder/${integrationId}/transformations`,
+      ruleData,
+    );
   }
 
-  async testIntegration(integrationId: string, testData: any): Promise<AxiosResponse> {
-    return this.axiosInstance.post(`/integration-builder/${integrationId}/test`, testData);
+  async testIntegration(
+    integrationId: string,
+    testData: any,
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post(
+      `/integration-builder/${integrationId}/test`,
+      testData,
+    );
   }
 
-  async getIntegrationTestResults(integrationId: string, limit?: number): Promise<AxiosResponse> {
-    return this.axiosInstance.get(`/integration-builder/${integrationId}/test-results`, { params: { limit } });
+  async getIntegrationTestResults(
+    integrationId: string,
+    limit?: number,
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.get(
+      `/integration-builder/${integrationId}/test-results`,
+      { params: { limit } },
+    );
   }
 
   async getIntegrationStats(): Promise<AxiosResponse> {
@@ -776,7 +818,9 @@ class ApiService {
   }
 
   async getWorkflowStatus(workflowId?: string): Promise<AxiosResponse> {
-    const url = workflowId ? `/agents/workflow/${workflowId}` : "/agents/workflow";
+    const url = workflowId
+      ? `/agents/workflow/${workflowId}`
+      : "/agents/workflow";
     return this.axiosInstance.get(url);
   }
 

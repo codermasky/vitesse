@@ -39,7 +39,9 @@ class HarvestJobService:
         if harvest_type:
             query = query.filter(HarvestJob.harvest_type == harvest_type)
 
-        return query.order_by(desc(HarvestJob.created_at)).offset(skip).limit(limit).all()
+        return (
+            query.order_by(desc(HarvestJob.created_at)).offset(skip).limit(limit).all()
+        )
 
     @staticmethod
     def get_harvest_job_by_id(db: Session, job_id: str) -> Optional[HarvestJob]:
@@ -99,50 +101,63 @@ class HarvestJobService:
     def get_harvest_job_stats(db: Session) -> Dict[str, Any]:
         """Get harvest job statistics."""
         # Count jobs by status
-        status_counts = db.query(
-            HarvestJob.status,
-            func.count(HarvestJob.id).label("count")
-        ).group_by(HarvestJob.status).all()
+        status_counts = (
+            db.query(HarvestJob.status, func.count(HarvestJob.id).label("count"))
+            .group_by(HarvestJob.status)
+            .all()
+        )
 
         total_jobs = sum(count for _, count in status_counts)
 
         # Calculate success rate
-        completed_jobs = db.query(HarvestJob).filter(
-            HarvestJob.status == "completed"
-        ).count()
+        completed_jobs = (
+            db.query(HarvestJob).filter(HarvestJob.status == "completed").count()
+        )
 
         success_rate = (completed_jobs / total_jobs * 100) if total_jobs > 0 else 0
 
         # Get recent job counts
         now = datetime.utcnow()
-        jobs_last_24h = db.query(HarvestJob).filter(
-            HarvestJob.created_at >= now - timedelta(hours=24)
-        ).count()
+        jobs_last_24h = (
+            db.query(HarvestJob)
+            .filter(HarvestJob.created_at >= now - timedelta(hours=24))
+            .count()
+        )
 
-        jobs_last_7d = db.query(HarvestJob).filter(
-            HarvestJob.created_at >= now - timedelta(days=7)
-        ).count()
+        jobs_last_7d = (
+            db.query(HarvestJob)
+            .filter(HarvestJob.created_at >= now - timedelta(days=7))
+            .count()
+        )
 
-        jobs_last_30d = db.query(HarvestJob).filter(
-            HarvestJob.created_at >= now - timedelta(days=30)
-        ).count()
+        jobs_last_30d = (
+            db.query(HarvestJob)
+            .filter(HarvestJob.created_at >= now - timedelta(days=30))
+            .count()
+        )
 
         # Get most common harvest type
-        harvest_type_counts = db.query(
-            HarvestJob.harvest_type,
-            func.count(HarvestJob.id).label("count")
-        ).group_by(HarvestJob.harvest_type).order_by(desc("count")).first()
+        harvest_type_counts = (
+            db.query(HarvestJob.harvest_type, func.count(HarvestJob.id).label("count"))
+            .group_by(HarvestJob.harvest_type)
+            .order_by(desc("count"))
+            .first()
+        )
 
         most_common_type = harvest_type_counts[0] if harvest_type_counts else "full"
 
         # Calculate average duration
-        completed_jobs_with_duration = db.query(HarvestJob).filter(
-            and_(
-                HarvestJob.status == "completed",
-                HarvestJob.started_at.isnot(None),
-                HarvestJob.completed_at.isnot(None)
+        completed_jobs_with_duration = (
+            db.query(HarvestJob)
+            .filter(
+                and_(
+                    HarvestJob.status == "completed",
+                    HarvestJob.started_at.isnot(None),
+                    HarvestJob.completed_at.isnot(None),
+                )
             )
-        ).all()
+            .all()
+        )
 
         avg_duration = 0
         if completed_jobs_with_duration:
@@ -157,9 +172,13 @@ class HarvestJobService:
 
         return {
             "total_jobs": total_jobs,
-            "running_jobs": next((count for status, count in status_counts if status == "running"), 0),
+            "running_jobs": next(
+                (count for status, count in status_counts if status == "running"), 0
+            ),
             "completed_jobs": completed_jobs,
-            "failed_jobs": next((count for status, count in status_counts if status == "failed"), 0),
+            "failed_jobs": next(
+                (count for status, count in status_counts if status == "failed"), 0
+            ),
             "success_rate": round(success_rate, 1),
             "average_job_duration": int(avg_duration),
             "total_apis_harvested": total_apis,
@@ -178,21 +197,26 @@ class AgentCollaborationService:
     def get_agent_activities(db: Session, hours: int = 24) -> List[AgentActivity]:
         """Get recent agent activities."""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-        return db.query(AgentActivity).filter(
-            AgentActivity.last_activity >= cutoff_time
-        ).order_by(desc(AgentActivity.last_activity)).all()
+        return (
+            db.query(AgentActivity)
+            .filter(AgentActivity.last_activity >= cutoff_time)
+            .order_by(desc(AgentActivity.last_activity))
+            .all()
+        )
 
     @staticmethod
     def get_agent_communications(
-        db: Session,
-        hours: int = 1,
-        limit: int = 50
+        db: Session, hours: int = 1, limit: int = 50
     ) -> List[AgentCommunication]:
         """Get recent agent communications."""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-        return db.query(AgentCommunication).filter(
-            AgentCommunication.timestamp >= cutoff_time
-        ).order_by(desc(AgentCommunication.timestamp)).limit(limit).all()
+        return (
+            db.query(AgentCommunication)
+            .filter(AgentCommunication.timestamp >= cutoff_time)
+            .order_by(desc(AgentCommunication.timestamp))
+            .limit(limit)
+            .all()
+        )
 
     @staticmethod
     def get_agent_metrics(db: Session, agent_id: str) -> Optional[AgentMetrics]:
@@ -208,9 +232,9 @@ class AgentCollaborationService:
         current_task: Optional[str] = None,
     ) -> AgentActivity:
         """Update or create agent activity."""
-        activity = db.query(AgentActivity).filter(
-            AgentActivity.agent_id == agent_id
-        ).first()
+        activity = (
+            db.query(AgentActivity).filter(AgentActivity.agent_id == agent_id).first()
+        )
 
         if activity:
             activity.status = status
@@ -260,9 +284,9 @@ class AgentCollaborationService:
         """Get collaboration statistics."""
         # Agent counts
         total_agents = db.query(func.count(AgentActivity.id)).scalar()
-        active_agents = db.query(AgentActivity).filter(
-            AgentActivity.status == "active"
-        ).count()
+        active_agents = (
+            db.query(AgentActivity).filter(AgentActivity.status == "active").count()
+        )
 
         # Workflow counts (simplified - would need workflow table)
         total_workflows = 0  # Placeholder
@@ -270,9 +294,14 @@ class AgentCollaborationService:
 
         # Communication stats
         now = datetime.utcnow()
-        communications_today = db.query(AgentCommunication).filter(
-            AgentCommunication.timestamp >= now.replace(hour=0, minute=0, second=0, microsecond=0)
-        ).count()
+        communications_today = (
+            db.query(AgentCommunication)
+            .filter(
+                AgentCommunication.timestamp
+                >= now.replace(hour=0, minute=0, second=0, microsecond=0)
+            )
+            .count()
+        )
 
         # Average collaboration score (simplified)
         avg_collaboration_score = 82.5  # Placeholder
@@ -281,12 +310,20 @@ class AgentCollaborationService:
         system_uptime = 99.7  # Placeholder
 
         # Average response time
-        avg_response_time = db.query(func.avg(AgentActivity.average_response_time)).scalar() or 45
+        avg_response_time = (
+            db.query(func.avg(AgentActivity.average_response_time)).scalar() or 45
+        )
 
         # Tasks completed today
-        tasks_today = db.query(func.sum(AgentActivity.tasks_completed)).filter(
-            AgentActivity.last_activity >= now.replace(hour=0, minute=0, second=0, microsecond=0)
-        ).scalar() or 0
+        tasks_today = (
+            db.query(func.sum(AgentActivity.tasks_completed))
+            .filter(
+                AgentActivity.last_activity
+                >= now.replace(hour=0, minute=0, second=0, microsecond=0)
+            )
+            .scalar()
+            or 0
+        )
 
         # Error rate (simplified)
         error_rate = 3.2  # Placeholder
@@ -323,12 +360,23 @@ class IntegrationService:
         if status:
             query = query.filter(IntegrationBuilder.status == status)
 
-        return query.order_by(desc(IntegrationBuilder.created_at)).offset(skip).limit(limit).all()
+        return (
+            query.order_by(desc(IntegrationBuilder.created_at))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     @staticmethod
-    def get_integration_by_id(db: Session, integration_id: str) -> Optional[IntegrationBuilder]:
+    def get_integration_by_id(
+        db: Session, integration_id: str
+    ) -> Optional[IntegrationBuilder]:
         """Get an integration by ID."""
-        return db.query(IntegrationBuilder).filter(IntegrationBuilder.id == integration_id).first()
+        return (
+            db.query(IntegrationBuilder)
+            .filter(IntegrationBuilder.id == integration_id)
+            .first()
+        )
 
     @staticmethod
     def create_integration(
@@ -355,12 +403,14 @@ class IntegrationService:
 
     @staticmethod
     def update_integration(
-        db: Session,
-        integration_id: str,
-        updates: Dict[str, Any]
+        db: Session, integration_id: str, updates: Dict[str, Any]
     ) -> Optional[IntegrationBuilder]:
         """Update an integration."""
-        integration = db.query(IntegrationBuilder).filter(IntegrationBuilder.id == integration_id).first()
+        integration = (
+            db.query(IntegrationBuilder)
+            .filter(IntegrationBuilder.id == integration_id)
+            .first()
+        )
         if not integration:
             return None
 
@@ -376,7 +426,11 @@ class IntegrationService:
     @staticmethod
     def delete_integration(db: Session, integration_id: str) -> bool:
         """Delete an integration."""
-        integration = db.query(IntegrationBuilder).filter(IntegrationBuilder.id == integration_id).first()
+        integration = (
+            db.query(IntegrationBuilder)
+            .filter(IntegrationBuilder.id == integration_id)
+            .first()
+        )
         if not integration:
             return False
 
@@ -469,7 +523,11 @@ class IntegrationService:
         execution_time: int = 0,
     ) -> Optional[IntegrationTestResult]:
         """Update a test result."""
-        result = db.query(IntegrationTestResult).filter(IntegrationTestResult.id == result_id).first()
+        result = (
+            db.query(IntegrationTestResult)
+            .filter(IntegrationTestResult.id == result_id)
+            .first()
+        )
         if not result:
             return None
 
@@ -488,14 +546,16 @@ class IntegrationService:
 
     @staticmethod
     def get_test_results(
-        db: Session,
-        integration_id: str,
-        limit: int = 10
+        db: Session, integration_id: str, limit: int = 10
     ) -> List[IntegrationTestResult]:
         """Get test results for an integration."""
-        return db.query(IntegrationTestResult).filter(
-            IntegrationTestResult.integration_id == integration_id
-        ).order_by(desc(IntegrationTestResult.start_time)).limit(limit).all()
+        return (
+            db.query(IntegrationTestResult)
+            .filter(IntegrationTestResult.integration_id == integration_id)
+            .order_by(desc(IntegrationTestResult.start_time))
+            .limit(limit)
+            .all()
+        )
 
     @staticmethod
     def get_integration_stats(db: Session) -> Dict[str, Any]:
@@ -503,18 +563,27 @@ class IntegrationService:
         total_integrations = db.query(func.count(IntegrationBuilder.id)).scalar()
 
         # Status counts
-        status_counts = db.query(
-            Integration.status,
-            func.count(Integration.id).label("count")
-        ).group_by(IntegrationBuilder.status).all()
+        status_counts = (
+            db.query(Integration.status, func.count(Integration.id).label("count"))
+            .group_by(IntegrationBuilder.status)
+            .all()
+        )
 
-        active_integrations = next((count for status, count in status_counts if status == "active"), 0)
-        draft_integrations = next((count for status, count in status_counts if status == "draft"), 0)
-        testing_integrations = next((count for status, count in status_counts if status == "testing"), 0)
+        active_integrations = next(
+            (count for status, count in status_counts if status == "active"), 0
+        )
+        draft_integrations = next(
+            (count for status, count in status_counts if status == "draft"), 0
+        )
+        testing_integrations = next(
+            (count for status, count in status_counts if status == "testing"), 0
+        )
 
         # Field mappings and rules counts
         total_field_mappings = db.query(func.count(FieldMapping.id)).scalar()
-        total_transformation_rules = db.query(func.count(TransformationRule.id)).scalar()
+        total_transformation_rules = db.query(
+            func.count(TransformationRule.id)
+        ).scalar()
 
         # Success rate (simplified)
         avg_success_rate = 92.3  # Placeholder

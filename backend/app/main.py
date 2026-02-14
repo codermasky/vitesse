@@ -75,22 +75,29 @@ async def lifespan(app: FastAPI):
         logger.info("Seed data status", status=seed_status)
 
         if seed_status.get("status") in ["partial", "error"]:
-            logger.info("Initializing seed data for financial services knowledge base...")
+            logger.info(
+                "Initializing seed data for financial services knowledge base..."
+            )
             seed_result = await seed_all()
             logger.info("Seed data initialization complete", result=seed_result)
     except Exception as e:
-        logger.warning("Knowledge Database initialization failed, continuing without Qdrant", error=str(e))
+        logger.warning(
+            "Knowledge Database initialization failed, continuing without Qdrant",
+            error=str(e),
+        )
         logger.info("UI features will work without vector database functionality")
 
     # Seed initial data
     await seed_users()
     await seed_llm_configs()
-    
+
     # Seed LangFuse config (non-critical for startup)
     try:
         await seed_langfuse_config()
     except Exception as e:
-        logger.warning("LangFuse configuration seeding failed, continuing without it", error=str(e))
+        logger.warning(
+            "LangFuse configuration seeding failed, continuing without it", error=str(e)
+        )
 
     # Initialize LangFuse (Auto-provision or load from DB)
     try:
@@ -99,7 +106,10 @@ async def lifespan(app: FastAPI):
 
         await langfuse_setup_service.ensure_configured()
     except Exception as e:
-        logger.warning("LangFuse setup failed, continuing without LangFuse integration", error=str(e))
+        logger.warning(
+            "LangFuse setup failed, continuing without LangFuse integration",
+            error=str(e),
+        )
     # Start recovery of interrupted tasks
     from app.services.recovery import recovery_service
     import asyncio

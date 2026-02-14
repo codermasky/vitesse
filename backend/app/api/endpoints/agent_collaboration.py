@@ -89,12 +89,16 @@ async def get_communication_log(
 ):
     """Get recent inter-agent communication logs."""
     try:
-        communications = AgentCollaborationService.get_agent_communications(db, hours=hours, limit=limit)
+        communications = AgentCollaborationService.get_agent_communications(
+            db, hours=hours, limit=limit
+        )
         return communications
 
     except Exception as e:
         logger.error("Failed to get communication log", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to retrieve communication log")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve communication log"
+        )
 
 
 @router.get("/agents/{agent_id}/metrics", response_model=AgentMetrics)
@@ -122,4 +126,6 @@ async def get_collaboration_stats(db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error("Failed to get collaboration stats", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to retrieve collaboration statistics")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve collaboration statistics"
+        )

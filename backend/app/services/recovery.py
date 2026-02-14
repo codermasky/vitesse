@@ -31,7 +31,9 @@ class RecoveryService:
                     logger.info("No interrupted tasks found")
                     return
 
-                logger.info(f"Found {len(interrupted_tasks)} interrupted tasks to recover")
+                logger.info(
+                    f"Found {len(interrupted_tasks)} interrupted tasks to recover"
+                )
 
                 for task in interrupted_tasks:
                     try:
@@ -55,7 +57,9 @@ class RecoveryService:
 
                     except Exception as e:
                         logger.error(
-                            "Failed to trigger task recovery", task_id=task.id, error=str(e)
+                            "Failed to trigger task recovery",
+                            task_id=task.id,
+                            error=str(e),
                         )
                         # Mark as failed so we don't loop forever
                         await queue_service.update(
@@ -65,7 +69,10 @@ class RecoveryService:
         except Exception as e:
             # Check if this is a missing table error
             if "does not exist" in str(e) or "UndefinedTable" in str(e):
-                logger.warning("Database tables not yet initialized, skipping task recovery", error=str(e))
+                logger.warning(
+                    "Database tables not yet initialized, skipping task recovery",
+                    error=str(e),
+                )
             else:
                 logger.error("Error during task recovery", error=str(e))
 

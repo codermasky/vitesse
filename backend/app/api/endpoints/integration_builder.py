@@ -37,7 +37,9 @@ async def list_integrations(
 ):
     """List integrations with optional filtering."""
     try:
-        integrations = IntegrationService.get_integrations(db, skip=skip, limit=limit, status=status)
+        integrations = IntegrationService.get_integrations(
+            db, skip=skip, limit=limit, status=status
+        )
         return integrations
 
     except Exception as e:
@@ -72,7 +74,9 @@ async def get_integration(integration_id: str, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to get integration", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Failed to get integration", integration_id=integration_id, error=str(e)
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve integration")
 
 
@@ -84,7 +88,9 @@ async def update_integration(
 ):
     """Update an integration."""
     try:
-        integration = IntegrationService.update_integration(db, integration_id, update_data)
+        integration = IntegrationService.update_integration(
+            db, integration_id, update_data
+        )
         if not integration:
             raise HTTPException(status_code=404, detail="Integration not found")
         return integration
@@ -92,7 +98,9 @@ async def update_integration(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to update integration", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Failed to update integration", integration_id=integration_id, error=str(e)
+        )
         raise HTTPException(status_code=500, detail="Failed to update integration")
 
 
@@ -108,7 +116,9 @@ async def delete_integration(integration_id: str, db: Session = Depends(get_db))
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to delete integration", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Failed to delete integration", integration_id=integration_id, error=str(e)
+        )
         raise HTTPException(status_code=500, detail="Failed to delete integration")
 
 
@@ -128,7 +138,9 @@ async def add_field_mapping(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to add field mapping", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Failed to add field mapping", integration_id=integration_id, error=str(e)
+        )
         raise HTTPException(status_code=500, detail="Failed to add field mapping")
 
 
@@ -148,7 +160,11 @@ async def add_transformation_rule(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to add transformation rule", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Failed to add transformation rule",
+            integration_id=integration_id,
+            error=str(e),
+        )
         raise HTTPException(status_code=500, detail="Failed to add transformation rule")
 
 
@@ -161,12 +177,18 @@ async def test_integration(
 ):
     """Test an integration with sample data."""
     try:
-        test_result = IntegrationService.start_integration_test(db, integration_id, test_data)
+        test_result = IntegrationService.start_integration_test(
+            db, integration_id, test_data
+        )
         background_tasks.add_task(run_integration_test, integration_id, test_data, db)
         return test_result
 
     except Exception as e:
-        logger.error("Failed to start integration test", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Failed to start integration test",
+            integration_id=integration_id,
+            error=str(e),
+        )
         raise HTTPException(status_code=500, detail="Failed to start integration test")
 
 
@@ -178,11 +200,15 @@ async def get_test_results(
 ):
     """Get test results for an integration."""
     try:
-        test_results = IntegrationService.get_integration_test_results(db, integration_id, limit=limit)
+        test_results = IntegrationService.get_integration_test_results(
+            db, integration_id, limit=limit
+        )
         return test_results
 
     except Exception as e:
-        logger.error("Failed to get test results", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Failed to get test results", integration_id=integration_id, error=str(e)
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve test results")
 
 
@@ -195,20 +221,29 @@ async def get_integration_stats(db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error("Failed to get integration stats", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to retrieve integration statistics")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve integration statistics"
+        )
 
 
 async def run_integration_test(integration_id: str, test_data: Dict[str, Any]):
     """Background task to run integration test."""
     try:
-        logger.info("Running integration test", integration_id=integration_id, test_data=test_data)
+        logger.info(
+            "Running integration test",
+            integration_id=integration_id,
+            test_data=test_data,
+        )
 
         # Simulate test execution
         import asyncio
+
         await asyncio.sleep(2)  # Simulate processing time
 
         # Mock test result storage
         logger.info("Integration test completed", integration_id=integration_id)
 
     except Exception as e:
-        logger.error("Integration test failed", integration_id=integration_id, error=str(e))
+        logger.error(
+            "Integration test failed", integration_id=integration_id, error=str(e)
+        )
