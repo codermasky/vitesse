@@ -95,7 +95,11 @@ async def monitor_integrations_loop():
                                 pass
 
         except Exception as e:
-            logger.error("Error in drift monitor loop", error=str(e))
+            # Check if this is a missing table error
+            if "does not exist" in str(e) or "UndefinedTable" in str(e):
+                logger.warning("Database tables not yet initialized, skipping drift monitoring", error=str(e))
+            else:
+                logger.error("Error in drift monitor loop", error=str(e))
 
         await asyncio.sleep(interval)
 

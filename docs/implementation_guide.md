@@ -458,6 +458,151 @@ User Input
 - `details`: JSON
 - `created_at`: timestamp
 
+### UI Feature Tables
+
+**harvest_jobs**
+- `id`: string (primary key)
+- `harvest_type`: string
+- `status`: enum (pending, running, completed, failed)
+- `progress`: float (0-100)
+- `source_ids`: JSON array
+- `processed_sources`: int
+- `successful_harvests`: int
+- `failed_harvests`: int
+- `apis_harvested`: int
+- `error_message`: text
+- `created_at`: timestamp
+- `updated_at`: timestamp
+
+**agent_activities**
+- `id`: UUID (primary key)
+- `agent_id`: string
+- `agent_name`: string
+- `status`: enum (active, idle, error)
+- `current_task`: text
+- `last_activity`: timestamp
+- `tasks_completed`: int
+- `success_rate`: float
+- `average_response_time`: int
+- `created_at`: timestamp
+- `updated_at`: timestamp
+
+**agent_communications**
+- `id`: UUID (primary key)
+- `timestamp`: timestamp
+- `from_agent`: string
+- `to_agent`: string
+- `message_type`: string
+- `content`: text
+- `priority`: enum (low, normal, high)
+- `status`: enum (sent, delivered, read)
+- `created_at`: timestamp
+
+**agent_metrics**
+- `id`: UUID (primary key)
+- `agent_id`: string
+- `uptime_percentage`: float
+- `tasks_completed_today`: int
+- `tasks_completed_week`: int
+- `average_task_duration`: int
+- `success_rate`: float
+- `error_rate`: float
+- `collaboration_score`: int
+- `response_time_p95`: int
+- `cpu_usage_avg`: float
+- `memory_usage_avg`: float
+- `active_workflows`: int
+- `pending_tasks`: int
+- `created_at`: timestamp
+
+**integrations** (UI Builder)
+- `id`: string (primary key)
+- `name`: string
+- `description`: text
+- `source_api`: string
+- `target_api`: string
+- `status`: enum (draft, active, testing, inactive)
+- `last_sync`: timestamp
+- `success_rate`: float
+- `created_at`: timestamp
+- `updated_at`: timestamp
+
+**field_mappings**
+- `id`: string (primary key)
+- `integration_id`: FK → integrations
+- `source_field`: string
+- `target_field`: string
+- `data_type`: string
+- `required`: boolean
+- `transformation`: string
+- `created_at`: timestamp
+
+**transformation_rules**
+- `id`: string (primary key)
+- `integration_id`: FK → integrations
+- `name`: string
+- `description`: text
+- `rule_type`: string
+- `source_field`: string
+- `target_field`: string
+- `transformation_logic`: text
+- `enabled`: boolean
+- `created_at`: timestamp
+
+**integration_test_results**
+- `id`: string (primary key)
+- `integration_id`: FK → integrations
+- `status`: enum (running, completed, failed)
+- `start_time`: timestamp
+- `end_time`: timestamp
+- `success`: boolean
+- `error_message`: text
+- `request_data`: JSON
+- `response_data`: JSON
+- `execution_time`: int
+- `created_at`: timestamp
+
+---
+
+## Service Layer
+
+### Database Services
+
+Vitesse AI implements a clean service layer pattern for database operations, separating business logic from API endpoints.
+
+**HarvestJobService** (`app/services/harvest_collaboration_integration.py`)
+- `get_harvest_jobs()`: Retrieve paginated harvest jobs with filtering
+- `create_harvest_job()`: Create new harvest job with validation
+- `get_harvest_job()`: Get specific job by ID
+- `update_harvest_job_status()`: Update job progress and status
+- `get_harvest_job_stats()`: Aggregate statistics across all jobs
+
+**AgentCollaborationService** (`app/services/harvest_collaboration_integration.py`)
+- `get_agent_activities()`: Retrieve recent agent activities
+- `get_agent_communications()`: Get inter-agent communication logs
+- `get_agent_metrics()`: Calculate performance metrics for specific agent
+- `get_collaboration_stats()`: System-wide collaboration statistics
+
+**IntegrationService** (`app/services/harvest_collaboration_integration.py`)
+- `get_integrations()`: List integrations with pagination and filtering
+- `create_integration()`: Create new integration
+- `get_integration()`: Retrieve specific integration with mappings and rules
+- `update_integration()`: Update integration properties
+- `delete_integration()`: Remove integration and related data
+- `add_field_mapping()`: Add field mapping to integration
+- `add_transformation_rule()`: Add transformation rule to integration
+- `start_integration_test()`: Initiate background testing
+- `get_integration_test_results()`: Retrieve test execution history
+- `get_integration_stats()`: System-wide integration statistics
+
+### Service Pattern Benefits
+
+- **Separation of Concerns**: Business logic isolated from HTTP handling
+- **Testability**: Services can be unit tested independently
+- **Reusability**: Same service methods used across different endpoints
+- **Maintainability**: Clear interface between data access and API layers
+- **Error Handling**: Centralized error handling and validation
+
 ---
 
 ## Configuration
@@ -603,3 +748,452 @@ class AzureContainerInstancesDeployer(Deployer):
 2. [Explore Example Integration: Shopify → Credo](EXAMPLES.md)
 3. [Review API Endpoints](../api/endpoints/integrations.py)
 4. [Configure Your Environment](.env.example)
+
+---
+
+# Extended Architecture: Collaborative Intelligence & Memory
+
+## Overview
+
+Vitesse AI has been extended with advanced agentic capabilities including collaborative intelligence, persistent memory, and knowledge harvesting for financial services. This section covers the newly implemented architecture components.
+
+## 1. Shared Whiteboard (Collaborative Intelligence)
+
+The "Shared Whiteboard" is a collaborative intelligence mechanism using LangGraph's State Management that enables agents to read from and write to a centralized shared state serving as the source of truth.
+
+### Implementation Files
+- `app/core/shared_state.py` - Core Whiteboard implementation
+  - `SharedWhiteboardState`: Main state object all agents interact with
+  - `AgentContribution`: Tracks what each agent adds
+  - `SharedStateLimiter`: Manages concurrent access
+
+### Key Features
+
+#### 1.1 Emergent Intelligence
+Each agent reads the current state, adds its insights, and the next agent builds upon it:
+
+```
+Discovery Agent  →  [State with discovered APIs]
+     ↓
+Ingestor Agent   →  [State + API specs + schemas]
+     ↓
+Mapper Agent     →  [State + mapping logic + transformations]
+     ↓
+Guardian Agent   →  [State + test results + health scores]
+     ↓
+Deployer         →  [Deployment ready integration]
+```
+
+#### 1.2 State Recovery via Checkpoints
+- PostgreSQL persistent checkpoints (configured in `app/core/checkpoint.py`)
+- State snapshots created before each major operation
+- Recovery from interrupted workflows using `SharedStateLimiter.restore_from_checkpoint()`
+
+#### 1.3 Usage Example in Agents
+
+```python
+from app.core.shared_state import SharedWhiteboardState
+
+async def agent_execute_with_shared_state(
+    context: Dict[str, Any],
+    input_data: Dict[str, Any],
+    shared_whiteboard: SharedWhiteboardState,
+) -> Dict[str, Any]:
+    # 1. Read context from previous agents
+    previous_context = shared_whiteboard.get_agent_context("my_agent_type")
+    api_spec = previous_context["source_api_spec"]
+    
+    # 2. Do agent work
+    result = await my_agent_logic(api_spec, input_data)
+    
+    # 3. Contribute to shared state
+    shared_whiteboard.record_agent_contribution(
+        agent_id="agent_123",
+        agent_type="mapper",
+        input_keys=["source_api_spec"],
+        output_data=result,
+        execution_time_ms=150.0,
+    )
+    
+    # 4. Add learned patterns for future integrations
+    shared_whiteboard.add_learned_pattern(
+        "payment_mapping",
+        {"source_field": "amount", "target_field": "value"}
+    )
+    
+    return result
+```
+
+### State Structure
+
+```python
+SharedWhiteboardState(
+    workflow_id="uuid",
+    
+    # Agent tracking
+    agent_contributions={},          # Each agent's contribution
+    execution_log=[],                # Complete audit trail
+    
+    # Shared knowledge (the "whiteboard" content)
+    discovered_apis={},              # APIs found
+    source_api_spec={},              # Ingestor results
+    dest_api_spec={},                # Ingestor results
+    mapping_logic={},                # Mapper results
+    test_results={},                 # Guardian results
+    
+    # Learning & patterns
+    learned_patterns={},             # Patterns discovered
+    harvested_knowledge={},          # From knowledge harvester
+    domain_knowledge={},             # Standards, best practices
+    
+    # User context
+    user_intent="",                  # What user wants
+    user_constraints={},             # Limitations
+    user_preferences={},             # Preferences
+    
+    # Metadata
+    errors=[],                       # For recovery
+    retry_count=0,
+)
+```
+
+## 2. Persistent Memory & Context Preservation
+
+Vector Database layer enables semantic search and storage of integration knowledge using Qdrant for enterprise-grade performance.
+
+### Implementation Files
+- `app/core/knowledge_db.py` - Vector DB abstraction layer
+  - `KnowledgeDB` (abstract base)
+  - `QdrantKnowledge`: Enterprise implementation with quantization
+  - `KnowledgeDBManager`: Unified interface
+
+### Features
+
+#### 2.1 Qdrant Setup
+- Automatic embedding using Sentence Transformers
+- Binary quantization for 40x performance improvement
+- Horizontal and vertical scaling capabilities
+- Built-in monitoring and observability
+- Docker deployment ready
+
+#### 2.2 Collections
+Six semantic collections store different types of knowledge:
+
+1. `financial_apis` - API specifications (Plaid, Stripe, Yodlee)
+2. `financial_schemas` - Data schemas for financial entities
+3. `financial_standards` - Regulatory frameworks (PSD2, FDX)
+4. `api_specifications` - General API specs
+5. `mapping_patterns` - Common field mappings
+6. `domain_knowledge` - Best practices, guidelines
+
+#### 2.3 Search Capability
+Semantic search finds relevant knowledge by meaning, not just keywords:
+
+```python
+from app.core.knowledge_db import get_knowledge_db
+
+knowledge_db = await get_knowledge_db()
+
+# Find similar APIs
+results = await knowledge_db.search(
+    collection="financial_apis",
+    query="payment processing with strong authentication",
+    top_k=5,
+)
+
+# Results: [(document, similarity_score), ...]
+for doc, score in results:
+    print(f"API: {doc['metadata']['api_name']}, Similarity: {score:.2f}")
+```
+
+### Usage Pattern
+
+```python
+# Add financial knowledge at startup (in seed_data.py)
+await knowledge_db.add_documents(
+    collection="financial_apis",
+    documents=[
+        {
+            "content": "Detailed API spec",
+            "api_name": "Plaid",
+            "category": "open_banking",
+        },
+        # More APIs...
+    ],
+)
+
+# Search during integration creation
+relevant_apis = await knowledge_db.search(
+    collection="financial_apis",
+    query=user_source_api_query,
+    top_k=5,
+)
+```
+
+## 3. Knowledge Harvesting for Financial Services
+
+Autonomous agent that proactively builds and maintains a financial services knowledge library.
+
+### Implementation Files
+- `app/agents/knowledge_harvester.py` - Main harvester agent
+- `app/core/financial_services.py` - Financial knowledge seed data
+- `app/core/seed_data.py` - Initialization system
+
+### Knowledge Coverage
+
+#### 3.1 Core Financial APIs
+- **Plaid**: Open Banking, account aggregation
+  - Collections: accounts, transactions, authentication
+  - Pagination: offset-based
+  - Auth: OAuth2
+  
+- **Stripe**: Payments processing
+  - Collections: customers, payment_intents, charges, transfers
+  - Pagination: timestamp-based
+  - Auth: Bearer token (API keys)
+  
+- **Yodlee**: Data aggregation
+  - Collections: accounts, transactions, account holders
+  - Pagination: cursor-based
+  - Auth: OAuth2
+
+#### 3.2 Regulatory Frameworks
+- **PSD2** (Payment Services Directive 2)
+  - Region: European Union
+  - Key: Open Banking APIs + Strong Authentication (SCA/MFA)
+  - API patterns: Account Info, Payment Initiation
+  
+- **FDX** (Financial Data Exchange)
+  - Region: International
+  - Key: Data minimization, user control, transparency
+  - Standard data models for accounts, transactions, parties
+
+#### 3.3 Integration Patterns
+Common transformation patterns that appear across integrations:
+- Currency conversion (cents ↔ dollars)
+- Timestamp normalization (Unix ↔ ISO8601)
+- Amount standardization (amount ↔ value ↔ transactionAmount)
+- Pagination handling (offset, cursor, page-based)
+
+### Harvester Usage
+
+```python
+from app.agents.knowledge_harvester import KnowledgeHarvester
+from app.agents.base import AgentContext
+
+# Create harvester
+harvester = KnowledgeHarvester(context)
+
+# Full harvest at startup
+result = await harvester.execute(
+    context={},
+    input_data={"harvest_type": "full"}
+)
+
+# Later: Search for similar APIs
+similar = await harvester.find_similar_apis(
+    "payment processing with PSD2 compliance",
+    top_k=5
+)
+
+# Find applicable standards
+standards = await harvester.find_applicable_standards(
+    "European payment integration"
+)
+
+# Find relevant patterns
+patterns = await harvester.find_relevant_patterns(
+    "Stripe to Salesforce integration",
+    top_k=3
+)
+```
+
+### Automatic Seed Data Loading
+
+At application startup (in `app/main.py`):
+
+```python
+from app.core.seed_data import seed_all, check_seed_status
+
+# Check if already seeded
+status = await check_seed_status()
+
+# If not seeded, initialize
+if status["status"] in ["partial", "error"]:
+    result = await seed_all()
+    # Seeds all financial APIs, standards, patterns, and domain knowledge
+```
+
+## 4. Enhanced Agentic Workflow
+
+Improved agent orchestration that leverages shared state and harvested knowledge.
+
+### Implementation Files
+- `app/agents/enhanced_discovery.py` - Discovery agent enhancements
+- `app/agents/vitesse_orchestrator.py` - Coordinates agents
+
+### Enhanced Discovery Agent
+
+The Discovery Agent now has access to financial knowledge:
+
+```python
+from app.agents.enhanced_discovery import EnhancedDiscoveryContext
+
+# Create enhanced context
+enhanced = EnhancedDiscoveryContext(
+    shared_whiteboard=state,
+    knowledge_harvester=harvester,
+)
+
+# 1. Discover APIs with knowledge enhancement
+apis = await enhanced.discover_apis_with_knowledge(
+    query="payment processor with recurring billing",
+    domain="financial",
+    limit=5,
+)
+# Returns: Stripe, PayPal, Square ranked by relevance
+
+# 2. Check regulatory compliance
+compliance = await enhanced.check_regulatory_compliance(
+    api_name="Stripe",
+    region="EU",
+)
+# Returns: PSD2 requirements, SCA/MFA requirements
+
+# 3. Get integration guidance
+guidance = await enhanced.get_integration_guidance(
+    source_api="Stripe",
+    dest_api="Salesforce",
+)
+# Returns: Common patterns, field mappings, success rates
+
+# 4. Complete enriched workflow
+workflow = await enhanced.enriched_discovery_workflow(
+    user_intent="Sync payments to accounting",
+    source_api_query="payment processor",
+    dest_api_query="accounting system",
+    region="EU",
+)
+```
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  USER INTENT + CONSTRAINTS (from API request)           │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│              SHARED WHITEBOARD STATE                     │
+│  (Persistent, Agent-Readable, LangGraph Checkpointed)   │
+├─────────────────────────────────────────────────────────┤
+│ • discovered_apis    ← Discovery Agent                  │
+│ • source/dest_specs  ← Ingestor Agent                   │
+│ • mapping_logic      ← Mapper Agent                     │
+│ • test_results       ← Guardian Agent                   │
+│ • learned_patterns   ← All Agents                       │
+│ • harvested_knowledge← Knowledge Harvester              │
+│ • domain_knowledge   ← Seed Data                        │
+└─────────────────────────────────────────────────────────┘
+         ▲                                    ▼
+         │                          ┌─────────────────────┐
+         │                          │ AGENTS PIPELINE     │
+         │                          ├─────────────────────┤
+         │                          │ 1. Discovery        │
+         │                          │ 2. Ingestor(s)      │
+         │                          │ 3. Mapper           │
+         │                          │ 4. Guardian         │
+         │                          │ 5. Deployer         │
+         │                          └─────────────────────┘
+         │
+    ┌────┴──────────────────────────────────────────────┐
+    │           KNOWLEDGE SYSTEMS                       │
+    ├────────────────────────────────────────────────────┤
+    │                                                    │
+    │  ┌─────────────────────────────────────────────┐  │
+    │  │  KNOWLEDGE HARVESTER AGENT                  │  │
+    │  │  • Discovers APIs                           │  │
+    │  │  • Extracts schemas & patterns              │  │
+    │  │  • Tracks regulatory compliance             │  │
+    │  └─────────────────────────────────────────────┘  │
+    │                       │                            │
+    │                       ▼                            │
+    │  ┌─────────────────────────────────────────────┐  │
+    │  │    VECTOR DATABASE (Qdrant)                 │  │
+    │  │  Collections:                               │  │
+    │  │  • financial_apis                           │  │
+    │  │  • financial_standards (PSD2, FDX)          │  │
+    │  │  • integration_patterns                     │  │
+    │  │  • domain_knowledge                         │  │
+    │  └─────────────────────────────────────────────┘  │
+    │                       ▲                            │
+    │                       │                            │
+    │  ┌─────────────────────────────────────────────┐  │
+    │  │    SEED DATA INITIALIZATION                 │  │
+    │  │  • Financial APIs (Plaid, Stripe, Yodlee)  │  │
+    │  │  • Standards (PSD2, FDX)                   │  │
+    │  │  • Patterns & Best Practices               │  │
+    │  └─────────────────────────────────────────────┘  │
+    │                                                    │
+    └────────────────────────────────────────────────────┘
+```
+
+## Deployment & Configuration
+
+### Environment Setup
+```bash
+# Automatic at app startup:
+# 1. Qdrant initialized with quantization for 40x performance
+# 2. Seed data loaded into all collections
+# 3. Shared state ready for agent coordination
+# 4. Knowledge Harvester ready for queries
+
+# No additional configuration needed beyond standard Vitesse setup
+```
+
+### Custom Configuration
+```python
+# In .env or settings:
+KNOWLEDGE_DB_BACKEND="qdrant"  # Enterprise-grade vector DB
+QDRANT_URL="http://localhost:6333"  # Local Qdrant instance
+QDRANT_API_KEY=""  # For Qdrant Cloud (optional)
+```
+
+## Testing & Validation
+
+```python
+# Test 1: Verify seed data loaded
+from app.core.seed_data import check_seed_status
+status = await check_seed_status()
+assert status["status"] == "ready"
+
+# Test 2: Verify semantic search works
+from app.core.knowledge_db import get_knowledge_db
+db = await get_knowledge_db()
+results = await db.search("financial_apis", "payment processing", top_k=5)
+assert len(results) > 0
+
+# Test 3: Verify shared state coordination
+state = SharedWhiteboardState()
+state.record_agent_contribution(
+    agent_id="test",
+    agent_type="discovery",
+    input_keys=[],
+    output_data={"found": ["Stripe", "Plaid"]},
+)
+assert len(state.agent_contributions) > 0
+
+# Test 4: Verify workflow execution with knowledge
+enhanced = EnhancedDiscoveryContext(state, harvester)
+apis = await enhanced.discover_apis_with_knowledge("payment processor")
+assert len(apis) > 0
+```
+
+## Future Extensions
+
+1. **Web Crawling**: Auto-harvest APIs from docs sites
+2. **Model Fine-tuning**: Train embeddings on financial domain
+3. **Real-time Updates**: Periodic re-harvesting of API changes
+4. **Multi-language Support**: Extend beyond English documentation
+5. **Compliance Automation**: Auto-generate PSD2/FDX compliance reports

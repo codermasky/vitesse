@@ -77,12 +77,15 @@ const Sidekick: React.FC = () => {
     };
 
     const initializeSidekick = () => {
-        const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:8002");
-        const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
+        // Get the API base URL and extract the host
+        const apiBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8002/api/v1");
+        // Remove /api/v1 suffix if present to get the host
+        const hostUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
+        const wsProtocol = hostUrl.startsWith("https") ? "wss" : "ws";
         const token = localStorage.getItem('access_token');
 
         // Using session_type=sidekick for structured JSON insights
-        const wsUrl = `${wsProtocol}://${apiUrl.split("://")[1]}/api/v1/chat/ws/${sessionIdRef.current}?session_type=sidekick${token ? `&token=${token}` : ''}`;
+        const wsUrl = `${wsProtocol}://${hostUrl.split("://")[1]}/api/v1/chat/ws/${sessionIdRef.current}?session_type=sidekick${token ? `&token=${token}` : ''}`;
 
         const socket = new WebSocket(wsUrl);
 

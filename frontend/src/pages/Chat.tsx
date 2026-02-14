@@ -114,7 +114,9 @@ const Chat: React.FC = () => {
 
       // Use native WebSocket
       // Derive WS URL from API URL to ensure consistency
-      const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:8002");
+      const apiBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8002/api/v1");
+      // Remove /api/v1 suffix if present to get the host
+      const apiUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
       const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
       const token = localStorage.getItem('access_token');
       const wsUrl = `${wsProtocol}://${apiUrl.split("://")[1]}/api/v1/chat/ws/${sessionId}${token ? `?token=${token}` : ''}`;

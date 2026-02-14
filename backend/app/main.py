@@ -36,6 +36,8 @@ from app.db.langfuse_seed import seed_langfuse_config
 from app.db.langfuse_seed import seed_langfuse_config
 from app.core.checkpoint import init_checkpointer, close_checkpointer
 from app.core.ratelimit import limiter
+from app.core.knowledge_db import initialize_knowledge_db
+from app.core.seed_data import seed_all, check_seed_status
 
 # Setup logging
 setup_logging()
@@ -58,16 +60,46 @@ async def lifespan(app: FastAPI):
     # Database tables are managed by Alembic migrations
     logger.info("Database schema is managed by Alembic migrations")
 
+    # Initialize Knowledge Database and seed financial services data
+    logger.info("Initializing Knowledge Database (Qdrant)...")
+    try:
+        await initialize_knowledge_db(
+            backend="qdrant",
+            url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+            api_key=os.getenv("QDRANT_API_KEY"),
+            prefer_grpc=True,
+        )
+
+        # Check and seed knowledge bases
+        seed_status = await check_seed_status()
+        logger.info("Seed data status", status=seed_status)
+
+        if seed_status.get("status") in ["partial", "error"]:
+            logger.info("Initializing seed data for financial services knowledge base...")
+            seed_result = await seed_all()
+            logger.info("Seed data initialization complete", result=seed_result)
+    except Exception as e:
+        logger.warning("Knowledge Database initialization failed, continuing without Qdrant", error=str(e))
+        logger.info("UI features will work without vector database functionality")
+
     # Seed initial data
     await seed_users()
     await seed_llm_configs()
-    await seed_langfuse_config()
+    
+    # Seed LangFuse config (non-critical for startup)
+    try:
+        await seed_langfuse_config()
+    except Exception as e:
+        logger.warning("LangFuse configuration seeding failed, continuing without it", error=str(e))
 
     # Initialize LangFuse (Auto-provision or load from DB)
-    from app.db.session import async_session_factory
-    from app.services.langfuse_setup_service import langfuse_setup_service
+    try:
+        from app.db.session import async_session_factory
+        from app.services.langfuse_setup_service import langfuse_setup_service
 
-    await langfuse_setup_service.ensure_configured()
+        await langfuse_setup_service.ensure_configured()
+    except Exception as e:
+        logger.warning("LangFuse setup failed, continuing without LangFuse integration", error=str(e))
     # Start recovery of interrupted tasks
     from app.services.recovery import recovery_service
     import asyncio
@@ -146,12 +178,14 @@ def create_application() -> FastAPI:
             "enabled": is_langfuse_enabled(),
             "client_initialized": client is not None,
             "client_address": id(client) if client else None,
-            "client_host": client.host
-            if client and hasattr(client, "host")
-            else "unknown",
-            "client_public_key": client.public_key[:5] + "..."
-            if client and hasattr(client, "public_key") and client.public_key
-            else None,
+            "client_host": (
+                client.host if client and hasattr(client, "host") else "unknown"
+            ),
+            "client_public_key": (
+                client.public_key[:5] + "..."
+                if client and hasattr(client, "public_key") and client.public_key
+                else None
+            ),
         }
 
     return app

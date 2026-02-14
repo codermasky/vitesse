@@ -14,7 +14,8 @@ import {
   Bot,
   LayoutDashboard,
   LifeBuoy,
-  Zap
+  Zap,
+  Users
 } from 'lucide-react';
 import HelpOverlay from './HelpOverlay';
 import { cn } from '../services/utils';
@@ -54,12 +55,17 @@ const Layout: React.FC = () => {
         { name: 'Dashboard', href: '/', icon: LayoutDashboard },
         ...(isFeatureEnabled('chat') ? [{ name: 'Chat', href: '/chat', icon: MessageSquare }] : []),
         { name: 'Integrations', href: '/integrations', icon: Zap },
+        { name: 'Integration Builder', href: '/integration-builder', icon: SettingsIcon },
       ]
     },
     ...(isFeatureEnabled('knowledge_base') ? [{
       title: 'KNOWLEDGE',
       items: [
         { name: 'Knowledge Base', href: '/knowledge-base', icon: Database },
+        { name: 'Harvest Sources', href: '/harvest-sources', icon: Database },
+        { name: 'Knowledge Harvester', href: '/knowledge-harvester', icon: Database },
+        { name: 'Agent Activity', href: '/agent-activity', icon: Bot },
+        { name: 'Agent Collaboration', href: '/agent-collaboration', icon: Users },
       ]
     }] : []),
     {

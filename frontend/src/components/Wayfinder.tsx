@@ -67,7 +67,10 @@ const Wayfinder: React.FC = () => {
     }, [isOpen, messages]);
 
     const initializeChat = () => {
-        const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:8002");
+        // Get the API base URL and extract the host
+        const apiBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8002/api/v1");
+        // Remove /api/v1 suffix if present to get the host
+        const apiUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
         const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
         const token = localStorage.getItem('access_token');
         // Using session_type=guide to trigger the specialized system prompt

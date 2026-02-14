@@ -13,6 +13,11 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import Help from './pages/Help';
+import HarvestSources from './pages/HarvestSources';
+import AgentActivityDashboard from './pages/AgentActivityDashboard';
+import KnowledgeHarvesterDashboard from './pages/KnowledgeHarvesterDashboard';
+import AgentCollaborationHub from './pages/AgentCollaborationHub';
+import IntegrationBuilder from './pages/IntegrationBuilder';
 import Layout from './components/Layout';
 import Notifications from './components/Notifications';
 import { SettingsProvider } from './contexts/SettingsContext';
@@ -55,7 +60,12 @@ const AppRoutes: React.FC = () => {
         <Route path="integrations" element={<Integrations />} />
         <Route path="integrations/new" element={<NewIntegration />} />
         <Route path="integrations/:id/edit" element={<NewIntegration isEditMode={true} />} />
-        <Route path="knowledge" element={<KnowledgeBase />} />
+        <Route path="knowledge-base" element={<KnowledgeBase />} />
+        <Route path="harvest-sources" element={<HarvestSources />} />
+        <Route path="knowledge-harvester" element={<KnowledgeHarvesterDashboard />} />
+        <Route path="agent-activity" element={<AgentActivityDashboard />} />
+        <Route path="agent-collaboration" element={<AgentCollaborationHub />} />
+        <Route path="integration-builder" element={<IntegrationBuilder />} />
         <Route path="settings" element={<Settings />} />
         <Route path="profile" element={<Profile />} />
         <Route path="help" element={<Help />} />

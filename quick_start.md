@@ -109,6 +109,14 @@ curl -X POST http://localhost:8000/api/v1/integrations/orchestrate \
 | **Frontend** | http://localhost:5173 | Login page |
 | **Health** | http://localhost:8000/health | `{"status":"healthy"}` |
 
+### New UI Features (Database-Backed)
+
+| Feature | URL Path | Description |
+|---------|----------|-------------|
+| **Knowledge Harvester Dashboard** | `/harvest-jobs` | Monitor autonomous knowledge harvesting |
+| **Agent Collaboration Hub** | `/agent-collaboration` | Real-time agent activity and communication |
+| **Integration Builder** | `/integration-builder` | Visual integration creation and mapping |
+
 ---
 
 ## 🧬 Architecture at a Glance

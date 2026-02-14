@@ -27,6 +27,9 @@ Vitesse AI provides a comprehensive set of features designed to accelerate the d
 
 ## 🎨 User Experience
 - **Integration Dashboard**: Manage all integrations from a centralized interface.
+- **Knowledge Harvester Dashboard**: Monitor autonomous knowledge harvesting operations with real-time job tracking and performance analytics.
+- **Agent Collaboration Hub**: Real-time monitoring of multi-agent workflows, communication logs, and shared state management.
+- **Integration Builder**: Visual drag-and-drop interface for creating integrations, field mapping, and transformation rules.
 - **Real-time Monitoring**: Track integration status and performance metrics.
 - **Whitelabeling**: Customize the platform's branding, colors, and attribution easily.
 - **In-App Documentation**: Help center and guides accessible directly within the application.

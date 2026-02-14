@@ -99,6 +99,32 @@ python -m app.deployer.deployer_cli --target cloud --integration-id <id> --cloud
 | **Persistence** | **Integration Models** | PostgreSQL schema for integrations |
 | | **State Service** | Stateless operations via external DB |
 | **Experience** | **Integration Dashboard** | Real-time connector management |
+| | **Knowledge Harvester Dashboard** | Monitor and manage knowledge harvesting jobs |
+| | **Agent Collaboration Hub** | Real-time agent activity and communication monitoring |
+| | **Integration Builder** | Visual integration creation and field mapping |
+
+## 🎨 User Interface Features
+
+### Knowledge Harvester Dashboard
+Monitor and manage autonomous knowledge harvesting operations:
+- **Real-time Job Tracking**: View active, completed, and failed harvesting jobs
+- **Progress Monitoring**: Track harvesting progress with detailed metrics
+- **Source Management**: Monitor API sources being harvested
+- **Performance Analytics**: Success rates, processing times, and error tracking
+
+### Agent Collaboration Hub
+Real-time monitoring of multi-agent workflows:
+- **Agent Activity Feed**: Live view of all agent activities and status
+- **Communication Logs**: Inter-agent message passing and coordination
+- **Shared State Management**: Centralized whiteboard for workflow state
+- **Performance Metrics**: Individual agent metrics and collaboration scores
+
+### Integration Builder
+Visual interface for creating and managing API integrations:
+- **Drag-and-Drop Mapping**: Intuitive field mapping between APIs
+- **Transformation Rules**: Visual rule builder for data transformations
+- **Testing Interface**: Built-in testing tools with real data validation
+- **Deployment Management**: One-click deployment to multiple targets
 | | **Monitoring** | Health scores, error tracking |
 
 ## 🔐 Security & Observability

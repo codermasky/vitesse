@@ -630,6 +630,160 @@ class ApiService {
   async getLangfuseStats(hours: number = 24): Promise<AxiosResponse> {
     return this.axiosInstance.get("/monitoring/llm-calls", { params: { hours } });
   }
+
+  // Harvest Sources endpoints
+  async getHarvestSources(params?: {
+    skip?: number;
+    limit?: number;
+    enabled_only?: boolean;
+    source_type?: string;
+    category?: string;
+  }): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/harvest-sources/", { params });
+  }
+
+  async getHarvestSource(sourceId: number): Promise<AxiosResponse> {
+    return this.axiosInstance.get(`/harvest-sources/${sourceId}`);
+  }
+
+  async createHarvestSource(sourceData: any): Promise<AxiosResponse> {
+    return this.axiosInstance.post("/harvest-sources/", sourceData);
+  }
+
+  async updateHarvestSource(sourceId: number, updateData: any): Promise<AxiosResponse> {
+    return this.axiosInstance.put(`/harvest-sources/${sourceId}`, updateData);
+  }
+
+  async deleteHarvestSource(sourceId: number): Promise<AxiosResponse> {
+    return this.axiosInstance.delete(`/harvest-sources/${sourceId}`);
+  }
+
+  async testHarvestSource(sourceId: number): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/harvest-sources/${sourceId}/test`);
+  }
+
+  async getHarvestStats(): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/harvest-sources/stats/overview");
+  }
+
+  async initializeDefaultHarvestSources(): Promise<AxiosResponse> {
+    return this.axiosInstance.post("/harvest-sources/initialize-defaults");
+  }
+
+  // Harvest Jobs endpoints
+  async getHarvestJobs(params?: {
+    skip?: number;
+    limit?: number;
+    status?: string;
+    harvest_type?: string;
+  }): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/harvest-jobs/", { params });
+  }
+
+  async getHarvestJob(jobId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.get(`/harvest-jobs/${jobId}`);
+  }
+
+  async createHarvestJob(jobData: {
+    harvest_type: string;
+    source_ids?: number[];
+  }): Promise<AxiosResponse> {
+    return this.axiosInstance.post("/harvest-jobs/", jobData);
+  }
+
+  async cancelHarvestJob(jobId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/harvest-jobs/${jobId}/cancel`);
+  }
+
+  async getHarvestJobStats(): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/harvest-jobs/stats/overview");
+  }
+
+  // Agent Collaboration Hub endpoints
+  async getSharedState(): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/agent-collaboration/shared-state");
+  }
+
+  async getAgentActivity(hours?: number): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/agent-collaboration/agents/activity", { params: { hours } });
+  }
+
+  async getCommunicationLog(hours?: number, limit?: number): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/agent-collaboration/communication/log", { params: { hours, limit } });
+  }
+
+  async getAgentMetrics(agentId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.get(`/agent-collaboration/agents/${agentId}/metrics`);
+  }
+
+  async getCollaborationStats(): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/agent-collaboration/stats/overview");
+  }
+
+  // Integration Builder endpoints
+  async getIntegrations(params?: {
+    skip?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/integration-builder/", { params });
+  }
+
+  async getIntegration(integrationId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.get(`/integration-builder/${integrationId}`);
+  }
+
+  async createIntegration(integrationData: {
+    name: string;
+    description: string;
+    source_api: string;
+    target_api: string;
+  }): Promise<AxiosResponse> {
+    return this.axiosInstance.post("/integration-builder/", integrationData);
+  }
+
+  async updateIntegration(integrationId: string, updateData: any): Promise<AxiosResponse> {
+    return this.axiosInstance.put(`/integration-builder/${integrationId}`, updateData);
+  }
+
+  async deleteIntegration(integrationId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.delete(`/integration-builder/${integrationId}`);
+  }
+
+  async addFieldMapping(integrationId: string, mappingData: any): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/integration-builder/${integrationId}/field-mappings`, mappingData);
+  }
+
+  async addTransformationRule(integrationId: string, ruleData: any): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/integration-builder/${integrationId}/transformations`, ruleData);
+  }
+
+  async testIntegration(integrationId: string, testData: any): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/integration-builder/${integrationId}/test`, testData);
+  }
+
+  async getIntegrationTestResults(integrationId: string, limit?: number): Promise<AxiosResponse> {
+    return this.axiosInstance.get(`/integration-builder/${integrationId}/test-results`, { params: { limit } });
+  }
+
+  async getIntegrationStats(): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/integration-builder/stats/overview");
+  }
+
+  // Agent Activity Dashboard methods
+  async getAgentActivitySharedState(): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/agents/shared-state");
+  }
+
+  async getWorkflowStatus(workflowId?: string): Promise<AxiosResponse> {
+    const url = workflowId ? `/agents/workflow/${workflowId}` : "/agents/workflow";
+    return this.axiosInstance.get(url);
+  }
+
+  async getAgentActivityMetrics(agentId?: string): Promise<AxiosResponse> {
+    const url = agentId ? `/agents/${agentId}/metrics` : "/agents/metrics";
+    return this.axiosInstance.get(url);
+  }
 }
 
 export const apiService = new ApiService();
