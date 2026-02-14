@@ -72,7 +72,9 @@ class Integration(Base):
 
     # Deployment Configuration
     deployment_config: Mapped[dict] = Column(JSON, nullable=False)
-    deployment_target: Mapped[str] = Column(SQLEnum(DeploymentTargetEnum, native_enum=False), nullable=False)
+    deployment_target: Mapped[str] = Column(
+        SQLEnum(DeploymentTargetEnum, native_enum=False), nullable=False
+    )
     container_id: Mapped[Optional[str]] = Column(String(255), nullable=True)
 
     # Health & Monitoring

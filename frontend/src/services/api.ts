@@ -836,9 +836,12 @@ class ApiService {
     payload: {
       source_spec_url?: string;
       dest_spec_url?: string;
-    }
+    },
   ): Promise<AxiosResponse> {
-    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/ingest`, payload);
+    return this.axiosInstance.post(
+      `/vitesse/integrations/${integrationId}/ingest`,
+      payload,
+    );
   }
 
   // Step 3: Generate field mappings
@@ -848,9 +851,12 @@ class ApiService {
       source_endpoint: string;
       dest_endpoint: string;
       mapping_hints?: any;
-    }
+    },
   ): Promise<AxiosResponse> {
-    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/map`, payload);
+    return this.axiosInstance.post(
+      `/vitesse/integrations/${integrationId}/map`,
+      payload,
+    );
   }
 
   // Step 4: Run integration tests
@@ -859,9 +865,12 @@ class ApiService {
     payload?: {
       test_sample_size?: number;
       skip_destructive?: boolean;
-    }
+    },
   ): Promise<AxiosResponse> {
-    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/test`, payload || {});
+    return this.axiosInstance.post(
+      `/vitesse/integrations/${integrationId}/test`,
+      payload || {},
+    );
   }
 
   // Step 5: Deploy integration
@@ -872,13 +881,18 @@ class ApiService {
       memory_mb?: number;
       cpu_cores?: number;
       auto_scale?: boolean;
-    }
+    },
   ): Promise<AxiosResponse> {
-    return this.axiosInstance.post(`/vitesse/integrations/${integrationId}/deploy`, payload || {});
+    return this.axiosInstance.post(
+      `/vitesse/integrations/${integrationId}/deploy`,
+      payload || {},
+    );
   }
 
   // Get integration details and status
-  async getVitesseIntegrationStatus(integrationId: string): Promise<AxiosResponse> {
+  async getVitesseIntegrationStatus(
+    integrationId: string,
+  ): Promise<AxiosResponse> {
     return this.axiosInstance.get(`/vitesse/integrations/${integrationId}`);
   }
 

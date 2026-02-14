@@ -26,9 +26,7 @@ def upgrade() -> None:
     """Upgrade schema - Convert ENUM columns to VARCHAR."""
 
     # 1. Drop the default constraint to allow type change
-    op.execute(
-        "ALTER TABLE integrations ALTER COLUMN status DROP DEFAULT"
-    )
+    op.execute("ALTER TABLE integrations ALTER COLUMN status DROP DEFAULT")
 
     # 2. Convert status column from enum to varchar
     op.execute(
@@ -41,9 +39,7 @@ def upgrade() -> None:
     )
 
     # 4. Drop the default constraint for deployment_target
-    op.execute(
-        "ALTER TABLE integrations ALTER COLUMN deployment_target DROP DEFAULT"
-    )
+    op.execute("ALTER TABLE integrations ALTER COLUMN deployment_target DROP DEFAULT")
 
     # 5. Convert deployment_target column from enum to varchar
     op.execute(
@@ -83,9 +79,7 @@ def downgrade() -> None:
     deployment_target_enum.create(op.get_bind(), checkfirst=True)
 
     # Convert columns back to ENUM type
-    op.execute(
-        "ALTER TABLE integrations ALTER COLUMN status DROP DEFAULT"
-    )
+    op.execute("ALTER TABLE integrations ALTER COLUMN status DROP DEFAULT")
     op.execute(
         "ALTER TABLE integrations ALTER COLUMN status TYPE integrationstatusenum USING status::integrationstatusenum"
     )

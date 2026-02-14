@@ -731,7 +731,7 @@ class VitesseOrchestrator:
         """Ingest API specifications for both source and destination APIs."""
         try:
             logger.info("Ingesting API specifications")
-            
+
             # TODO: Implement actual spec fetching from URLs
             # For now, return mock specifications
             source_api_spec = {
@@ -741,11 +741,11 @@ class VitesseOrchestrator:
                     {
                         "path": "/customers",
                         "method": "GET",
-                        "response_schema": {"type": "object", "properties": {}}
+                        "response_schema": {"type": "object", "properties": {}},
                     }
-                ]
+                ],
             }
-            
+
             dest_api_spec = {
                 "api_name": dest_discovery["api_name"],
                 "base_url": dest_discovery.get("base_url", ""),
@@ -753,11 +753,11 @@ class VitesseOrchestrator:
                     {
                         "path": "/contacts",
                         "method": "POST",
-                        "request_schema": {"type": "object", "properties": {}}
+                        "request_schema": {"type": "object", "properties": {}},
                     }
-                ]
+                ],
             }
-            
+
             return {
                 "status": "success",
                 "source_api_spec": source_api_spec,
@@ -785,7 +785,7 @@ class VitesseOrchestrator:
                 source_endpoint=source_endpoint,
                 dest_endpoint=dest_endpoint,
             )
-            
+
             # TODO: Implement actual mapping generation using Mapper agent
             # For now, return mock mappings
             mapping_logic = {
@@ -798,9 +798,9 @@ class VitesseOrchestrator:
                     "retry_count": 3,
                     "backoff_strategy": "exponential",
                     "skip_unmapped_fields": False,
-                }
+                },
             }
-            
+
             return {
                 "status": "success",
                 "mapping_logic": mapping_logic,
@@ -823,7 +823,7 @@ class VitesseOrchestrator:
         """Run integration tests."""
         try:
             logger.info("Running integration tests", integration_id=integration_id)
-            
+
             # TODO: Implement actual test execution using Guardian agent
             # For now, return mock test results
             return {
@@ -851,7 +851,7 @@ class VitesseOrchestrator:
                 integration_id=integration_id,
                 target=deployment_config.get("target", "local"),
             )
-            
+
             # TODO: Implement actual deployment using Deployer agent
             # For now, return mock deployment result
             return {
