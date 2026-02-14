@@ -33,6 +33,7 @@ from app.db.base import Base
 from app.db.user_seed import seed_users
 from app.db.llm_seed import seed_llm_configs
 from app.db.langfuse_seed import seed_langfuse_config
+from app.db.products_seed import seed_products
 from app.db.langfuse_seed import seed_langfuse_config
 from app.core.checkpoint import init_checkpointer, close_checkpointer
 from app.core.ratelimit import limiter
@@ -90,6 +91,7 @@ async def lifespan(app: FastAPI):
     # Seed initial data
     await seed_users()
     await seed_llm_configs()
+    await seed_products()
 
     # Seed LangFuse config (non-critical for startup)
     try:
@@ -128,7 +130,9 @@ async def lifespan(app: FastAPI):
     start_monitor_scheduler()
 
     # Initialize and start knowledge harvester scheduler
-    from app.services.knowledge_harvester_scheduler import initialize_harvester_scheduler
+    from app.services.knowledge_harvester_scheduler import (
+        initialize_harvester_scheduler,
+    )
 
     try:
         await initialize_harvester_scheduler()

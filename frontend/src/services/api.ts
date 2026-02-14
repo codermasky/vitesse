@@ -3,7 +3,7 @@ import type { AxiosInstance, AxiosResponse } from "axios";
 
 // Define API base URL - using environment variable with fallback
 const VITE_API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8002/api/v1";
+  import.meta.env.VITE_API_URL || "http://localhost:9001/api/v1";
 const API_BASE_URL = VITE_API_URL.endsWith("/api/v1")
   ? VITE_API_URL
   : `${VITE_API_URL}/api/v1`;

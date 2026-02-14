@@ -1,9 +1,14 @@
 from typing import List, Dict, Any, Optional, Union, Callable
 import structlog
 from datetime import datetime
+import uuid
+import shutil
+from pathlib import Path
+from fastapi import UploadFile
 
 from app.core.config import settings
 from app.services.vectorization import get_vectorization_service
+from app.db.session import async_session_factory
 
 logger = structlog.get_logger(__name__)
 

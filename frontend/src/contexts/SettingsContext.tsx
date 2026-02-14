@@ -115,7 +115,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const newConfig = { ...whitelabel, ...config };
         setWhitelabel(newConfig);
         try {
-            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/system/whitelabel`, {
+            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1'}/system/whitelabel`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

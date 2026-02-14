@@ -156,60 +156,119 @@ class VitesseDiscoveryAgent(VitesseAgent):
         if not query:
             raise ValueError("query is required")
 
-        logger.info("Discovery agent starting", query=query, limit=limit)
+        logger.info("🔍 Discovery agent starting", query=query, limit=limit)
 
         start_time = datetime.utcnow()
         results: List[DiscoveryResult] = []
 
+        # Track search metadata for user feedback
+        search_metadata = {
+            "catalog_count": 0,
+            "kb_count": 0,
+            "llm_count": 0,
+            "catalog_time": 0,
+            "kb_time": 0,
+            "llm_time": 0,
+        }
+
         try:
             # Step 1: Check known APIs (fast path)
+            catalog_start = datetime.utcnow()
+            logger.info("📚 Searching API catalog...", query=query)
             known_results = self._search_known_apis(query, limit)
             results.extend(known_results)
-            logger.info(f"Found {len(known_results)} results from known APIs")
+            search_metadata["catalog_count"] = len(known_results)
+            search_metadata["catalog_time"] = (
+                datetime.utcnow() - catalog_start
+            ).total_seconds()
+            logger.info(
+                f"✅ Found {len(known_results)} results from catalog in {search_metadata['catalog_time']:.2f}s"
+            )
 
             # If we found matches in the catalog, return them immediately to avoid slow LLM calls
             if len(results) > 0:
                 logger.info(
-                    f"Found {len(results)} results in catalog, skipping KB and LLM search for latency"
+                    f"✨ Catalog search successful with {len(results)} results, skipping KB and LLM search for speed"
                 )
             else:
                 # Step 2: Search Knowledge Base (Harvested Data)
+                kb_start = datetime.utcnow()
+                logger.info("🗄️ Searching knowledge base...", query=query)
                 kb_results = await self._search_knowledge_base(query, limit)
                 results.extend(kb_results)
-                logger.info(f"Found {len(kb_results)} results from Knowledge Base")
+                search_metadata["kb_count"] = len(kb_results)
+                search_metadata["kb_time"] = (
+                    datetime.utcnow() - kb_start
+                ).total_seconds()
+                logger.info(
+                    f"✅ Found {len(kb_results)} results from KB in {search_metadata['kb_time']:.2f}s"
+                )
 
                 # Step 3: If we still don't have enough results, use LLM discovery
                 if len(results) < limit:
                     remaining_limit = limit - len(results)
+                    llm_start = datetime.utcnow()
                     logger.info(
-                        f"Searching for {remaining_limit} more results using LLM"
+                        f"🤖 Consulting AI for {remaining_limit} more results...",
+                        query=query,
                     )
                     llm_results = await self._llm_discovery(query, remaining_limit)
                     results.extend(llm_results)
-                    logger.info(f"Found {len(llm_results)} additional results from LLM")
+                    search_metadata["llm_count"] = len(llm_results)
+                    search_metadata["llm_time"] = (
+                        datetime.utcnow() - llm_start
+                    ).total_seconds()
+                    logger.info(
+                        f"✅ Found {len(llm_results)} additional results from AI in {search_metadata['llm_time']:.2f}s"
+                    )
 
-            # Step 3: Sort by confidence score
+            # Step 4: Sort by confidence score
             results.sort(key=lambda x: x.confidence_score, reverse=True)
             results = results[:limit]
 
-            search_time = (datetime.utcnow() - start_time).total_seconds()
+            total_time = (datetime.utcnow() - start_time).total_seconds()
+
+            logger.info(
+                f"🎯 Discovery complete: {len(results)} results in {total_time:.2f}s",
+                catalog=search_metadata["catalog_count"],
+                kb=search_metadata["kb_count"],
+                llm=search_metadata["llm_count"],
+            )
 
             return {
                 "status": "success",
                 "query": query,
                 "results": [r.model_dump() for r in results],
                 "total_found": len(results),
-                "search_time_seconds": search_time,
+                "search_time_seconds": total_time,
+                "metadata": search_metadata,
             }
 
         except Exception as e:
-            logger.error("Discovery failed", error=str(e))
+            logger.error(
+                "❌ Discovery failed", error=str(e), query=query, exc_info=True
+            )
+            error_message = str(e)
+
+            # Provide more helpful error messages
+            if "timeout" in error_message.lower():
+                error_message = "Search timed out. Please try a more specific query."
+            elif "connection" in error_message.lower():
+                error_message = (
+                    "Unable to connect to search services. Please try again."
+                )
+
             return {
                 "status": "failed",
-                "error": str(e),
+                "error": error_message,
                 "query": query,
                 "results": [],
                 "total_found": 0,
+                "metadata": {
+                    "catalog_count": 0,
+                    "kb_count": 0,
+                    "llm_count": 0,
+                },
             }
 
     def _search_known_apis(self, query: str, limit: int) -> List[DiscoveryResult]:
@@ -353,9 +412,11 @@ Example format:
                         base_url=metadata.get("base_url"),
                         confidence_score=float(score),
                         source="knowledge_base",
-                        tags=metadata.get("tags", "").split(",")
-                        if isinstance(metadata.get("tags"), str)
-                        else [],
+                        tags=(
+                            metadata.get("tags", "").split(",")
+                            if isinstance(metadata.get("tags"), str)
+                            else []
+                        ),
                     )
                     results.append(result)
 

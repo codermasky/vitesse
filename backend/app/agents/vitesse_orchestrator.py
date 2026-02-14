@@ -19,9 +19,9 @@ from app.agents.self_healing import SelfHealingAgent
 from app.deployer.container_deployer import LocalContainerDeployer
 from app.schemas.integration import (
     IntegrationInstance,
-    IntegrationStatus,
     DeploymentConfig,
 )
+from app.models.integration import IntegrationStatusEnum
 
 logger = structlog.get_logger(__name__)
 
@@ -185,24 +185,24 @@ class VitesseOrchestrator:
                         integration_id=integration_id,
                         health_score=overall_score,
                     )
-                    integration.status = IntegrationStatus.DEPLOYING
+                    integration.status = IntegrationStatusEnum.DEPLOYING
                 else:
                     logger.warning(
                         "Health check failed - low score",
                         integration_id=integration_id,
                         health_score=overall_score,
                     )
-                    integration.status = IntegrationStatus.FAILED
+                    integration.status = IntegrationStatusEnum.FAILED
                     integration.error_log = f"Health score too low: {overall_score}/100"
             else:
-                integration.status = IntegrationStatus.FAILED
+                integration.status = IntegrationStatusEnum.FAILED
                 integration.error_log = health_result.get("error")
 
             # Step 5: Deploy integration
             logger.info(
                 "Step 5/5: Deploying integration", integration_id=integration_id
             )
-            if integration.status == IntegrationStatus.DEPLOYING:
+            if integration.status == IntegrationStatusEnum.DEPLOYING:
                 deploy_result = await self.deployer.deploy(
                     integration_id=integration_id,
                     container_config={
@@ -225,7 +225,7 @@ class VitesseOrchestrator:
                         integration_id=integration_id,
                         service_url=deploy_result.get("service_url"),
                     )
-                    integration.status = IntegrationStatus.ACTIVE
+                    integration.status = IntegrationStatusEnum.ACTIVE
                     integration.container_id = deploy_result.get("container_id")
                     integration.service_url = deploy_result.get("service_url")
                 else:
@@ -234,7 +234,7 @@ class VitesseOrchestrator:
                         integration_id=integration_id,
                         error=deploy_result.get("error"),
                     )
-                    integration.status = IntegrationStatus.FAILED
+                    integration.status = IntegrationStatusEnum.FAILED
                     integration.error_log = (
                         f"Deployment failed: {deploy_result.get('error')}"
                     )

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -16,6 +16,8 @@ import {
     Layout
 } from 'lucide-react';
 import axios from 'axios';
+import { apiService } from '../services/api';
+import { ProductSelectionStep } from '../components/ProductSelectionStep';
 
 // Interfaces
 interface DiscoveryResult {
@@ -35,20 +37,40 @@ interface NewIntegrationProps {
 
 export const NewIntegration: React.FC<NewIntegrationProps> = () => {
     const navigate = useNavigate();
-    const [currentStep, setCurrentStep] = useState<'search-source' | 'search-dest' | 'configure' | 'review'>('search-source');
+    const [currentStep, setCurrentStep] = useState<'search-source' | 'select-dest-product' | 'configure' | 'review'>('search-source');
     const [sourceQuery, setSourceQuery] = useState('');
-    const [destQuery, setDestQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [sourceResults, setSourceResults] = useState<DiscoveryResult[]>([]);
-    const [destResults, setDestResults] = useState<DiscoveryResult[]>([]);
     const [selectedSource, setSelectedSource] = useState<DiscoveryResult | null>(null);
     const [selectedDest, setSelectedDest] = useState<DiscoveryResult | null>(null);
+
+    // Product selection state
+    const [products, setProducts] = useState<string[]>([]);
+    const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+    const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
     const [userIntent, setUserIntent] = useState('');
     const [deploymentTarget, setDeploymentTarget] = useState<'local' | 'eks' | 'ecs'>('local');
     const [isCreating, setIsCreating] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [error, setError] = useState<string | null>(null); // Added error state
+    const [error, setError] = useState<string | null>(null);
 
+    // Fetch products on component mount
+    useEffect(() => {
+        const fetchProducts = async () => {
+            setIsLoadingProducts(true);
+            try {
+                const response = await apiService.getProducts();
+                setProducts(response.data || []);
+            } catch (error) {
+                console.error('Failed to fetch products:', error);
+                setError('Failed to load products. Please try again.');
+            } finally {
+                setIsLoadingProducts(false);
+            }
+        };
+        fetchProducts();
+    }, []);
 
     const searchAPIs = async (query: string, type: 'source' | 'dest') => {
         if (!query.trim()) return;
@@ -66,14 +88,43 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
                 }
             });
 
+            // Backend returns { status, query, results, total_found, search_time_seconds, metadata }
+            const results = response.data.results || [];
+
             if (type === 'source') {
-                setSourceResults(response.data.data.results || []);
+                setSourceResults(results);
             } else {
-                setDestResults(response.data.data.results || []);
+            // Destination search removed - now using product selection
             }
-        } catch (error) {
+
+            // Log search metadata for debugging
+            if (response.data.metadata) {
+                console.log('🔍 Search completed:', {
+                    query,
+                    total: response.data.total_found,
+                    time: `${response.data.search_time_seconds?.toFixed(2)}s`,
+                    sources: response.data.metadata
+                });
+            }
+        } catch (error: any) {
             console.error('Discovery failed:', error);
-            setError('Failed to discover APIs. Please try again.');
+
+            // Provide more specific error messages
+            let errorMessage = 'Failed to discover APIs. Please try again.';
+
+            if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
+            } else if (error.response?.status === 401) {
+                errorMessage = 'Authentication failed. Please log in again.';
+            } else if (error.response?.status === 500) {
+                errorMessage = 'Server error during search. Please try again or contact support.';
+            } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+                errorMessage = 'Search timed out. Please try a more specific query.';
+            } else if (!navigator.onLine) {
+                errorMessage = 'No internet connection. Please check your network.';
+            }
+
+            setError(errorMessage);
         } finally {
             setIsSearching(false);
         }
@@ -82,11 +133,24 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
     const handleSelectAPI = (result: DiscoveryResult, type: 'source' | 'dest') => {
         if (type === 'source') {
             setSelectedSource(result);
-            setCurrentStep('search-dest');
+            setCurrentStep('select-dest-product');
         } else {
             setSelectedDest(result);
             setCurrentStep('configure');
         }
+    };
+
+    const handleSelectProduct = (product: string) => {
+        setSelectedProduct(product);
+        // Create a mock DiscoveryResult for the selected product
+        setSelectedDest({
+            api_name: product,
+            description: `Linedata ${product} Product`,
+            category: 'linedata-product',
+            confidence_score: 1.0,
+            source: 'product'
+        });
+        setCurrentStep('configure');
     };
 
     const createIntegration = async () => {
@@ -175,18 +239,13 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
                     />
                 )}
 
-                {currentStep === 'search-dest' && (
-                    <SearchStep
-                        key="search-dest"
-                        title="Search for Destination API"
-                        description="Where do you want to send the data?"
-                        query={destQuery}
-                        setQuery={setDestQuery}
-                        onSearch={() => searchAPIs(destQuery, 'dest')}
-                        results={destResults}
-                        isSearching={isSearching}
-                        onSelect={(result) => handleSelectAPI(result, 'dest')}
-                        selectedAPI={selectedDest}
+                {currentStep === 'select-dest-product' && (
+                    <ProductSelectionStep
+                        key="select-dest-product"
+                        products={products}
+                        selectedProduct={selectedProduct}
+                        onSelect={handleSelectProduct}
+                        isLoading={isLoadingProducts}
                         onBack={() => setCurrentStep('search-source')}
                     />
                 )}
@@ -198,7 +257,7 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
                         setUserIntent={setUserIntent}
                         deploymentTarget={deploymentTarget}
                         setDeploymentTarget={setDeploymentTarget}
-                        onBack={() => setCurrentStep('search-dest')}
+                        onBack={() => setCurrentStep('select-dest-product')}
                         onNext={() => setCurrentStep('review')}
                     />
                 )}
@@ -329,7 +388,7 @@ const SearchStep: React.FC<SearchStepProps> = ({
                 </button>
             </div>
 
-            {/* Loading State */}
+            {/* Enhanced Loading State with Progress */}
             {isSearching && (
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -339,11 +398,77 @@ const SearchStep: React.FC<SearchStepProps> = ({
                     <div className="w-20 h-20 mx-auto mb-6 relative">
                         <div className="absolute inset-0 rounded-full bg-gradient-to-r from-brand-500 to-purple-500 opacity-20 animate-pulse" />
                         <div className="absolute inset-2 rounded-full bg-white dark:bg-surface-900 flex items-center justify-center">
-                            <Zap className="w-8 h-8 text-brand-500 animate-pulse" />
+                            <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
                         </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-surface-950 dark:text-white">Discovering API Specs</h3>
-                    <p className="text-surface-500 dark:text-surface-400 mt-2">Our agents are scanning the web...</p>
+                    <h3 className="text-lg font-semibold text-surface-950 dark:text-white mb-4">Discovering APIs</h3>
+
+                    {/* Search Progress Steps */}
+                    <div className="max-w-md mx-auto space-y-3">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0 }}
+                            className="flex items-center gap-3 p-3 bg-brand-500/10 border border-brand-500/20 rounded-lg"
+                        >
+                            <div className="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center flex-shrink-0">
+                                <Loader2 className="w-3 h-3 text-white animate-spin" />
+                            </div>
+                            <span className="text-sm font-medium text-surface-700 dark:text-surface-300">Searching API catalog...</span>
+                        </motion.div>
+
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 0.5, x: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="flex items-center gap-3 p-3 bg-surface-100 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700 rounded-lg opacity-50"
+                        >
+                            <div className="w-6 h-6 rounded-full bg-surface-300 dark:bg-surface-600 flex items-center justify-center flex-shrink-0">
+                                <Database className="w-3 h-3 text-surface-500" />
+                            </div>
+                            <span className="text-sm text-surface-600 dark:text-surface-400">Searching knowledge base...</span>
+                        </motion.div>
+
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 0.5, x: 0 }}
+                            transition={{ delay: 0.6 }}
+                            className="flex items-center gap-3 p-3 bg-surface-100 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700 rounded-lg opacity-50"
+                        >
+                            <div className="w-6 h-6 rounded-full bg-surface-300 dark:bg-surface-600 flex items-center justify-center flex-shrink-0">
+                                <Sparkles className="w-3 h-3 text-surface-500" />
+                            </div>
+                            <span className="text-sm text-surface-600 dark:text-surface-400">Consulting AI (if needed)...</span>
+                        </motion.div>
+                    </div>
+
+                    <p className="text-xs text-surface-500 dark:text-surface-400 mt-6">This usually takes just a few seconds</p>
+                </motion.div>
+            )}
+
+            {/* No Results State */}
+            {!isSearching && results.length === 0 && query && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                >
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
+                        <Search className="w-8 h-8 text-surface-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-surface-950 dark:text-white mb-2">No APIs Found</h3>
+                    <p className="text-surface-600 dark:text-surface-400 mb-6">
+                        We couldn't find any APIs matching "{query}"
+                    </p>
+                    <div className="max-w-md mx-auto text-left bg-surface-50 dark:bg-surface-800/50 rounded-xl p-4 border border-surface-200 dark:border-surface-700">
+                        <p className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-2">Try:</p>
+                        <ul className="text-sm text-surface-600 dark:text-surface-400 space-y-1">
+                            <li>• Using the official API name (e.g., "Stripe", "GitHub")</li>
+                            <li>• Searching by category (e.g., "payment", "CRM")</li>
+                            <li>• Checking your spelling</li>
+                            <li>• Using a more general search term</li>
+                        </ul>
+                    </div>
                 </motion.div>
             )}
 
@@ -371,9 +496,11 @@ const SearchStep: React.FC<SearchStepProps> = ({
                                 </div>
                                 <div className={`
                                     px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider
-                                    ${result.source === 'google' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'}
+                                    ${result.source === 'catalog' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                        result.source === 'knowledge_base' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                            'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'}
                                 `}>
-                                    {result.source}
+                                    {result.source === 'knowledge_base' ? 'KB' : result.source}
                                 </div>
                             </div>
                             <h3 className="text-lg font-bold text-surface-950 dark:text-white mb-2 group-hover:text-brand-500 transition-colors">

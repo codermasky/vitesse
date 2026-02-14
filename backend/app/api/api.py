@@ -5,6 +5,7 @@ from app.api.endpoints import (
     users,
     chat,
     knowledge,
+    documents,
     queue,
     agents,
     llm_configs,
@@ -23,6 +24,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["login"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(knowledge.router, prefix="/knowledge", tags=["knowledge"])
+api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(queue.router, prefix="/queue", tags=["queue"])
 api_router.include_router(agents.router, prefix="/agents", tags=["agents"])
 api_router.include_router(
@@ -36,7 +38,7 @@ api_router.include_router(
     harvest_sources.router, prefix="/harvest-sources", tags=["harvest-sources"]
 )
 api_router.include_router(
-    harvest_jobs.router, prefix="/harvest-jobs", tags=["harvest-jobs"]
+    harvest_jobs.router, tags=["harvest-jobs"]
 )
 api_router.include_router(
     agent_collaboration.router,
