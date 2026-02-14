@@ -127,6 +127,19 @@ async def lifespan(app: FastAPI):
 
     start_monitor_scheduler()
 
+    # Initialize and start knowledge harvester scheduler
+    from app.services.knowledge_harvester_scheduler import initialize_harvester_scheduler
+
+    try:
+        await initialize_harvester_scheduler()
+        logger.info("Knowledge Harvester Scheduler initialized and started")
+    except Exception as e:
+        logger.warning(
+            "Failed to initialize Knowledge Harvester Scheduler, continuing without it",
+            error=str(e),
+        )
+        # Don't fail startup if scheduler can't initialize - the API can still be used manually
+
     # Pre-warm prompt cache
     async with async_session_factory() as db:
         await llm_config_service.initialize_agent_configs(db)

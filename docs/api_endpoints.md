@@ -347,6 +347,209 @@ GET /api/v1/integration-builder/stats/overview
 }
 ```
 
+## Knowledge Harvester Scheduler Control
+
+### Get Scheduler Status
+```http
+GET /api/v1/harvest-jobs/scheduler/status
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "scheduler": {
+    "is_running": true,
+    "last_harvest_times": {
+      "full": "2026-02-14T11:50:00",
+      "incremental": "2026-02-14T11:50:00",
+      "patterns": "2026-02-13T11:50:00",
+      "standards": "2026-02-07T11:50:00"
+    },
+    "harvest_schedule": {
+      "full": 168,
+      "incremental": 24,
+      "patterns": 48,
+      "standards": 168
+    },
+    "harvester_initialized": true
+  }
+}
+```
+
+### Get Scheduler Configuration
+```http
+GET /api/v1/harvest-jobs/scheduler/config
+```
+
+**Response:**
+```json
+{
+  "harvest_types": [
+    {
+      "id": "full",
+      "name": "Full Harvest",
+      "description": "Complete harvest of all API sources (longest)",
+      "interval_hours": 168
+    },
+    {
+      "id": "incremental",
+      "name": "Incremental Update",
+      "description": "Quick updates to recent and changed APIs (fastest)",
+      "interval_hours": 24
+    },
+    {
+      "id": "financial",
+      "name": "Financial APIs",
+      "description": "Harvest only financial services APIs",
+      "interval_hours": 24
+    },
+    {
+      "id": "patterns",
+      "name": "Integration Patterns",
+      "description": "Update integration patterns and transformations",
+      "interval_hours": 48
+    }
+  ],
+  "current_schedule": {
+    "full": 168,
+    "incremental": 24,
+    "patterns": 48,
+    "standards": 168
+  }
+}
+```
+
+### Start Scheduler
+```http
+POST /api/v1/harvest-jobs/scheduler/start
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Knowledge Harvester Scheduler started"
+}
+```
+
+### Stop Scheduler
+```http
+POST /api/v1/harvest-jobs/scheduler/stop
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Knowledge Harvester Scheduler stopped"
+}
+```
+
+### Update Scheduler Configuration
+```http
+POST /api/v1/harvest-jobs/scheduler/update-config
+```
+
+**Request Body:**
+```json
+{
+  "harvest_interval_hours": 12,
+  "schedule": {
+    "full": 168,
+    "incremental": 12,
+    "patterns": 48,
+    "standards": 168
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Scheduler configuration updated",
+  "current_config": {
+    "harvest_interval_hours": 12,
+    "schedule": {
+      "full": 168,
+      "incremental": 12,
+      "patterns": 48,
+      "standards": 168
+    }
+  }
+}
+```
+
+### Get Harvest Dashboard
+```http
+GET /api/v1/harvest-jobs/dashboard
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "scheduler": {
+    "is_running": true,
+    "last_harvest_times": {...},
+    "harvest_schedule": {...}
+  },
+  "statistics": {
+    "total_jobs": 42,
+    "running_jobs": 1,
+    "completed_jobs": 40,
+    "failed_jobs": 1,
+    "success_rate": 95.2,
+    "average_job_duration": 1800,
+    "total_apis_harvested": 1200,
+    "jobs_last_24h": 4,
+    "jobs_last_7d": 18,
+    "jobs_last_30d": 38,
+    "most_common_harvest_type": "incremental",
+    "peak_harvest_time": "02:00"
+  },
+  "recent_jobs": [
+    {
+      "id": "harvest-20260214-115000-a1b2c3d4",
+      "harvest_type": "incremental",
+      "status": "completed",
+      "progress": 100,
+      "apis_harvested": 45,
+      "created_at": "2026-02-14T11:50:00",
+      "completed_at": "2026-02-14T11:52:00"
+    }
+  ]
+}
+```
+
+### Manually Trigger Harvest
+```http
+POST /api/v1/harvest-jobs/trigger
+```
+
+**Query Parameters:**
+- `harvest_type` (str): Type of harvest (full, incremental, financial, api_directory, patterns, standards)
+- `source_ids` (list, optional): Specific source IDs to harvest from
+
+**Request Body:**
+```json
+{
+  "harvest_type": "incremental",
+  "source_ids": null
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "job_id": "manual-20260214-115030-xyz789",
+  "harvest_type": "incremental",
+  "message": "Harvest job initiated"
+}
+```
+
 ## Database Implementation
 
 All endpoints now use real database operations instead of mock data:
@@ -356,6 +559,7 @@ All endpoints now use real database operations instead of mock data:
 - **Communications**: Logged in `agent_communications` table for audit trails
 - **Integrations**: Managed through `integrations`, `field_mappings`, and `transformation_rules` tables
 - **Test Results**: Stored in `integration_test_results` table with execution details
+- **Harvest Configuration**: Tracked in `harvest_sources` table with last harvest timestamps
 
 ## Error Handling
 
@@ -363,6 +567,7 @@ All endpoints return appropriate HTTP status codes:
 - `200`: Success
 - `201`: Created
 - `400`: Bad Request
+- `401`: Unauthorized (authentication required)
 - `404`: Not Found
 - `500`: Internal Server Error
 

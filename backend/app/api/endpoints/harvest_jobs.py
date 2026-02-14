@@ -10,9 +10,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 import uuid
+import asyncio
 
-from app.db.session import get_db
+from app.db.session import get_db, async_session_factory
 from app.agents.knowledge_harvester import KnowledgeHarvester
+from app.agents.base import AgentContext
 from app.services.harvest_collaboration_integration import HarvestJobService
 from app.schemas.harvest_job import (
     HarvestJobCreate,
@@ -104,8 +106,57 @@ async def get_harvest_job(job_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to retrieve harvest job")
 
 
-@router.get("/stats/overview", response_model=HarvestJobStats)
-async def get_harvest_job_stats(db: Session = Depends(get_db)):
+@router.get("/dashboard")
+async def get_harvest_dashboard(db: Session = Depends(get_db)):
+    """
+    Get comprehensive harvest dashboard data for UI.
+
+    Includes:
+    - Scheduler status and next run times
+    - Recent harvest jobs
+    - Statistics and health metrics
+    - Configuration status
+    """
+    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
+
+    try:
+        # Get scheduler status
+        scheduler_status = await knowledge_harvester_scheduler.get_status()
+
+        # Get overall statistics
+        stats = HarvestJobService.get_harvest_job_stats(db)
+
+        # Get recent jobs (last 10)
+        recent_jobs = HarvestJobService.get_harvest_jobs(db, skip=0, limit=10)
+
+        return {
+            "status": "success",
+            "scheduler": {
+                "is_running": scheduler_status["is_running"],
+                "last_harvest_times": scheduler_status["last_harvest_times"],
+                "harvest_schedule": scheduler_status["harvest_schedule"],
+            },
+            "statistics": stats,
+            "recent_jobs": [
+                {
+                    "id": job.id,
+                    "harvest_type": job.harvest_type,
+                    "status": job.status,
+                    "progress": job.progress,
+                    "apis_harvested": job.apis_harvested,
+                    "created_at": job.created_at.isoformat(),
+                    "completed_at": (
+                        job.completed_at.isoformat() if job.completed_at else None
+                    ),
+                }
+                for job in recent_jobs
+            ],
+        }
+    except Exception as e:
+        logger.error("Failed to get harvest dashboard", error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve harvest dashboard"
+        )
     """Get harvest job statistics."""
     try:
         stats = HarvestJobService.get_harvest_job_stats(db)
@@ -124,13 +175,234 @@ async def cancel_harvest_job(job_id: str, db: Session = Depends(get_db)):
     return {"message": f"Harvest job {job_id} cancelled successfully"}
 
 
+@router.get("/scheduler/config")
+async def get_scheduler_config():
+    """Get scheduler configuration for UI settings."""
+    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
+
+    try:
+        return {
+            "harvest_types": [
+                {
+                    "id": "full",
+                    "name": "Full Harvest",
+                    "description": "Complete harvest of all API sources (longest)",
+                    "interval_hours": knowledge_harvester_scheduler.harvest_schedule.get(
+                        "full", 168
+                    ),
+                },
+                {
+                    "id": "incremental",
+                    "name": "Incremental Update",
+                    "description": "Quick updates to recent and changed APIs (fastest)",
+                    "interval_hours": knowledge_harvester_scheduler.harvest_schedule.get(
+                        "incremental", 24
+                    ),
+                },
+                {
+                    "id": "financial",
+                    "name": "Financial APIs",
+                    "description": "Harvest only financial services APIs",
+                    "interval_hours": 24,
+                },
+                {
+                    "id": "api_directory",
+                    "name": "API Directory",
+                    "description": "Harvest from APIs.guru and similar directories",
+                    "interval_hours": 24,
+                },
+                {
+                    "id": "patterns",
+                    "name": "Integration Patterns",
+                    "description": "Update integration patterns and transformations",
+                    "interval_hours": knowledge_harvester_scheduler.harvest_schedule.get(
+                        "patterns", 48
+                    ),
+                },
+                {
+                    "id": "standards",
+                    "name": "Regulatory Standards",
+                    "description": "Update compliance and regulatory standards",
+                    "interval_hours": knowledge_harvester_scheduler.harvest_schedule.get(
+                        "standards", 168
+                    ),
+                },
+            ],
+            "current_schedule": knowledge_harvester_scheduler.harvest_schedule,
+        }
+    except Exception as e:
+        logger.error("Failed to get scheduler config", error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve scheduler configuration"
+        )
+    """Get the status of the knowledge harvester scheduler."""
+    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
+
+    try:
+        status = await knowledge_harvester_scheduler.get_status()
+        return {
+            "status": "success",
+            "scheduler": status,
+        }
+    except Exception as e:
+        logger.error("Failed to get scheduler status", error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve scheduler status"
+        )
+
+
+@router.post("/scheduler/update-config")
+async def update_scheduler_config(config: dict):
+    """
+    Update scheduler configuration from UI.
+
+    Args:
+        config: Configuration dictionary with harvest intervals
+                Example: {"harvest_interval_hours": 12, "incremental_hours": 6}
+    """
+    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
+
+    try:
+        # Update harvest interval if provided
+        if "harvest_interval_hours" in config:
+            knowledge_harvester_scheduler.harvest_interval_hours = config[
+                "harvest_interval_hours"
+            ]
+
+        # Update specific schedule intervals if provided
+        if "schedule" in config:
+            for harvest_type, hours in config["schedule"].items():
+                if harvest_type in knowledge_harvester_scheduler.harvest_schedule:
+                    knowledge_harvester_scheduler.harvest_schedule[harvest_type] = hours
+
+        logger.info(
+            "Scheduler configuration updated",
+            harvest_interval=knowledge_harvester_scheduler.harvest_interval_hours,
+            schedule=knowledge_harvester_scheduler.harvest_schedule,
+        )
+
+        return {
+            "status": "success",
+            "message": "Scheduler configuration updated",
+            "current_config": {
+                "harvest_interval_hours": knowledge_harvester_scheduler.harvest_interval_hours,
+                "schedule": knowledge_harvester_scheduler.harvest_schedule,
+            },
+        }
+    except Exception as e:
+        logger.error("Failed to update scheduler config", error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to update scheduler configuration"
+        )
+    """Start the knowledge harvester scheduler."""
+    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
+
+    try:
+        if knowledge_harvester_scheduler.is_running:
+            return {
+                "status": "info",
+                "message": "Scheduler is already running",
+            }
+
+        knowledge_harvester_scheduler.start()
+        logger.info("Knowledge Harvester Scheduler started via API")
+
+        return {
+            "status": "success",
+            "message": "Knowledge Harvester Scheduler started",
+        }
+    except Exception as e:
+        logger.error("Failed to start scheduler", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to start scheduler")
+
+
+@router.post("/scheduler/stop")
+async def stop_scheduler():
+    """Stop the knowledge harvester scheduler."""
+    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
+
+    try:
+        if not knowledge_harvester_scheduler.is_running:
+            return {
+                "status": "info",
+                "message": "Scheduler is not running",
+            }
+
+        knowledge_harvester_scheduler.stop()
+        logger.info("Knowledge Harvester Scheduler stopped via API")
+
+        return {
+            "status": "success",
+            "message": "Knowledge Harvester Scheduler stopped",
+        }
+    except Exception as e:
+        logger.error("Failed to stop scheduler", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to stop scheduler")
+
+
+@router.post("/trigger")
+async def trigger_harvest(
+    harvest_type: str = "incremental",
+    source_ids: Optional[List[int]] = None,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+):
+    """
+    Manually trigger a harvest job.
+
+    Args:
+        harvest_type: Type of harvest (full, incremental, financial, api_directory, etc.)
+        source_ids: Optional list of specific source IDs to harvest from
+
+    Returns:
+        Job creation response
+    """
+    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
+
+    try:
+        logger.info(
+            "Manual harvest triggered via API",
+            harvest_type=harvest_type,
+            source_ids=source_ids,
+        )
+
+        # Generate unique job ID
+        job_id = (
+            f"manual-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{str(uuid.uuid4())[:8]}"
+        )
+
+        # Create job in database
+        async with async_session_factory() as db:
+            job = HarvestJobService.create_harvest_job(
+                db, job_id, harvest_type, source_ids
+            )
+
+        # Start harvest in background
+        background_tasks.add_task(
+            run_harvest_job,
+            job_id,
+            harvest_type,
+            source_ids,
+        )
+
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "harvest_type": harvest_type,
+            "message": "Harvest job initiated",
+        }
+
+    except Exception as e:
+        logger.error("Failed to trigger harvest", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to trigger harvest")
+
+
 async def run_harvest_job(
     job_id: str,
     harvest_type: str,
     source_ids: Optional[List[int]] = None,
     db: Session = None,
 ):
-    """Background task to run a harvest job."""
+    """Background task to run a harvest job using the real KnowledgeHarvester."""
     try:
         logger.info(
             "Starting harvest job",
@@ -140,38 +412,79 @@ async def run_harvest_job(
         )
 
         # Update job status to running
-        if db:
-            HarvestJobService.update_harvest_job_status(db, job_id, "running", 0.0)
-
-        # Simulate harvest execution (replace with real harvester logic)
-        import asyncio
-
-        await asyncio.sleep(2)  # Simulate processing time
-
-        # Update progress
-        if db:
-            HarvestJobService.update_harvest_job_status(db, job_id, "running", 50.0)
-
-        await asyncio.sleep(2)  # More processing
-
-        # Complete job
-        if db:
+        async with async_session_factory() as db_async:
             HarvestJobService.update_harvest_job_status(
-                db,
-                job_id,
-                "completed",
-                100.0,
-                processed_sources=15,
-                successful_harvests=14,
-                failed_harvests=1,
-                apis_harvested=127,
+                db_async, job_id, "running", progress=0.0
             )
 
-        logger.info("Harvest job completed", job_id=job_id)
+        # Create agent context
+        context = AgentContext()
+
+        # Initialize harvester
+        harvester = KnowledgeHarvester(context)
+
+        # Execute harvest
+        logger.info(
+            "Executing harvest agent",
+            job_id=job_id,
+            harvest_type=harvest_type,
+        )
+
+        result = await harvester.execute(
+            context={},
+            input_data={"harvest_type": harvest_type},
+        )
+
+        # Extract results
+        total_harvested = result.get("total_harvested", 0)
+        sources_harvested = result.get("sources_harvested", [])
+
+        logger.info(
+            "Harvest execution completed",
+            job_id=job_id,
+            total_harvested=total_harvested,
+            sources_harvested=sources_harvested,
+        )
+
+        # Update job in database with success
+        async with async_session_factory() as db_async:
+            HarvestJobService.update_harvest_job_status(
+                db_async,
+                job_id,
+                "completed",
+                progress=100.0,
+                processed_sources=len(sources_harvested),
+                successful_harvests=total_harvested,
+                failed_harvests=0,
+                apis_harvested=total_harvested,
+            )
+
+        logger.info(
+            "Harvest job completed successfully",
+            job_id=job_id,
+            harvest_type=harvest_type,
+            total_harvested=total_harvested,
+        )
 
     except Exception as e:
-        logger.error("Harvest job failed", job_id=job_id, error=str(e))
-        if db:
-            HarvestJobService.update_harvest_job_status(
-                db, job_id, "failed", error_message=str(e)
+        error_msg = str(e)
+        logger.error(
+            "Harvest job failed",
+            job_id=job_id,
+            harvest_type=harvest_type,
+            error=error_msg,
+            exc_info=True,
+        )
+
+        # Update job status to failed
+        try:
+            async with async_session_factory() as db_async:
+                HarvestJobService.update_harvest_job_status(
+                    db_async, job_id, "failed", error_message=error_msg
+                )
+        except Exception as db_error:
+            logger.error(
+                "Failed to update harvest job status",
+                job_id=job_id,
+                error=str(db_error),
             )
