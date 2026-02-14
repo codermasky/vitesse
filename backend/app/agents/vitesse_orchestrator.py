@@ -14,6 +14,8 @@ from app.agents.discovery import VitesseDiscoveryAgent
 from app.agents.ingestor import VitesseIngestor
 from app.agents.mapper import VitesseMapper
 from app.agents.guardian import VitesseGuardian
+from app.agents.integration_monitor import IntegrationMonitorAgent
+from app.agents.self_healing import SelfHealingAgent
 from app.deployer.container_deployer import LocalContainerDeployer
 from app.schemas.integration import (
     IntegrationInstance,
@@ -46,6 +48,8 @@ class VitesseOrchestrator:
         self.ingestor = VitesseIngestor(context)
         self.mapper = VitesseMapper(context)
         self.guardian = VitesseGuardian(context)
+        self.monitor = IntegrationMonitorAgent(context)
+        self.healer = SelfHealingAgent(context)
 
         # Initialize deployer
         self.deployer = LocalContainerDeployer(config={})
@@ -573,6 +577,29 @@ class VitesseOrchestrator:
             created_by="system-self-healing",
         )
 
+    async def heal_integration(
+        self, integration_id: str, reason: str = "manual_trigger"
+    ) -> Dict[str, Any]:
+        """Delegate healing to Self-Healing Agent."""
+        return await self.healer.execute(
+            context={"orchestrator_id": self.orchestrator_id},
+            input_data={"integration_id": integration_id, "failure_reason": reason},
+        )
+
+    async def report_metrics(
+        self, integration_id: str, success: bool, error: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Report metrics to Integration Monitor."""
+        return await self.monitor.execute(
+            context={"orchestrator_id": self.orchestrator_id},
+            input_data={
+                "action": "report_metrics",
+                "integration_id": integration_id,
+                "success": success,
+                "error": error,
+            },
+        )
+
     async def discover_apis(self, query: str, limit: int = 5) -> Dict[str, Any]:
         """
         Discover APIs based on natural language query.
@@ -612,7 +639,11 @@ class VitesseOrchestrator:
             "discovery": self.discovery.get_status(),
             "ingestor": self.ingestor.get_status(),
             "mapper": self.mapper.get_status(),
+            "ingestor": self.ingestor.get_status(),
+            "mapper": self.mapper.get_status(),
             "guardian": self.guardian.get_status(),
+            "monitor": self.monitor.get_status(),
+            "healer": self.healer.get_status(),
         }
 
     async def delete_integration_resources(self, integration_id: str) -> Dict[str, Any]:

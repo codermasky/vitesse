@@ -52,6 +52,8 @@ const AgentGrid: React.FC = () => {
         if (name.includes('Reviewer')) return ShieldCheck;
         if (name.includes('Writer')) return FileText;
         if (name.includes('Sentinel')) return Activity;
+        if (name.includes('Monitor')) return Activity;
+        if (name.includes('Healing') || name.includes('Healer')) return ShieldCheck;
         if (name.includes('Processing')) return Cpu;
         if (name.includes('Confidence')) return Trophy;
         if (name.includes('Email') || name.includes('Ingestion')) return Mail;

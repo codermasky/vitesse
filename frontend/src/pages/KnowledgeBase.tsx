@@ -23,7 +23,6 @@ import {
 import apiService from '../services/api';
 import { cn } from '../services/utils';
 import DocumentDetailPanel from '../components/DocumentDetailPanel';
-import SectionHeader from '../components/SectionHeader';
 
 // Types assuming similar structure to what discoverDocuments returns or a general document type
 interface KBDocument {
@@ -72,16 +71,11 @@ const KnowledgeBase: React.FC = () => {
             const response = await apiService.getProducts();
             console.log('Fetched products:', response.data);
             if (response.data) {
-                // If backend returns products, use them. If empty, fall back to defaults IF that's desired behavior,
-                // but if the user wants to clear products, we should probably respect that or show a "No Products" state.
-                // For now, mirroring Settings.tsx behavior (empty list is valid).
-                // However, to keep existing behavior of defaults:
-                const products = response.data.length > 0 ? response.data : ['credo', 'enterprise', 'compliance'];
-
+                const products = response.data;
                 setAvailableProducts(products);
 
                 // Ensure current perspective is valid
-                if (!products.includes(productId)) {
+                if (products.length > 0 && !products.includes(productId)) {
                     setProductId(products[0]);
                 }
             }
@@ -267,45 +261,51 @@ const KnowledgeBase: React.FC = () => {
     };
 
     return (
-        <div className="p-8 max-w-[1600px] mx-auto min-h-screen">
+        <div className="space-y-12">
             {/* Header */}
-            <SectionHeader
-                title="Knowledge Base"
-                subtitle="Manage your intelligence assets used for RAG generation."
-                icon={HardDrive}
-                variant="premium"
-                actions={
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="flex items-center gap-6 glass p-4 rounded-2xl border border-brand-primary/10 backdrop-blur-md"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center border border-brand-primary/20">
-                                <Shield className="w-5 h-5 text-brand-primary" />
-                            </div>
-                            <div>
-                                <div className="text-surface-950 dark:text-white text-xs font-black uppercase tracking-widest mb-0.5">The Vault</div>
-                                <div className="text-surface-500 text-[10px] font-black uppercase tracking-tight">Vetted Content</div>
-                            </div>
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                        <HardDrive className="w-7 h-7 text-brand-500" />
+                    </div>
+                    <div>
+                        <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Knowledge Base</h1>
+                        <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Manage your intelligence assets used for RAG generation.</p>
+                    </div>
+                </div>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-6 glass p-4 rounded-2xl border border-brand-primary/10 backdrop-blur-md"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center border border-brand-primary/20">
+                            <Shield className="w-5 h-5 text-brand-primary" />
                         </div>
-                        <div className="w-px h-10 bg-brand-primary/10" />
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-brand-secondary/10 flex items-center justify-center border border-brand-secondary/20">
-                                <History className="w-5 h-5 text-brand-secondary" />
-                            </div>
-                            <div>
-                                <div className="text-surface-950 dark:text-white text-xs font-black uppercase tracking-widest mb-0.5">The Archive</div>
-                                <div className="text-surface-500 text-[10px] font-black uppercase tracking-tight">Historical Data</div>
-                            </div>
+                        <div>
+                            <div className="text-surface-950 dark:text-white text-xs font-black uppercase tracking-widest mb-0.5">The Vault</div>
+                            <div className="text-surface-500 text-[10px] font-black uppercase tracking-tight">Vetted Content</div>
                         </div>
-                    </motion.div>
-                }
-                className="mb-12"
-            />
+                    </div>
+                    <div className="w-px h-10 bg-brand-primary/10" />
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-brand-secondary/10 flex items-center justify-center border border-brand-secondary/20">
+                            <History className="w-5 h-5 text-brand-secondary" />
+                        </div>
+                        <div>
+                            <div className="text-surface-950 dark:text-white text-xs font-black uppercase tracking-widest mb-0.5">The Archive</div>
+                            <div className="text-surface-500 text-[10px] font-black uppercase tracking-tight">Historical Data</div>
+                        </div>
+                    </div>
+                </motion.div>
+            </motion.div>
 
             {/* Controls */}
-            <div className="flex flex-wrap items-center gap-6 mb-8 glass p-3 rounded-3xl border border-brand-100 dark:border-brand-500/5">
+            <div className="flex flex-wrap items-center gap-6 glass p-4 rounded-2xl border border-brand-100 dark:border-brand-500/10">
                 {/* View & Selection Group */}
                 <div className="flex flex-1 items-center gap-3">
                     <button

@@ -7,7 +7,6 @@ import {
   User,
   LogOut,
   Menu,
-  Database,
   Settings as SettingsIcon,
   ChevronLeft,
   ChevronRight,
@@ -15,7 +14,11 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Zap,
-  Users
+  Users,
+  Activity,
+  BookOpen,
+  Globe,
+  Sparkles
 } from 'lucide-react';
 import HelpOverlay from './HelpOverlay';
 import { cn } from '../services/utils';
@@ -56,14 +59,15 @@ const Layout: React.FC = () => {
         ...(isFeatureEnabled('chat') ? [{ name: 'Chat', href: '/chat', icon: MessageSquare }] : []),
         { name: 'Integrations', href: '/integrations', icon: Zap },
         { name: 'Integration Builder', href: '/integration-builder', icon: SettingsIcon },
+        { name: 'Monitoring', href: '/monitoring', icon: Activity },
       ]
     },
     ...(isFeatureEnabled('knowledge_base') ? [{
       title: 'KNOWLEDGE',
       items: [
-        { name: 'Knowledge Base', href: '/knowledge-base', icon: Database },
-        { name: 'Harvest Sources', href: '/harvest-sources', icon: Database },
-        { name: 'Knowledge Harvester', href: '/knowledge-harvester', icon: Database },
+        { name: 'Knowledge Base', href: '/knowledge-base', icon: BookOpen },
+        { name: 'Harvest Sources', href: '/harvest-sources', icon: Globe },
+        { name: 'Knowledge Harvester', href: '/knowledge-harvester', icon: Sparkles },
         { name: 'Agent Activity', href: '/agent-activity', icon: Bot },
         { name: 'Agent Collaboration', href: '/agent-collaboration', icon: Users },
       ]

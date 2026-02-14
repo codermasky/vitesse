@@ -12,6 +12,7 @@ import KnowledgeBase from './pages/KnowledgeBase';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
+import MonitoringDashboard from './pages/MonitoringDashboard';
 import Help from './pages/Help';
 import HarvestSources from './pages/HarvestSources';
 import AgentActivityDashboard from './pages/AgentActivityDashboard';
@@ -63,6 +64,7 @@ const AppRoutes: React.FC = () => {
         <Route path="knowledge-base" element={<KnowledgeBase />} />
         <Route path="harvest-sources" element={<HarvestSources />} />
         <Route path="knowledge-harvester" element={<KnowledgeHarvesterDashboard />} />
+        <Route path="monitoring" element={<MonitoringDashboard />} />
         <Route path="agent-activity" element={<AgentActivityDashboard />} />
         <Route path="agent-collaboration" element={<AgentCollaborationHub />} />
         <Route path="integration-builder" element={<IntegrationBuilder />} />

@@ -120,13 +120,17 @@ Users click "New Integration" from the Integrations page, which navigates to `/i
    - Returns high-confidence results (95%)
    - Instant response
 
-2. **LLM Discovery** (Fallback)
-   - Invoked if catalog doesn't have enough results
-   - Uses structured output with Pydantic schemas
-   - Returns medium-confidence results (~85%)
-   - Slightly slower but more flexible
+2. **Knowledge Base Search** (Harvested Data)
+   - Searches `API_SPECS_COLLECTION` and `FINANCIAL_APIS_COLLECTION`
+   - Leverages externally harvested knowledge (e.g., from APIs.guru)
+   - Returns high-to-medium confidence results
 
-3. **Result Ranking**
+3. **LLM Discovery** (Fallback)
+   - Invoked if catalog and knowledge base don't have enough results
+   - Uses structured LLM calls for unknown APIs
+   - Returns medium-confidence results (~85%)
+
+4. **Result Ranking**
    - Sort by confidence score (descending)
    - Limit to requested number of results
    - Return with search time metadata

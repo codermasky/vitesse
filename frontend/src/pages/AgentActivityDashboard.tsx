@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import apiService from '../services/api';
 import { cn } from '../services/utils';
-import SectionHeader from '../components/SectionHeader';
 
 // Types for agent activity
 interface Agent {
@@ -176,12 +175,22 @@ const AgentActivityDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        title="Agent Activity Dashboard"
-        subtitle="Monitor agent orchestration and shared whiteboard state"
-        icon={Bot}
-      />
+    <div className="space-y-12">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+            <Bot className="w-7 h-7 text-brand-500" />
+          </div>
+          <div>
+            <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Agent Activity</h1>
+            <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Monitor agent orchestration and shared whiteboard state.</p>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Current Workflow Status */}
       {sharedState?.current_workflow && (
@@ -320,13 +329,13 @@ const AgentActivityDashboard: React.FC = () => {
                     <div className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium",
                       step.status === 'completed' ? 'bg-green-500' :
-                      step.status === 'running' ? 'bg-blue-500' :
-                      step.status === 'failed' ? 'bg-red-500' : 'bg-gray-400'
+                        step.status === 'running' ? 'bg-blue-500' :
+                          step.status === 'failed' ? 'bg-red-500' : 'bg-gray-400'
                     )}>
                       {step.status === 'completed' ? <CheckCircle2 className="w-4 h-4" /> :
-                       step.status === 'running' ? <RotateCcw className="w-4 h-4 animate-spin" /> :
-                       step.status === 'failed' ? <AlertCircle className="w-4 h-4" /> :
-                       index + 1}
+                        step.status === 'running' ? <RotateCcw className="w-4 h-4 animate-spin" /> :
+                          step.status === 'failed' ? <AlertCircle className="w-4 h-4" /> :
+                            index + 1}
                     </div>
                     {index < workflowSteps.length - 1 && (
                       <div className="w-0.5 h-8 bg-surface-300 dark:bg-surface-600 mt-2" />

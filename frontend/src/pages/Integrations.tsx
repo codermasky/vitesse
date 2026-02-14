@@ -103,22 +103,22 @@ export const Integrations: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-4"
+          className="glass rounded-[2.5rem] p-12 border border-brand-500/10"
         >
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-surface-950 to-brand-600 dark:from-white dark:to-brand-400">
+            <div className="space-y-4">
+              <h1 className="text-4xl lg:text-5xl font-black tracking-tight text-surface-950 dark:text-white">
                 API Integrations
               </h1>
-              <p className="text-surface-500 dark:text-surface-400 mt-2">
-                Discover, map, and deploy API integrations
+              <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">
+                Discover, map, and deploy API integrations with AI-powered automation.
               </p>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/integrations/new')}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-brand-500/20 transition-all duration-300"
+              className="px-8 py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl shadow-xl shadow-brand-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
             >
               <Plus className="w-5 h-5" />
               New Integration
@@ -126,7 +126,7 @@ export const Integrations: React.FC = () => {
           </div>
 
           {/* Search Bar */}
-          <div className="relative">
+          <div className="relative mt-8">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
             <input
               type="text"

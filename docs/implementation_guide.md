@@ -206,11 +206,29 @@ result = await orchestrator.create_integration(
 ```
 
 **Workflow**:
-1. **Step 1**: Ingest source API
-2. **Step 2**: Ingest destination API
-3. **Step 3**: Generate mappings
 4. **Step 4**: Run Guardian tests
 5. **Step 5**: Ready for deployment
+6. **Step 6**: Monitor & Self-Heal (Post-deployment)
+
+---
+
+#### 1.5 Integration Monitor & Self-Healing
+**Files**: `app/agents/integration_monitor.py`, `app/agents/self_healing.py`
+
+Post-deployment agents that ensure long-term reliability:
+
+**Monitor Agent**:
+- Tracks specific metrics: `success_rate`, `p95_latency`, `error_distribution`
+- Calculates real-time `health_score`
+- Triggers healing when score < 60%
+
+**Healer Agent**:
+- **Diagnose**: Identifies root cause (e.g., Auth vs Schema)
+- **Strategy**:
+  - `refresh_schema`: Refetch OpenAPI spec
+  - `remap_fields`: Re-run Mapper with new schema
+  - `switch_endpoint`: Use alternative base URL
+- **Verify**: Runs Guardian tests before applying fix
 
 ---
 

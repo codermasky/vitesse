@@ -14,7 +14,6 @@ import {
   BarChart3,
   Radio,
 } from 'lucide-react';
-import SectionHeader from '../components/SectionHeader';
 import apiService from '../services/api';
 
 interface AgentActivity {
@@ -182,19 +181,29 @@ const AgentCollaborationHub: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* Header */}
-      <SectionHeader
-        title="Agent Collaboration Hub"
-        subtitle="Monitor real-time agent collaboration and communication"
-        variant="premium"
-        actions={
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+              <MessageSquare className="w-7 h-7 text-brand-500" />
+            </div>
+            <div>
+              <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Agent Collaboration</h1>
+              <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Monitor real-time agent collaboration and communication.</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 text-sm text-green-400 border border-green-400/20 hover:bg-green-400/10 px-3 py-1.5 rounded-full transition-colors duration-200">
             <Radio className="w-4 h-4" />
             <span>Live</span>
           </div>
-        }
-      />
+        </div>
+      </motion.div>
 
       {/* Statistics Cards */}
       {stats && (
@@ -291,7 +300,7 @@ const AgentCollaborationHub: React.FC = () => {
           className="glass rounded-3xl border border-white/20 shadow-xl"
         >
           <div className="p-6 border-b border-white/10">
-            <h2 className="text-xl font-semibold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+            <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
               Agent Activity
             </h2>
           </div>
@@ -346,7 +355,7 @@ const AgentCollaborationHub: React.FC = () => {
         >
           <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+              <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
                 Communication Log
               </h2>
               <motion.select
@@ -410,7 +419,7 @@ const AgentCollaborationHub: React.FC = () => {
         className="glass rounded-3xl border border-white/20 shadow-xl p-8"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
             Active Workflows
           </h2>
           <div className="px-3 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full border border-white/10">

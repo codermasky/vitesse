@@ -9,6 +9,11 @@ from datetime import datetime
 from app.agents.base import VitesseAgent, AgentContext
 from app.schemas.discovery import DiscoveryResult, DiscoveryRequest, DiscoveryResponse
 from app.services.llm_provider import LLMProviderService
+from app.core.knowledge_db import (
+    get_knowledge_db,
+    API_SPECS_COLLECTION,
+    FINANCIAL_APIS_COLLECTION,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -27,6 +32,7 @@ class VitesseDiscoveryAgent(VitesseAgent):
     def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
         super().__init__(agent_id=agent_id, agent_type="discovery")
         self.context = context
+        self.knowledge_db = None
 
         # Known API patterns (can be expanded or moved to a database)
         self.known_apis = {
@@ -161,7 +167,12 @@ class VitesseDiscoveryAgent(VitesseAgent):
             results.extend(known_results)
             logger.info(f"Found {len(known_results)} results from known APIs")
 
-            # Step 2: If we don't have enough results, use LLM discovery
+            # Step 2: Search Knowledge Base (Harvested Data)
+            kb_results = await self._search_knowledge_base(query, limit)
+            results.extend(kb_results)
+            logger.info(f"Found {len(kb_results)} results from Knowledge Base")
+
+            # Step 3: If we don't have enough results, use LLM discovery
             if len(results) < limit:
                 remaining_limit = limit - len(results)
                 llm_results = await self._llm_discovery(query, remaining_limit)
@@ -287,4 +298,59 @@ Example format:
 
         except Exception as e:
             logger.error("LLM discovery failed", error=str(e))
+            return []
+
+    async def _search_knowledge_base(
+        self, query: str, limit: int
+    ) -> List[DiscoveryResult]:
+        """Search harvested knowledge in Vector DB."""
+        results = []
+        try:
+            if not self.knowledge_db:
+                self.knowledge_db = await get_knowledge_db()
+
+            # Search API Specs collection
+            kb_hits = await self.knowledge_db.search(
+                collection=API_SPECS_COLLECTION, query=query, top_k=limit
+            )
+
+            # Also search Financial APIs collection for domain specific
+            fin_hits = await self.knowledge_db.search(
+                collection=FINANCIAL_APIS_COLLECTION, query=query, top_k=limit
+            )
+
+            # Combine and deduplicate
+            seen_names = set()
+
+            for hit_list in [kb_hits, fin_hits]:
+                for doc, score in hit_list:
+                    metadata = doc.get("metadata", {})
+                    name = metadata.get("api_name") or metadata.get(
+                        "name", "Unknown API"
+                    )
+
+                    if name in seen_names:
+                        continue
+                    seen_names.add(name)
+
+                    # Build result
+                    result = DiscoveryResult(
+                        api_name=name,
+                        description=metadata.get("content", "")[:200]
+                        + "...",  # Truncate content
+                        documentation_url=metadata.get("documentation_url")
+                        or metadata.get("source_url"),
+                        spec_url=metadata.get("spec_url"),
+                        base_url=metadata.get("base_url"),
+                        confidence_score=float(score),
+                        source="knowledge_base",
+                        tags=metadata.get("tags", "").split(",")
+                        if isinstance(metadata.get("tags"), str)
+                        else [],
+                    )
+                    results.append(result)
+
+            return results
+        except Exception as e:
+            logger.error("Knowledge Base search failed", error=str(e))
             return []

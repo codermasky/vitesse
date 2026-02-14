@@ -317,9 +317,9 @@ const Chat: React.FC = () => {
 
 
   return (
-    <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-[calc(100vh-6rem)]">
+    <div className="h-[calc(100vh-10rem)]">
       {/* Main Chat Interface */}
-      <div className="flex flex-col h-full rounded-3xl border border-brand-100 dark:border-brand-500/5 overflow-hidden shadow-2xl relative bg-surface-100/50 dark:bg-brand-500/[0.01] backdrop-blur-xl">
+      <div className="flex flex-col h-full glass rounded-[2.5rem] border border-brand-500/10 overflow-hidden relative">
         {/* Background decoration */}
         <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-brand-primary/10 blur-[100px] rounded-full -z-10" />
         <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-brand-secondary/10 blur-[100px] rounded-full -z-10" />

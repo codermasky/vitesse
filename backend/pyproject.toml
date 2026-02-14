@@ -29,6 +29,7 @@ dependencies = [
     "opentelemetry-sdk>=1.39.1",
     "passlib[bcrypt]>=1.7.4",
     "pillow>=12.1.0",
+    "prometheus-client>=0.21.0",
     "psycopg2-binary>=2.9.11",
     "psycopg[binary]>=3.3.2",
     "pydantic>=2.12.5",

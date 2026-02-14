@@ -154,13 +154,22 @@ const LangfuseDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-10 pb-20">
-      <SectionHeader
-        title="LLM Monitoring Dashboard"
-        subtitle="Track all language model calls, costs, and performance metrics in real-time"
-        icon={Activity}
-        variant="premium"
-        actions={
+    <div className="p-8 max-w-[1600px] mx-auto min-h-screen space-y-8">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-4"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+              <BarChart3 className="w-7 h-7 text-brand-500" />
+            </div>
+            <div>
+              <h1 className="text-4xl lg:text-5xl font-black tracking-tight text-surface-950 dark:text-white">LLM Monitoring</h1>
+              <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Track all language model calls, costs, and performance metrics in real-time.</p>
+            </div>
+          </div>
           <a
             href={dashboardInfo.dashboard_url}
             target="_blank"
@@ -170,8 +179,8 @@ const LangfuseDashboard: React.FC = () => {
             <ExternalLink className="w-4 h-4" />
             Open Full Dashboard
           </a>
-        }
-      />
+        </div>
+      </motion.div>
 
       {error && (
         <motion.div

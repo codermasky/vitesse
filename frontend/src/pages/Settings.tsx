@@ -1998,7 +1998,7 @@ const Settings: React.FC = () => {
                         exit={{ opacity: 0, y: -20 }}
                         className="space-y-8"
                     >
-                        <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8 max-w-4xl mx-auto">
+                        <div className="glass p-12 border border-brand-500/10 max-w-4xl mx-auto">
                             <div className="flex items-start justify-between mb-8">
                                 <div className="flex gap-4">
                                     <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">

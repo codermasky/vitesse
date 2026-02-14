@@ -185,6 +185,12 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
         }
       />
 
+      <div className="flex justify-end -mt-6 mb-6">
+        <a href="/knowledge-base" className="text-sm text-brand-500 hover:text-brand-400 font-medium flex items-center gap-1">
+          Browse Knowledge Base <Database className="w-3 h-3" />
+        </a>
+      </div>
+
       {/* Statistics Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

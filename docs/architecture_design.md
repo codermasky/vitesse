@@ -35,6 +35,10 @@ Each agent reads the current state, adds its insights, and the next agent builds
     Guardian Agent   →  [State + test results + health scores]
          ↓
     Deployer         →  [Deployment ready integration]
+         ↓
+    Monitor Agent    →  [Real-time metrics + health status]
+         ↓
+    Healer Agent     →  [Self-healing actions + recovery status]
 
 ### 1.2 State Recovery via Checkpoints
 - PostgreSQL persistent checkpoints (already configured in `app/core/checkpoint.py`)
@@ -388,6 +392,38 @@ recovered_state = limiter.restore_from_checkpoint(checkpoint_id)
 result = await continue_workflow(recovered_state)
 ```
 
+# ===== 5. MONITORING & SELF-HEALING =====
+
+## Overview
+A closed-loop system that continuously monitors active integrations and attempts autonomous repair when issues are detected.
+
+## Implementation Files
+- `app/agents/integration_monitor.py`: Tracks success rates and latency.
+- `app/agents/self_healing.py`: Diagnoses errors and executes recovery strategies.
+
+## Workflow
+
+1.  **IntegrationMonitorAgent**: Consumes metrics from `aether.observability`.
+    *   Calculates health scores based on success rate and latency.
+    *   Detects anomalies (e.g., sudden spike in 500 errors).
+    *   Triggers `SelfHealingAgent` if health score drops below threshold.
+
+2.  **SelfHealingAgent**: Reacts to triggers from the Monitor.
+    *   **Diagnosis**: Analyzes error logs to determine root cause (e.g., Auth failure vs. Schema change).
+    *   **Strategy Selection**:
+        *   *Auth Failure*: Alert Admin (cannot auto-fix credentials).
+        *   *Schema Drift*: Trigger `Ingestor` to refresh spec and `Mapper` to re-map fields.
+        *   *Endpoint Drift*: Update base URL if alternative is found.
+    *   **Execution**: Simulates the fix and validates with `Guardian`.
+
+```python
+# Self-healing trigger example
+if failure_rate > self.critical_failure_threshold:
+    diagnosis = await self._diagnose_issue(integration_id)
+    strategy = self._select_strategy(diagnosis)
+    result = await self._execute_strategy(strategy, integration_id)
+```
+
 ---
 
 # ===== ARCHITECTURE DIAGRAM =====
@@ -419,6 +455,8 @@ result = await continue_workflow(recovered_state)
          │                          │ 3. Mapper           │
          │                          │ 4. Guardian         │
          │                          │ 5. Deployer         │
+         │                          │ 6. Monitor          │
+         │                          │ 7. Healer           │
          │                          └─────────────────────┘
          │
     ┌────┴──────────────────────────────────────────────┐
