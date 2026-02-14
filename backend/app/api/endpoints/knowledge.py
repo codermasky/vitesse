@@ -89,12 +89,14 @@ async def delete_document_from_kb(
     try:
         from app.models.document import Document
         from sqlalchemy import select
-        
+
         # Verify ownership
         result = await db.execute(select(Document).filter(Document.id == document_id))
         doc = result.scalar_one_or_none()
         if not doc or doc.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to delete this document"
+            )
 
         success = await knowledge_base_manager.delete_document(document_id)
 
@@ -113,4 +115,3 @@ async def delete_document_from_kb(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete document",
         )
-

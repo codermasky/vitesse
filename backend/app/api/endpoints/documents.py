@@ -75,8 +75,12 @@ async def read_documents(
 ):
     """Get all documents for current user with metadata from SQL database."""
     try:
-        query = select(Document).where(Document.user_id == current_user.id).order_by(Document.uploaded_at.desc())
-        
+        query = (
+            select(Document)
+            .where(Document.user_id == current_user.id)
+            .order_by(Document.uploaded_at.desc())
+        )
+
         if doc_type:
             query = query.where(Document.doc_type == doc_type)
 
@@ -91,14 +95,16 @@ async def read_documents(
                     "name": doc.name,
                     "path": doc.location,
                     "size": doc.size or 0,
-                    "last_modified": (doc.uploaded_at.timestamp() * 1000)
-                    if doc.uploaded_at
-                    else 0,
+                    "last_modified": (
+                        (doc.uploaded_at.timestamp() * 1000) if doc.uploaded_at else 0
+                    ),
                     "file_type": doc.type,
                     "source": doc.source or "local",
-                    "status": str(doc.extraction_status.value)
-                    if hasattr(doc.extraction_status, "value")
-                    else str(doc.extraction_status),
+                    "status": (
+                        str(doc.extraction_status.value)
+                        if hasattr(doc.extraction_status, "value")
+                        else str(doc.extraction_status)
+                    ),
                     "doc_type": doc.doc_type,
                     "product_id": doc.product_id,
                     "deployment_type": doc.deployment_type,
@@ -108,7 +114,9 @@ async def read_documents(
         return result
     except Exception as e:
         logger.error("Failed to get documents", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get documents: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get documents: {str(e)}"
+        )
 
 
 @router.post("/")
@@ -239,7 +247,9 @@ async def delete_document(
 
         # Verify ownership
         if doc_record.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to delete this document"
+            )
 
         # Delete from vector store
         await knowledge_base_manager.delete_document(document_id)
@@ -254,7 +264,10 @@ async def delete_document(
         await db.commit()
 
         logger.info(f"Successfully deleted document: {document_id}")
-        return {"status": "success", "message": f"Document {document_id} deleted successfully"}
+        return {
+            "status": "success",
+            "message": f"Document {document_id} deleted successfully",
+        }
 
     except HTTPException:
         raise
@@ -278,10 +291,18 @@ async def delete_bulk(
             result = await db.execute(select(Document).filter(Document.id == doc_id))
             doc = result.scalar_one_or_none()
             if not doc or doc.user_id != current_user.id:
-                results.append({"id": doc_id, "status": "error", "message": "Not found or unauthorized"})
+                results.append(
+                    {
+                        "id": doc_id,
+                        "status": "error",
+                        "message": "Not found or unauthorized",
+                    }
+                )
                 continue
 
-            res = await delete_document(document_id=doc_id, db=db, current_user=current_user)
+            res = await delete_document(
+                document_id=doc_id, db=db, current_user=current_user
+            )
             results.append({"id": doc_id, "status": res.get("status", "unknown")})
         except Exception as e:
             logger.error(f"Error in individual delete for {doc_id}: {e}")
@@ -302,13 +323,16 @@ async def update_bulk(
         result = await db.execute(
             select(Document).filter(
                 Document.id.in_(request.document_ids),
-                Document.user_id == current_user.id
+                Document.user_id == current_user.id,
             )
         )
         docs = result.scalars().all()
-        
+
         if len(docs) != len(request.document_ids):
-            raise HTTPException(status_code=403, detail="Not authorized to update all requested documents")
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to update all requested documents",
+            )
 
         # Prepare update data
         update_data = {}
@@ -394,7 +418,9 @@ async def get_document_details(
 
         # Verify ownership
         if doc_metadata.get("user_id") != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to view this document"
+            )
 
         # Also get file system info
         file_path = doc_metadata.get("location")
@@ -409,7 +435,9 @@ async def get_document_details(
         raise
     except Exception as e:
         logger.error("Failed to get document details", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get document details: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get document details: {str(e)}"
+        )
 
 
 @router.put("/{document_id}/metadata/")
@@ -425,7 +453,9 @@ async def update_document_metadata(
         result = await db.execute(select(Document).filter(Document.id == document_id))
         doc = result.scalar_one_or_none()
         if not doc or doc.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to update this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to update this document"
+            )
 
         metadata_service = get_metadata_service(db)
         metadata_dict = metadata.dict(exclude_none=True)
@@ -466,7 +496,9 @@ async def update_document_metadata(
         raise
     except Exception as e:
         logger.error("Failed to update metadata", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to update metadata: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update metadata: {str(e)}"
+        )
 
 
 @router.put("/{document_id}/rename/")
@@ -482,7 +514,9 @@ async def rename_document(
         result = await db.execute(select(Document).filter(Document.id == document_id))
         doc = result.scalar_one_or_none()
         if not doc or doc.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to rename this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to rename this document"
+            )
 
         metadata_service = get_metadata_service(db)
         success = await metadata_service.update_document_metadata(
@@ -502,7 +536,9 @@ async def rename_document(
         raise
     except Exception as e:
         logger.error("Failed to rename document", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to rename document: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to rename document: {str(e)}"
+        )
 
 
 @router.post("/{document_id}/tags/")
@@ -518,7 +554,9 @@ async def add_document_tags(
         result = await db.execute(select(Document).filter(Document.id == document_id))
         doc = result.scalar_one_or_none()
         if not doc or doc.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to tag this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to tag this document"
+            )
 
         metadata_service = get_metadata_service(db)
         success = await metadata_service.add_tags(document_id, request.tags)
@@ -552,7 +590,9 @@ async def remove_document_tags(
         result = await db.execute(select(Document).filter(Document.id == document_id))
         doc = result.scalar_one_or_none()
         if not doc or doc.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to modify this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to modify this document"
+            )
 
         metadata_service = get_metadata_service(db)
         success = await metadata_service.remove_tags(document_id, request.tags)
@@ -585,7 +625,9 @@ async def get_extraction_flow(
         result = await db.execute(select(Document).filter(Document.id == document_id))
         doc = result.scalar_one_or_none()
         if not doc or doc.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to view this document"
+            )
 
         metadata_service = get_metadata_service(db)
         logs = await metadata_service.get_extraction_logs(document_id)
@@ -599,7 +641,9 @@ async def get_extraction_flow(
         raise
     except Exception as e:
         logger.error("Failed to get extraction flow", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get extraction flow: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get extraction flow: {str(e)}"
+        )
 
 
 @router.get("/{document_id}/indexed-stats/")
@@ -614,7 +658,9 @@ async def get_indexed_stats(
         result = await db.execute(select(Document).filter(Document.id == document_id))
         doc = result.scalar_one_or_none()
         if not doc or doc.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to view this document")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to view this document"
+            )
 
         metadata_service = get_metadata_service(db)
         stats = await metadata_service.get_chunk_statistics(document_id)
@@ -628,7 +674,9 @@ async def get_indexed_stats(
         raise
     except Exception as e:
         logger.error("Failed to get indexed stats", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get indexed stats: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get indexed stats: {str(e)}"
+        )
 
 
 @router.get("/tags/all/")
@@ -665,7 +713,9 @@ async def download_document(
             raise HTTPException(status_code=404, detail="File not found")
 
         if doc_record.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to download this file")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to download this file"
+            )
 
         file_path = doc_record.location
         filename = doc_record.name

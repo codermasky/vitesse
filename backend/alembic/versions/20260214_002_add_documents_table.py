@@ -31,7 +31,14 @@ def upgrade() -> None:
         sa.Column("file_path", sa.String(1000), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("PENDING", "PROCESSING", "SUCCESS", "COMPLETED", "FAILED", name="extractionstatus"),
+            sa.Enum(
+                "PENDING",
+                "PROCESSING",
+                "SUCCESS",
+                "COMPLETED",
+                "FAILED",
+                name="extractionstatus",
+            ),
             nullable=False,
             server_default="PENDING",
         ),
@@ -47,7 +54,10 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
         sa.Column("vectorized_at", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_documents_id"), "documents", ["id"], unique=False)

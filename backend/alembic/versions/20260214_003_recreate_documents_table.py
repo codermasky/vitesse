@@ -27,7 +27,7 @@ def upgrade() -> None:
     # Create new comprehensive documents table
     op.create_table(
         "documents",
-        sa.Column("id", sa.String(255), nullable=False, primary_key=True, index=True),
+        sa.Column("id", sa.String(255), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(500), nullable=False),
         sa.Column("type", sa.String(50), nullable=False),
@@ -47,7 +47,9 @@ def upgrade() -> None:
         sa.Column("deployment_type", sa.String(100), nullable=True),
         sa.Column(
             "extraction_status",
-            sa.Enum("pending", "processing", "completed", "failed", name="extractionstatus"),
+            sa.Enum(
+                "pending", "processing", "completed", "failed", name="extractionstatus"
+            ),
             nullable=False,
             default="pending",
         ),
@@ -59,13 +61,23 @@ def upgrade() -> None:
         sa.Column("embedding_model", sa.String(255), nullable=True),
         sa.Column("custom_metadata", sa.JSON(), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        sa.PrimaryKeyConstraint("id"),
     )
-    
+
     # Create indexes
     op.create_index(op.f("ix_documents_id"), "documents", ["id"], unique=True)
-    op.create_index(op.f("ix_documents_user_id"), "documents", ["user_id"], unique=False)
-    op.create_index(op.f("ix_documents_extraction_status"), "documents", ["extraction_status"], unique=False)
-    op.create_index(op.f("ix_documents_uploaded_at"), "documents", ["uploaded_at"], unique=False)
+    op.create_index(
+        op.f("ix_documents_user_id"), "documents", ["user_id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_documents_extraction_status"),
+        "documents",
+        ["extraction_status"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_documents_uploaded_at"), "documents", ["uploaded_at"], unique=False
+    )
 
 
 def downgrade() -> None:

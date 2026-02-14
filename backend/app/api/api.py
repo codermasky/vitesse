@@ -37,9 +37,7 @@ api_router.include_router(integrations.router)
 api_router.include_router(
     harvest_sources.router, prefix="/harvest-sources", tags=["harvest-sources"]
 )
-api_router.include_router(
-    harvest_jobs.router, tags=["harvest-jobs"]
-)
+api_router.include_router(harvest_jobs.router, tags=["harvest-jobs"])
 api_router.include_router(
     agent_collaboration.router,
     prefix="/agent-collaboration",

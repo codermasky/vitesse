@@ -27,7 +27,7 @@ DEFAULT_PRODUCTS = [
 async def seed_products():
     """
     Seed or update products configuration.
-    
+
     Checks if products are already configured in the database.
     If not, initializes with DEFAULT_PRODUCTS.
     If products exist, logs them for reference.
@@ -70,13 +70,13 @@ async def seed_products():
 async def get_current_products():
     """
     Retrieve current products from the database.
-    
+
     Returns the configured products or defaults if none are set.
     """
     async with async_session_factory() as db:
         stmt = select(SystemSetting).where(SystemSetting.key == "products")
         setting = await db.scalar(stmt)
-        
+
         if setting and setting.value:
             return setting.value
         return DEFAULT_PRODUCTS

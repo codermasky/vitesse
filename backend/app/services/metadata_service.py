@@ -43,13 +43,21 @@ class MetadataService:
                 "doc_type": doc.doc_type,
                 "access_level": doc.access_level,
                 "source": doc.source,
-                "extraction_status": doc.extraction_status.value if hasattr(doc.extraction_status, "value") else str(doc.extraction_status),
-                "extraction_started_at": doc.extraction_started_at.isoformat()
-                if doc.extraction_started_at
-                else None,
-                "extraction_completed_at": doc.extraction_completed_at.isoformat()
-                if doc.extraction_completed_at
-                else None,
+                "extraction_status": (
+                    doc.extraction_status.value
+                    if hasattr(doc.extraction_status, "value")
+                    else str(doc.extraction_status)
+                ),
+                "extraction_started_at": (
+                    doc.extraction_started_at.isoformat()
+                    if doc.extraction_started_at
+                    else None
+                ),
+                "extraction_completed_at": (
+                    doc.extraction_completed_at.isoformat()
+                    if doc.extraction_completed_at
+                    else None
+                ),
                 "extraction_error": doc.extraction_error,
                 "chunk_count": doc.chunk_count,
                 "text_length": doc.text_length,
@@ -247,18 +255,26 @@ class MetadataService:
                     {
                         "event": "extraction_completed",
                         "timestamp": doc.extraction_completed_at.isoformat(),
-                        "status": "completed"
-                        if doc.extraction_status == ExtractionStatus.COMPLETED
-                        else "failed",
-                        "error": doc.extraction_error
-                        if doc.extraction_status == ExtractionStatus.FAILED
-                        else None,
+                        "status": (
+                            "completed"
+                            if doc.extraction_status == ExtractionStatus.COMPLETED
+                            else "failed"
+                        ),
+                        "error": (
+                            doc.extraction_error
+                            if doc.extraction_status == ExtractionStatus.FAILED
+                            else None
+                        ),
                     }
                 )
 
             return {
                 "document_id": document_id,
-                "current_status": doc.extraction_status.value if hasattr(doc.extraction_status, "value") else str(doc.extraction_status),
+                "current_status": (
+                    doc.extraction_status.value
+                    if hasattr(doc.extraction_status, "value")
+                    else str(doc.extraction_status)
+                ),
                 "timeline": timeline,
                 "error": doc.extraction_error,
                 "duration_seconds": (
@@ -305,7 +321,11 @@ class MetadataService:
             return {"error": str(e)}
 
     async def search_by_metadata(
-        self, filters: Dict[str, Any], user_id: int = None, limit: int = 100, offset: int = 0
+        self,
+        filters: Dict[str, Any],
+        user_id: int = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Search documents by metadata criteria."""
         try:
@@ -362,10 +382,14 @@ class MetadataService:
                     "doc_type": doc.doc_type,
                     "category": doc.category,
                     "tags": doc.tags or [],
-                    "extraction_status": doc.extraction_status.value if hasattr(doc.extraction_status, "value") else str(doc.extraction_status),
-                    "uploaded_at": doc.uploaded_at.isoformat()
-                    if doc.uploaded_at
-                    else None,
+                    "extraction_status": (
+                        doc.extraction_status.value
+                        if hasattr(doc.extraction_status, "value")
+                        else str(doc.extraction_status)
+                    ),
+                    "uploaded_at": (
+                        doc.uploaded_at.isoformat() if doc.uploaded_at else None
+                    ),
                 }
                 for doc in docs
             ]
