@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft,
     CheckCircle,
@@ -14,7 +13,6 @@ import {
     Settings,
     ChevronRight,
     Search,
-    Code,
     TestTube,
     Box
 } from 'lucide-react';
@@ -52,7 +50,6 @@ export const IntegrationWorkflow: React.FC = () => {
     const [integration, setIntegration] = useState<Integration | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<string>('status');
 
     // Polling for status updates
     useEffect(() => {
@@ -276,7 +273,7 @@ export const IntegrationWorkflow: React.FC = () => {
 };
 
 // Sub-components (Placeholder for now, will implement full logic next)
-const MappingView = ({ integration, onComplete }: any) => (
+const MappingView = (_props: { integration?: any; onComplete: () => void }) => (
     <div className="space-y-6">
         <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
@@ -293,7 +290,7 @@ const MappingView = ({ integration, onComplete }: any) => (
     </div>
 );
 
-const TestingView = ({ integration, onComplete }: any) => (
+const TestingView = (_props: { integration?: any; onComplete: () => void }) => (
     <div className="space-y-6">
         <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
