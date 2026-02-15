@@ -161,6 +161,101 @@ class OrchestratorStatusResponse(BaseModel):
     guardian_status: Dict[str, Any]
 
 
+@router.get(
+    "/discover/autocomplete",
+    summary="Autocomplete API search",
+    description="Returns autocomplete suggestions for API search as user types",
+)
+async def autocomplete_api_search(
+    query: str = Query(
+        "",
+        description="Partial search query to get suggestions",
+    ),
+    limit: int = Query(10, ge=1, le=20, description="Maximum number of suggestions"),
+) -> Dict[str, Any]:
+    """
+    Autocomplete suggestions for API discovery search.
+    
+    Returns matching API names, categories, and tags based on the query.
+    Optimized for quick responses as the user types.
+    """
+    try:
+        from app.core.financial_services import EXPANDED_API_KNOWLEDGE
+        
+        if not query or len(query.strip()) < 1:
+            # Return popular/default suggestions when no query
+            suggestions = [
+                {"name": api["api_name"], "category": api.get("category", "unknown")}
+                for api in EXPANDED_API_KNOWLEDGE[:limit]
+            ]
+            return {
+                "status": "success",
+                "suggestions": suggestions,
+                "query": query,
+            }
+        
+        query_lower = query.lower().strip()
+        suggestions = []
+        seen = set()
+        
+        for api in EXPANDED_API_KNOWLEDGE:
+            api_name_lower = api.get("api_name", "").lower()
+            category_lower = api.get("category", "").lower()
+            description_lower = api.get("description", "").lower()
+            tags = api.get("tags", [])
+            
+            # Check for matches in name, category, description, or tags
+            if (query_lower in api_name_lower or 
+                query_lower in category_lower or 
+                query_lower in description_lower or
+                any(query_lower in str(tag).lower() for tag in tags)):
+                
+                key = api.get("api_name", "")
+                if key not in seen:
+                    seen.add(key)
+                    suggestions.append({
+                        "name": api.get("api_name", ""),
+                        "category": api.get("category", "unknown"),
+                        "description": api.get("description", "")[:100],
+                    })
+            
+            if len(suggestions) >= limit:
+                break
+        
+        # If no matches found, provide partial match suggestions
+        if not suggestions:
+            # Try fuzzy matching on first few characters
+            for api in EXPANDED_API_KNOWLEDGE[:20]:
+                api_name_lower = api.get("api_name", "").lower()
+                if api_name_lower.startswith(query_lower[:3]) or query_lower in api_name_lower:
+                    key = api.get("api_name", "")
+                    if key not in seen:
+                        seen.add(key)
+                        suggestions.append({
+                            "name": api.get("api_name", ""),
+                            "category": api.get("category", "unknown"),
+                            "description": api.get("description", "")[:100],
+                        })
+                    if len(suggestions) >= limit:
+                        break
+        
+        return {
+            "status": "success",
+            "suggestions": suggestions,
+            "query": query,
+            "count": len(suggestions),
+        }
+        
+    except Exception as e:
+        logger.error("Autocomplete failed", error=str(e))
+        return {
+            "status": "success",
+            "suggestions": [],
+            "query": query,
+            "error": str(e),
+        }
+
+
 # ==================== Discovery Endpoint ====================
 
 
