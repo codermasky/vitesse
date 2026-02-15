@@ -395,7 +395,9 @@ class AgentCollaborationService:
         if total_agents > 0:
             active_percentage = (active_agents / total_agents) * 100
             # Score based on percentage of active agents and communication volume
-            collaboration_score = min(100, (active_percentage * 0.5) + (min(communications_today, 100) * 0.5))
+            collaboration_score = min(
+                100, (active_percentage * 0.5) + (min(communications_today, 100) * 0.5)
+            )
         else:
             collaboration_score = 0
 
@@ -408,7 +410,7 @@ class AgentCollaborationService:
         # Calculate error rate based on failed communications
         total_comms_result = await db.execute(select(func.count(AgentCommunication.id)))
         total_comms = total_comms_result.scalar() or 1
-        
+
         failed_comms_result = await db.execute(
             select(func.count(AgentCommunication.id)).filter(
                 AgentCommunication.status == "failed"
@@ -424,15 +426,15 @@ class AgentCollaborationService:
             try:
                 result = await db.execute(
                     select(
-                        func.extract('hour', AgentCommunication.timestamp).label('hour'),
-                        func.count(AgentCommunication.id).label('count')
-                    ).filter(
-                        AgentCommunication.timestamp >= today_start
-                    ).group_by(
-                        func.extract('hour', AgentCommunication.timestamp)
-                    ).order_by(
-                        func.count(AgentCommunication.id).desc()
-                    ).limit(1)
+                        func.extract("hour", AgentCommunication.timestamp).label(
+                            "hour"
+                        ),
+                        func.count(AgentCommunication.id).label("count"),
+                    )
+                    .filter(AgentCommunication.timestamp >= today_start)
+                    .group_by(func.extract("hour", AgentCommunication.timestamp))
+                    .order_by(func.count(AgentCommunication.id).desc())
+                    .limit(1)
                 )
                 row = result.first()
                 if row and row[0] is not None:
@@ -445,9 +447,9 @@ class AgentCollaborationService:
         if active_agents > 0:
             try:
                 result = await db.execute(
-                    select(AgentActivity.agent_name).order_by(
-                        desc(AgentActivity.last_activity)
-                    ).limit(1)
+                    select(AgentActivity.agent_name)
+                    .order_by(desc(AgentActivity.last_activity))
+                    .limit(1)
                 )
                 agent_name = result.scalar()
                 if agent_name:
