@@ -1,3 +1,5 @@
+import structlog
+from typing import Any, Dict, Optional
 from app.agents.base import VitesseAgent
 from aether.protocols.intelligence import IntelligenceProvider
 
@@ -18,11 +20,14 @@ class ReviewerAgent(VitesseAgent):
         self, context: Dict[str, Any], input_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         logger.info(
-            f"Agent {self.name} reviewing state", workflow_id=state.get("workflow_id")
+            f"Agent {self.agent_type} reviewing state",
+            workflow_id=input_data.get("workflow_id"),
         )
 
         # Generic review logic
         # Validates fields, checks for anomalies
 
-        state["data"]["review_completed"] = True
-        return state
+        if "data" not in input_data:
+            input_data["data"] = {}
+        input_data["data"]["review_completed"] = True
+        return input_data

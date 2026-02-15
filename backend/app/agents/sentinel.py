@@ -1,3 +1,5 @@
+import structlog
+from typing import Any, Dict, Optional
 from app.agents.base import VitesseAgent
 from aether.protocols.intelligence import IntelligenceProvider
 
@@ -18,12 +20,14 @@ class SentinelAgent(VitesseAgent):
         self, context: Dict[str, Any], input_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         logger.info(
-            f"Agent {self.name} performing final check",
-            workflow_id=state.get("workflow_id"),
+            f"Agent {self.agent_type} performing final check",
+            workflow_id=input_data.get("workflow_id"),
         )
 
         # Generic QA logic
         # Final readiness check before completion
 
-        state["data"]["final_qa_completed"] = True
-        return state
+        if "data" not in input_data:
+            input_data["data"] = {}
+        input_data["data"]["final_qa_completed"] = True
+        return input_data

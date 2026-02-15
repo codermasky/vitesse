@@ -21,6 +21,7 @@ import hashlib
 import json
 
 from app.agents.base import VitesseAgent, AgentContext
+from aether.protocols.intelligence import IntelligenceProvider
 from app.core.knowledge_db import (
     get_knowledge_db,
     FINANCIAL_APIS_COLLECTION,
