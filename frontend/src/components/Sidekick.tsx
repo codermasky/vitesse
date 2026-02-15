@@ -87,20 +87,27 @@ const Sidekick: React.FC = () => {
         // Using session_type=sidekick for structured JSON insights
         const wsUrl = `${wsProtocol}://${hostUrl.split("://")[1]}/api/v1/chat/ws/${sessionIdRef.current}?session_type=sidekick${token ? `&token=${token}` : ''}`;
 
+        console.log('[Sidekick] Attempting WebSocket connection to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
+
         const socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
             setIsConnected(true);
             setIsLoading(false); // Reset loading on open in case it was stuck
-            console.log('Sidekick connected');
+            console.log('[Sidekick] WebSocket connected successfully');
             // Trigger initial insights pull
             fetchInsights(socket);
         };
 
-        socket.onclose = () => {
+        socket.onclose = (event) => {
             setIsConnected(false);
             setIsLoading(false); // Clear loading if closed
             socketRef.current = null;
+            console.log('[Sidekick] WebSocket closed:', {
+                code: event.code,
+                reason: event.reason || 'No reason provided',
+                wasClean: event.wasClean
+            });
         };
 
         socket.onmessage = (event) => {
@@ -146,9 +153,22 @@ const Sidekick: React.FC = () => {
             }
         };
 
-        socket.onerror = () => {
+        socket.onerror = (error) => {
             setIsConnected(false);
             setIsLoading(false);
+            console.error('[Sidekick] WebSocket error:', {
+                error,
+                readyState: socket.readyState,
+                url: wsUrl.replace(/token=[^&]+/, 'token=***')
+            });
+            // Set a fallback insight to inform the user
+            setInsights([{
+                id: 'error-connection',
+                type: 'insight',
+                title: 'Connection Issue',
+                description: 'Unable to connect to the AI Assistant. The backend WebSocket service may be unavailable. Please check your connection or try refreshing.',
+                icon: 'lightbulb'
+            }]);
         };
 
         socketRef.current = socket;

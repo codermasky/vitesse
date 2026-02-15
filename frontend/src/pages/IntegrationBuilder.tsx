@@ -136,7 +136,16 @@ const IntegrationBuilder: React.FC = () => {
       if (!items && Array.isArray(response.data)) items = response.data;
       if (!items && response.data?.data && Array.isArray(response.data.data)) items = response.data.data;
 
-      setIntegrations(Array.isArray(items) ? items : []);
+      // Normalize integrations to ensure field_mappings and transformation_rules are always arrays
+      const normalizedItems = Array.isArray(items)
+        ? items.map(integration => ({
+          ...integration,
+          field_mappings: Array.isArray(integration.field_mappings) ? integration.field_mappings : [],
+          transformation_rules: Array.isArray(integration.transformation_rules) ? integration.transformation_rules : []
+        }))
+        : [];
+
+      setIntegrations(normalizedItems);
     } catch (error) {
       console.error('Failed to load integrations:', error);
     } finally {
@@ -201,7 +210,7 @@ const IntegrationBuilder: React.FC = () => {
     }
   };
 
-  const filteredIntegrations = integrations.filter(i =>
+  const filteredIntegrations = (integrations || []).filter(i =>
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     i.source_api.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -225,7 +234,7 @@ const IntegrationBuilder: React.FC = () => {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="Active Integrations" value={integrations.filter(i => i.status === 'active').length} icon={Zap} trend={12} />
+        <MetricCard label="Active Integrations" value={integrations?.filter(i => i.status === 'active')?.length || 0} icon={Zap} trend={12} />
         <MetricCard label="Total Requests" value="1.2M" icon={Database} trend={5} />
         <MetricCard label="Avg. Latency" value="45ms" icon={RotateCw} trend={-2} />
         <MetricCard label="Success Rate" value="99.9%" icon={CheckCircle} trend={0.1} />
@@ -250,7 +259,7 @@ const IntegrationBuilder: React.FC = () => {
           <div className="space-y-3 overflow-y-auto max-h-[800px] custom-scrollbar pr-2">
             {loading ? (
               [...Array(3)].map((_, i) => <div key={i} className="h-32 rounded-xl bg-surface-800/50 animate-pulse" />)
-            ) : filteredIntegrations.map(integration => (
+            ) : (filteredIntegrations || []).map(integration => (
               <motion.div
                 key={integration.id}
                 onClick={() => setSelectedIntegration(integration)}
@@ -269,7 +278,7 @@ const IntegrationBuilder: React.FC = () => {
                 <h3 className="text-white font-medium truncate">{integration.name}</h3>
                 <p className="text-xs text-surface-400 mt-1 line-clamp-1">{integration.source_api} → {integration.target_api}</p>
                 <div className="mt-3 flex items-center justify-between text-xs text-surface-500">
-                  <span>{integration.field_mappings.length} mappings</span>
+                  <span>{integration.field_mappings?.length || 0} mappings</span>
                   <ChevronRight className={`w-4 h-4 transition-transform ${selectedIntegration?.id === integration.id ? 'rotate-90 text-brand-primary' : ''}`} />
                 </div>
               </motion.div>
@@ -353,12 +362,12 @@ const IntegrationBuilder: React.FC = () => {
                   </div>
 
                   <div className="divide-y divide-surface-800">
-                    {selectedIntegration.field_mappings.length === 0 ? (
+                    {(selectedIntegration.field_mappings?.length || 0) === 0 ? (
                       <div className="py-12 text-center text-surface-500">
                         <Code className="w-12 h-12 mx-auto mb-3 opacity-20" />
                         <p>No mappings configured yet.</p>
                       </div>
-                    ) : selectedIntegration.field_mappings.map((m: FieldMapping, i: number) => (
+                    ) : (selectedIntegration.field_mappings || []).map((m: FieldMapping, i: number) => (
                       <div key={i} className="p-4 flex items-center justify-between hover:bg-surface-900/30 transition-colors">
                         <div className="flex items-center gap-4">
                           <div className="font-mono text-sm text-blue-300 bg-blue-500/10 px-2 py-1 rounded">{m.source_field}</div>
@@ -375,12 +384,12 @@ const IntegrationBuilder: React.FC = () => {
                 </div>
 
                 {/* Test Results */}
-                {testResults.length > 0 && (
+                {(testResults?.length || 0) > 0 && (
                   <div className="premium-card overflow-hidden">
                     <div className="p-4 border-b border-surface-700/50 bg-surface-900/30">
                       <h3 className="text-sm font-semibold text-white">Top 3 Recent Tests</h3>
                     </div>
-                    {testResults.map((res, i) => (
+                    {(testResults || []).map((res, i) => (
                       <div key={i} className={`p-3 border-b border-surface-800/50 flex items-center gap-3 ${res.success ? 'bg-green-500/5' : 'bg-red-500/5'}`}>
                         {res.success ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
                         <div className="flex-1">

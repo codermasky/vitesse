@@ -150,16 +150,16 @@ const AgentActivityDashboard: React.FC = () => {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       idle: 'bg-surface-800 text-surface-300 border-surface-700',
-      running: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      error: 'bg-red-500/10 text-red-400 border-red-500/20'
+      running: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      error: 'bg-red-500/20 text-red-400 border-red-500/30'
     };
     return colors[status] || colors.idle;
   };
 
   const getWorkflowStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-surface-100 text-surface-500 dark:bg-white/5',
+      pending: 'bg-surface-800 text-surface-400 border-surface-700',
       running: 'bg-blue-500 text-white shadow-lg shadow-blue-500/25',
       completed: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25',
       failed: 'bg-red-500 text-white shadow-lg shadow-red-500/25'
@@ -183,7 +183,7 @@ const AgentActivityDashboard: React.FC = () => {
               <Bot className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">
+              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
                 Agent Activity
               </h1>
               <p className="text-surface-400 font-medium">
@@ -200,7 +200,7 @@ const AgentActivityDashboard: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden bg-surface-900/40 border border-surface-800 rounded-3xl p-8 shadow-xl"
+            className="premium-card p-8 relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
 
@@ -270,7 +270,7 @@ const AgentActivityDashboard: React.FC = () => {
 
         {/* Agent Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeAgents.map((agent, index) => (
+          {(activeAgents || []).map((agent, index) => (
             <motion.div
               key={agent.id}
               initial={{ opacity: 0, y: 20 }}
@@ -278,7 +278,7 @@ const AgentActivityDashboard: React.FC = () => {
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
               className={cn(
-                "group bg-surface-900/40 border border-surface-800 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-brand-primary/10 transition-all duration-300 cursor-pointer",
+                "group premium-card p-6 cursor-pointer",
                 selectedAgent === agent.id ? "ring-2 ring-brand-primary border-brand-primary" : ""
               )}
               onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
@@ -345,8 +345,8 @@ const AgentActivityDashboard: React.FC = () => {
         </div>
 
         {/* Workflow Steps Timeline */}
-        {workflowSteps.length > 0 && (
-          <div className="bg-surface-900/40 border border-surface-800 rounded-3xl overflow-hidden shadow-lg">
+        {(workflowSteps?.length || 0) > 0 && (
+          <div className="premium-card overflow-hidden shadow-lg">
             <div className="px-8 py-6 border-b border-surface-800 bg-surface-900/20">
               <h3 className="text-xl font-bold text-white flex items-center gap-3">
                 <LayoutDashboard className="w-5 h-5 text-brand-primary" />
@@ -360,7 +360,7 @@ const AgentActivityDashboard: React.FC = () => {
                 <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-surface-700" />
 
                 <div className="space-y-8">
-                  {workflowSteps.map((step, index) => (
+                  {(workflowSteps || []).map((step, index) => (
                     <motion.div
                       key={step.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -422,7 +422,7 @@ const AgentActivityDashboard: React.FC = () => {
         )}
 
         {/* Shared State Viewer */}
-        <div className="bg-surface-900/40 border border-surface-800 rounded-3xl overflow-hidden shadow-lg">
+        <div className="premium-card overflow-hidden shadow-lg">
           <button
             onClick={() => setShowSharedState(!showSharedState)}
             className="w-full px-8 py-6 border-b border-surface-800 bg-surface-900/20 flex items-center justify-between hover:bg-surface-800/40 transition-colors"
@@ -474,10 +474,10 @@ const AgentActivityDashboard: React.FC = () => {
                       <div className="bg-surface-900/30 rounded-2xl p-6 border border-surface-800">
                         <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                           <Database className="w-4 h-4 text-brand-primary" />
-                          Knowledge Context ({sharedState.knowledge_context.length})
+                          Knowledge Context ({sharedState.knowledge_context?.length || 0})
                         </h4>
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                          {sharedState.knowledge_context.map((item, index) => (
+                          {(sharedState.knowledge_context || []).map((item, index) => (
                             <div key={index} className="flex items-center justify-between p-3 bg-surface-800 rounded-xl border border-surface-700 shadow-sm hover:shadow-md transition-shadow">
                               <div>
                                 <p className="text-sm font-bold text-white">
@@ -520,7 +520,7 @@ const AgentActivityDashboard: React.FC = () => {
             className="fixed inset-0 bg-surface-950/50 backdrop-blur-sm z-50 flex items-center justify-center"
           >
             <div className="bg-surface-900 p-6 rounded-2xl shadow-2xl flex items-center gap-4 border border-surface-800">
-              <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
               <span className="font-medium text-white">Syncing Agent State...</span>
             </div>
           </motion.div>

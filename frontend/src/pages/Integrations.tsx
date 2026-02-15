@@ -34,14 +34,14 @@ interface Integration {
 }
 
 const statusConfig = {
-  initializing: { icon: Clock, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  discovering: { icon: RefreshCw, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-  mapping: { icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-  testing: { icon: Clock, color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-  deploying: { icon: RefreshCw, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  active: { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  failed: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-  paused: { icon: Clock, color: 'text-brand-400', bg: 'bg-brand-500/10', border: 'border-brand-500/20' },
+  initializing: { icon: Clock, color: 'text-blue-400', bg: 'bg-blue-500/20' },
+  discovering: { icon: RefreshCw, color: 'text-purple-400', bg: 'bg-purple-500/20' },
+  mapping: { icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
+  testing: { icon: Clock, color: 'text-orange-400', bg: 'bg-orange-500/20' },
+  deploying: { icon: RefreshCw, color: 'text-blue-400', bg: 'bg-blue-500/20' },
+  active: { icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+  failed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/20' },
+  paused: { icon: Clock, color: 'text-brand-400', bg: 'bg-brand-500/20' },
 };
 
 const Integrations: React.FC = () => {
@@ -143,8 +143,8 @@ const Integrations: React.FC = () => {
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-white tracking-tight">
-                  <span className="text-gradient">Integrations</span>
+                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                  Integrations
                 </h1>
                 <p className="text-surface-400 mt-1">
                   Manage your AI-powered API integration pipelines
@@ -247,10 +247,10 @@ const Integrations: React.FC = () => {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     whileHover={{ y: -5 }}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer group ${selectedIntegration?.id === integration.id
-                      ? 'bg-brand-primary/10 border-brand-primary/50 shadow-[0_0_15px_rgba(var(--brand-primary),0.2)]'
-                      : 'bg-surface-900/40 border-surface-800 hover:bg-surface-800/60 hover:border-surface-700'
-                    }`}
+                    className={`group relative p-4 rounded-xl border transition-all cursor-pointer premium-card ${selectedIntegration?.id === integration.id
+                      ? 'ring-2 ring-brand-primary border-brand-primary/50'
+                      : 'hover:border-brand-primary/30'
+                      }`}
                     onClick={() => setSelectedIntegration(integration)}
                   >
                     <div className="flex items-start justify-between mb-6">
@@ -269,9 +269,9 @@ const Integrations: React.FC = () => {
                       </div>
 
                       <div className={cn(
-                        "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-2 bg-surface-50 dark:bg-surface-950/50 backdrop-blur-sm",
+                        "px-2.5 py-0.5 rounded-full text-xs font-medium border border-current backdrop-blur-sm",
                         statusConfig_.color,
-                        statusConfig_.border
+                        statusConfig_.bg
                       )}>
                         {integration.status === 'deploying' || integration.status === 'discovering' ? (
                           <StatusIcon className="w-3.5 h-3.5 animate-spin" />

@@ -233,8 +233,8 @@ const HarvestSources: React.FC = () => {
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-white tracking-tight">
-                  <span className="text-gradient">Harvest Sources</span>
+                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                  Harvest Sources
                 </h1>
                 <p className="text-surface-400 mt-1">
                   Manage and monitor your intelligence gathering pipelines
@@ -385,7 +385,7 @@ const HarvestSources: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="group relative p-4 rounded-xl border transition-all cursor-pointer hover:bg-surface-800/60 hover:border-brand-primary/30 bg-surface-900/40 border-surface-800"
+                  className="group relative p-4 rounded-xl border transition-all cursor-pointer premium-card hover:border-brand-primary/30"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
@@ -658,36 +658,36 @@ const HarvestSources: React.FC = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-3xl p-8 max-w-2xl w-full shadow-2xl h-[600px] flex flex-col"
+              className="premium-card rounded-3xl p-8 max-w-2xl w-full shadow-2xl h-[600px] flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-2xl font-black text-surface-950 dark:text-white">Discover Sources</h2>
-                  <p className="text-surface-500">Find and add new intelligence sources instantly</p>
+                  <h2 className="text-2xl font-black text-white">Discover Sources</h2>
+                  <p className="text-surface-400">Find and add new intelligence sources instantly</p>
                 </div>
-                <button onClick={() => setShowDiscoverModal(false)} className="p-2 hover:bg-surface-200 dark:hover:bg-white/10 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-surface-500" />
+                <button onClick={() => setShowDiscoverModal(false)} className="p-2 hover:bg-surface-700 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-surface-400" />
                 </button>
               </div>
 
               <div className="flex items-center gap-4 mb-6">
                 <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-500" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-primary" />
                   <input
                     type="text"
                     placeholder="Search for topics, companies, or datasets..."
-                    className="w-full pl-12 pr-4 py-4 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all font-medium text-lg"
+                    className="w-full pl-12 pr-4 py-4 bg-surface-900 border border-surface-700 rounded-2xl focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all font-medium text-lg text-white"
                   />
                 </div>
-                <button className="px-6 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-2xl font-bold shadow-lg shadow-brand-500/25 transition-all">
+                <button className="px-6 py-4 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-2xl font-bold shadow-lg shadow-brand-primary/25 transition-all">
                   Search
                 </button>
               </div>
 
-              <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 border-2 border-dashed border-surface-200 dark:border-white/10 rounded-3xl m-4">
-                <Sparkles className="w-12 h-12 text-surface-400 mb-4" />
-                <p className="text-lg font-bold text-surface-500">Enter a topic to discover sources</p>
-                <p className="text-sm text-surface-400">We'll search the web for high-quality data sources</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-surface-700 rounded-3xl m-4">
+                <Sparkles className="w-12 h-12 text-surface-500 mb-4" />
+                <p className="text-lg font-bold text-surface-400">Enter a topic to discover sources</p>
+                <p className="text-sm text-surface-500">We'll search the web for high-quality data sources</p>
               </div>
             </motion.div>
           </motion.div>

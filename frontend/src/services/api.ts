@@ -502,31 +502,33 @@ class ApiService {
   }
 
   // Email Integration endpoints
-  async getEmailConfig(): Promise<AxiosResponse> {
-    return this.axiosInstance.get("/queue/email/config");
-  }
+  // NOTE: These endpoints are not implemented in the backend yet
+  // Commenting out to prevent 404 errors
+  // async getEmailConfig(): Promise<AxiosResponse> {
+  //   return this.axiosInstance.get("/queue/email/config");
+  // }
 
-  async updateEmailConfig(config: {
-    enabled: boolean;
-    server: string;
-    port: number;
-    username: string;
-    password: string;
-    poll_interval: number;
-  }): Promise<AxiosResponse> {
-    return this.axiosInstance.post("/queue/email/config", config);
-  }
+  // async updateEmailConfig(config: {
+  //   enabled: boolean;
+  //   server: string;
+  //   port: number;
+  //   username: string;
+  //   password: string;
+  //   poll_interval: number;
+  // }): Promise<AxiosResponse> {
+  //   return this.axiosInstance.post("/queue/email/config", config);
+  // }
 
-  async testEmailConnection(config: {
-    enabled: boolean;
-    server: string;
-    port: number;
-    username: string;
-    password: string;
-    poll_interval: number;
-  }): Promise<AxiosResponse> {
-    return this.axiosInstance.post("/queue/email/test", config);
-  }
+  // async testEmailConnection(config: {
+  //   enabled: boolean;
+  //   server: string;
+  //   port: number;
+  //   username: string;
+  //   password: string;
+  //   poll_interval: number;
+  // }): Promise<AxiosResponse> {
+  //   return this.axiosInstance.post("/queue/email/test", config);
+  // }
 
   async downloadDocument(url: string): Promise<AxiosResponse<Blob>> {
     return this.axiosInstance.get(url, {
