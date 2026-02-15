@@ -627,22 +627,24 @@ class QdrantKnowledge(KnowledgeDB):
             await self.initialize()
 
         try:
+            from qdrant_client.http import models
+
             # Generate embedding for query
             query_embedding = self.embedder.encode([query], show_progress_bar=False)[
                 0
             ].tolist()
 
-            # Search in Qdrant
-            search_results = self.client.search(
+            # Search in Qdrant using query_points (v1.7+ API)
+            search_results = self.client.query_points(
                 collection_name=collection,
-                query_vector=query_embedding,
+                query=query_embedding,
                 limit=top_k,
                 query_filter=filters,
             )
 
             # Format results
             formatted_results = []
-            for result in search_results:
+            for result in search_results.points:
                 doc = {
                     "id": str(result.id),
                     "content": "",  # Content not stored as metadata
@@ -669,20 +671,32 @@ class QdrantKnowledge(KnowledgeDB):
             await self.initialize()
 
         try:
+            from qdrant_client.http import models
+
             # Convert UUID to int64 for Qdrant
             int_id = int(uuid.UUID(doc_id).int % (2**63))
 
-            point = self.client.retrieve(
+            # Use query_points with specific ID filter (v1.7+ API)
+            search_results = self.client.query_points(
                 collection_name=collection,
-                ids=[int_id],
-                with_payload=True,
+                query=[0.0] * 384,  # Dummy query vector
+                limit=1,
+                query_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="id",
+                            match=models.MatchValue(value=str(int_id)),
+                        )
+                    ]
+                ),
             )
 
-            if point:
+            points = search_results.points
+            if points:
                 return {
                     "id": doc_id,
                     "content": "",
-                    "metadata": point[0].payload or {},
+                    "metadata": points[0].payload or {},
                 }
             return None
 
@@ -705,12 +719,15 @@ class QdrantKnowledge(KnowledgeDB):
             await self.initialize()
 
         try:
+            from qdrant_client.http import models
+
             # Convert UUID to int64 for Qdrant
             int_id = int(uuid.UUID(doc_id).int % (2**63))
 
-            self.client.delete(
+            # Use delete_points (v1.7+ API)
+            self.client.delete_points(
                 collection_name=collection,
-                points_selector=int_id,
+                points_selector=models.PointIdsList(points=[int_id]),
             )
 
             logger.info(
