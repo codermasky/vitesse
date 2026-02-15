@@ -136,19 +136,15 @@ const Integrations: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-surface-950 transition-colors duration-300 p-6">
+    <div className="space-y-8 p-6">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-                  Integrations
-                </h1>
-                <p className="text-surface-400 mt-1">
-                  Manage your AI-powered API integration pipelines
-                </p>
+                <h1 className="text-3xl font-bold text-white tracking-tight">Integrations</h1>
+                <p className="text-surface-400 mt-1">Manage and monitor your API integration pipelines</p>
               </div>
               <button
                 onClick={() => navigate('/integrations/new')}

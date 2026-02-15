@@ -233,6 +233,19 @@ async def get_harvest_dashboard(db: AsyncSession = Depends(get_db)):
         )
 
 
+@router.get("/stats/overview", response_model=HarvestJobStats)
+async def get_harvest_job_stats(db: AsyncSession = Depends(get_db)):
+    """Get comprehensive harvest job statistics."""
+    try:
+        stats = await HarvestJobService.get_harvest_job_stats(db)
+        return HarvestJobStats(**stats)
+    except Exception as e:
+        logger.error("Failed to get harvest job stats", error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve harvest job statistics"
+        )
+
+
 @router.post("/{job_id}/cancel")
 async def cancel_harvest_job(job_id: str, db: AsyncSession = Depends(get_db)):
     """Cancel a running harvest job."""

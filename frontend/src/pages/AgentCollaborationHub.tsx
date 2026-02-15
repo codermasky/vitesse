@@ -123,7 +123,8 @@ const AgentCollaborationHub: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="min-h-screen bg-surface-950 transition-colors duration-300 p-6">
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -143,22 +144,22 @@ const AgentCollaborationHub: React.FC = () => {
       {/* Stats Grid */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="premium-card p-5">
+          <div className="premium-card p-4 group hover:border-blue-500/30 transition-colors">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-surface-400 text-sm font-medium">Active Agents</p>
-                <h3 className="text-3xl font-bold text-white mt-2">{stats.active_agents}<span className="text-surface-500 text-base font-normal">/{stats.total_agents}</span></h3>
+                <h3 className="text-2xl font-bold text-white mt-2">{stats.active_agents}<span className="text-surface-500 text-sm font-normal">/{stats.total_agents}</span></h3>
               </div>
-              <div className="p-3 rounded-xl bg-blue-500/10">
-                <Bot className="w-6 h-6 text-blue-500" />
+              <div className="p-2 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors border border-surface-700/50">
+                <Bot className="w-5 h-5 text-blue-500" />
               </div>
             </div>
           </div>
-          <div className="premium-card p-5">
+          <div className="premium-card p-4 group hover:border-purple-500/30 transition-colors">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-surface-400 text-sm font-medium">Collaboration Score</p>
-                <h3 className="text-3xl font-bold text-white mt-2">{stats.average_collaboration_score.toFixed(1)}</h3>
+                <h3 className="text-2xl font-bold text-white mt-2">{stats.average_collaboration_score.toFixed(1)}</h3>
                 <div className="w-full bg-surface-700 h-1.5 rounded-full mt-2 overflow-hidden">
                   <div
                     className="h-full bg-purple-500 rounded-full"
@@ -166,30 +167,30 @@ const AgentCollaborationHub: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-purple-500/10">
-                <TrendingUp className="w-6 h-6 text-purple-500" />
+              <div className="p-2 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors border border-surface-700/50">
+                <TrendingUp className="w-5 h-5 text-purple-500" />
               </div>
             </div>
           </div>
-          <div className="premium-card p-5">
+          <div className="premium-card p-4 group hover:border-orange-500/30 transition-colors">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-surface-400 text-sm font-medium">Tasks Today</p>
-                <h3 className="text-3xl font-bold text-white mt-2">{stats.tasks_completed_today}</h3>
+                <h3 className="text-2xl font-bold text-white mt-2">{stats.tasks_completed_today}</h3>
               </div>
-              <div className="p-3 rounded-xl bg-orange-500/10">
-                <Activity className="w-6 h-6 text-orange-500" />
+              <div className="p-2 rounded-lg bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors border border-surface-700/50">
+                <Activity className="w-5 h-5 text-orange-500" />
               </div>
             </div>
           </div>
-          <div className="premium-card p-5">
+          <div className="premium-card p-4 group hover:border-emerald-500/30 transition-colors">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-surface-400 text-sm font-medium">Communications</p>
-                <h3 className="text-3xl font-bold text-white mt-2">{stats.total_communications_today}</h3>
+                <h3 className="text-2xl font-bold text-white mt-2">{stats.total_communications_today}</h3>
               </div>
-              <div className="p-3 rounded-xl bg-green-500/10">
-                <MessageSquare className="w-6 h-6 text-green-500" />
+              <div className="p-2 rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors border border-surface-700/50">
+                <MessageSquare className="w-5 h-5 text-emerald-500" />
               </div>
             </div>
           </div>
@@ -293,6 +294,7 @@ const AgentCollaborationHub: React.FC = () => {
           </div>
         </div>
 
+      </div>
       </div>
     </div>
   );

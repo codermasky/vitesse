@@ -174,7 +174,7 @@ const AgentActivityDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-950 transition-colors duration-300 p-6">
+    <div className="space-y-8 p-6">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800 mb-8">
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -183,12 +183,8 @@ const AgentActivityDashboard: React.FC = () => {
               <Bot className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-                Agent Activity
-              </h1>
-              <p className="text-surface-400 font-medium">
-                Real-time orchestration and shared state monitoring
-              </p>
+              <h1 className="text-3xl font-bold text-white tracking-tight">Agent Activity</h1>
+              <p className="text-surface-400 font-medium">Real-time orchestration and shared state monitoring</p>
             </div>
           </div>
         </div>

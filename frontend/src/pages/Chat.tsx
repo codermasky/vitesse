@@ -336,8 +336,8 @@ const Chat: React.FC = () => {
                 {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
               </button>
               <SectionHeader
-                title="Vitesse AI Mapper"
-                subtitle="AI Knowledge Assistant"
+                title="Vitesse AI Scout"
+                subtitle="Integration Discovery Agent"
                 variant="premium"
                 className="border-none p-0 bg-transparent"
                 icon={Bot}
@@ -507,7 +507,7 @@ const Chat: React.FC = () => {
                       Ready to scout?
                     </h1>
                     <p className="text-surface-500 max-w-md leading-relaxed">
-                      I am your <span className="text-brand-primary font-bold">Scout</span>. I can explore "The Vault" to uncover answers for credit memos, spreads, and more.
+                      I am your <span className="text-brand-primary font-bold">Scout</span>. I can explore integrations across LineData products and third-party services to discover data, APIs, and connectivity options.
                     </p>
                   </div>
                 ) : (
@@ -540,7 +540,7 @@ const Chat: React.FC = () => {
                         {!message.isUser && (
                           <div className="flex items-center gap-2 mb-3">
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md">
-                              Vitesse AI Mapper
+                              Vitesse AI Scout
                             </span>
                             <div className="h-px flex-1 bg-gradient-to-r from-brand-primary/20 to-transparent" />
                           </div>
@@ -550,7 +550,7 @@ const Chat: React.FC = () => {
                         {message.status === 'loading' && (
                           <div className="flex items-center gap-2 text-brand-primary mb-2">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">Scouting Vault</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Discovering Integrations</span>
                           </div>
                         )}
 
@@ -658,7 +658,7 @@ const Chat: React.FC = () => {
                             className="w-1.5 h-1.5 rounded-full bg-brand-primary"
                           />
                         </div>
-                        <span className="text-[10px] font-black text-brand-primary/60 uppercase tracking-[0.1em]">Vitesse AI Mapper is typing</span>
+                        <span className="text-[10px] font-black text-brand-primary/60 uppercase tracking-[0.1em]">Vitesse AI Scout is typing</span>
                       </div>
                     </div>
                   </motion.div>
@@ -706,7 +706,7 @@ const Chat: React.FC = () => {
                 </div>
                 <div className="text-center mt-2">
                   <p className="text-[10px] text-surface-400 font-medium">
-                    AI Agent can make mistakes. Verify critical information in The Vault.
+                    AI Agent can make mistakes. Verify critical information in your systems.
                   </p>
                 </div>
               </form>

@@ -363,8 +363,8 @@ class AgentCollaborationService:
         active_agents = active_agents_result.scalar() or 0
 
         # Workflow counts (simplified - would need workflow table)
-        total_workflows = 0  # Placeholder
-        active_workflows = 0  # Placeholder
+        total_workflows = 0
+        active_workflows = 0
 
         # Communication stats
         now = datetime.utcnow()
@@ -376,12 +376,6 @@ class AgentCollaborationService:
             )
         )
         communications_today = comms_today_result.scalar() or 0
-
-        # Average collaboration score (simplified)
-        avg_collaboration_score = 82.5  # Placeholder
-
-        # System uptime (simplified)
-        system_uptime = 99.7  # Placeholder
 
         # Average response time
         avg_resp_time_result = await db.execute(
@@ -397,8 +391,69 @@ class AgentCollaborationService:
         )
         tasks_today = tasks_today_result.scalar() or 0
 
-        # Error rate (simplified)
-        error_rate = 3.2  # Placeholder
+        # Calculate average collaboration score based on active agents
+        if total_agents > 0:
+            active_percentage = (active_agents / total_agents) * 100
+            # Score based on percentage of active agents and communication volume
+            collaboration_score = min(100, (active_percentage * 0.5) + (min(communications_today, 100) * 0.5))
+        else:
+            collaboration_score = 0
+
+        # Calculate system uptime based on active agent ratio
+        if total_agents > 0:
+            system_uptime = (active_agents / total_agents) * 100
+        else:
+            system_uptime = 100
+
+        # Calculate error rate based on failed communications
+        total_comms_result = await db.execute(select(func.count(AgentCommunication.id)))
+        total_comms = total_comms_result.scalar() or 1
+        
+        failed_comms_result = await db.execute(
+            select(func.count(AgentCommunication.id)).filter(
+                AgentCommunication.status == "failed"
+            )
+        )
+        failed_comms = failed_comms_result.scalar() or 0
+        error_rate = (failed_comms / total_comms * 100) if total_comms > 0 else 0
+
+        # Find peak collaboration hour from communications
+        peak_hour = "14:00"  # Default
+        if communications_today > 0:
+            # Query to find the hour with most communications
+            try:
+                result = await db.execute(
+                    select(
+                        func.extract('hour', AgentCommunication.timestamp).label('hour'),
+                        func.count(AgentCommunication.id).label('count')
+                    ).filter(
+                        AgentCommunication.timestamp >= today_start
+                    ).group_by(
+                        func.extract('hour', AgentCommunication.timestamp)
+                    ).order_by(
+                        func.count(AgentCommunication.id).desc()
+                    ).limit(1)
+                )
+                row = result.first()
+                if row and row[0] is not None:
+                    peak_hour = f"{int(row[0]):02d}:00"
+            except Exception:
+                pass  # Fallback to default
+
+        # Find most active agent
+        most_active_agent = "Unknown"
+        if active_agents > 0:
+            try:
+                result = await db.execute(
+                    select(AgentActivity.agent_name).order_by(
+                        desc(AgentActivity.last_activity)
+                    ).limit(1)
+                )
+                agent_name = result.scalar()
+                if agent_name:
+                    most_active_agent = agent_name
+            except Exception:
+                pass  # Fallback to default
 
         return {
             "total_agents": total_agents,
@@ -406,13 +461,13 @@ class AgentCollaborationService:
             "total_workflows": total_workflows,
             "active_workflows": active_workflows,
             "total_communications_today": communications_today,
-            "average_collaboration_score": avg_collaboration_score,
-            "system_uptime": system_uptime,
+            "average_collaboration_score": round(collaboration_score, 1),
+            "system_uptime": round(system_uptime, 1),
             "average_response_time": int(avg_response_time),
-            "tasks_completed_today": tasks_today,
-            "error_rate": error_rate,
-            "peak_collaboration_hour": "14:00",  # Placeholder
-            "most_active_agent": "orchestrator-001",  # Placeholder
+            "tasks_completed_today": int(tasks_today),
+            "error_rate": round(error_rate, 1),
+            "peak_collaboration_hour": peak_hour,
+            "most_active_agent": most_active_agent,
         }
 
 

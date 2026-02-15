@@ -77,7 +77,7 @@ export const IntegrationWorkflow: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-surface-50 dark:bg-surface-950">
+            <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
             </div>
         );
@@ -85,7 +85,7 @@ export const IntegrationWorkflow: React.FC = () => {
 
     if (error || !integration) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-surface-50 dark:bg-surface-950 p-4">
+            <div className="flex flex-col items-center justify-center min-h-[400px] p-4">
                 <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
                 <h2 className="text-xl font-bold text-surface-900 dark:text-white mb-2">Error Loading Integration</h2>
                 <p className="text-surface-600 dark:text-surface-400 mb-6">{error || 'Integration not found'}</p>
@@ -107,7 +107,7 @@ export const IntegrationWorkflow: React.FC = () => {
         : (effectiveStatus === 'failed' ? -1 : 0);
 
     return (
-        <div className="min-h-screen bg-surface-50 dark:bg-surface-950 p-6 md:p-8">
+        <div className="space-y-8">
             <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header */}
                 <div className="flex items-center justify-between">

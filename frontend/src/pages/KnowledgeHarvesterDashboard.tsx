@@ -177,7 +177,8 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="min-h-screen bg-surface-950 transition-colors duration-300 p-6">
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -243,27 +244,27 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="premium-card p-5">
+          <div className="premium-card p-5 group hover:border-purple-500/30 transition-colors">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-surface-400 text-sm font-medium">APIs Harvested</p>
                 <h3 className="text-3xl font-bold text-white mt-2">{stats.total_apis_harvested}</h3>
                 <p className="text-xs text-surface-500 mt-1">Total count</p>
               </div>
-              <div className="p-3 rounded-xl bg-purple-500/10">
+              <div className="p-3 rounded-xl bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
                 <Database className="w-6 h-6 text-purple-500" />
               </div>
             </div>
           </div>
 
-          <div className="premium-card p-5">
+          <div className="premium-card p-5 group hover:border-blue-500/30 transition-colors">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-surface-400 text-sm font-medium">Avg Duration</p>
                 <h3 className="text-3xl font-bold text-white mt-2">{Math.round(stats.average_job_duration)}s</h3>
                 <p className="text-xs text-surface-500 mt-1">Per job</p>
               </div>
-              <div className="p-3 rounded-xl bg-blue-500/10">
+              <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
                 <Clock className="w-6 h-6 text-blue-500" />
               </div>
             </div>
@@ -481,6 +482,7 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
             )}
           </AnimatePresence>
         </div>
+      </div>
       </div>
     </div>
   );

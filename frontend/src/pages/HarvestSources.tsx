@@ -226,19 +226,15 @@ const HarvestSources: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-950 transition-colors duration-300 p-6">
+    <div className="space-y-8 p-6">
       {/* Header Section */}
       <div className="sticky top-0 z-30 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-                  Harvest Sources
-                </h1>
-                <p className="text-surface-400 mt-1">
-                  Manage and monitor your intelligence gathering pipelines
-                </p>
+                <h1 className="text-3xl font-bold text-white tracking-tight">Harvest Sources</h1>
+                <p className="text-surface-400 mt-1">Manage and monitor your intelligence gathering pipelines</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -261,18 +257,20 @@ const HarvestSources: React.FC = () => {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[
-                { label: 'Total Sources', value: stats?.total_sources || 0, icon: Globe, color: 'text-blue-400' },
-                { label: 'Active Pipelines', value: stats?.enabled_sources || 0, icon: CheckCircle2, color: 'text-emerald-400' },
-                { label: 'Successful Harvests', value: stats?.successful_harvests || 0, icon: ArrowUpRight, color: 'text-purple-400' },
-                { label: 'Failed Jobs', value: stats?.failed_harvests || 0, icon: AlertCircle, color: 'text-red-400' },
+                { label: 'Total Sources', value: stats?.total_sources || 0, icon: Globe, color: 'text-blue-400', bg: 'bg-blue-500/10', hover: 'hover:bg-blue-500/20', hoverBorder: 'hover:border-blue-500/30' },
+                { label: 'Active Pipelines', value: stats?.enabled_sources || 0, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', hover: 'hover:bg-emerald-500/20', hoverBorder: 'hover:border-emerald-500/30' },
+                { label: 'Successful Harvests', value: stats?.successful_harvests || 0, icon: ArrowUpRight, color: 'text-purple-400', bg: 'bg-purple-500/10', hover: 'hover:bg-purple-500/20', hoverBorder: 'hover:border-purple-500/30' },
+                { label: 'Failed Jobs', value: stats?.failed_harvests || 0, icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-500/10', hover: 'hover:bg-red-500/20', hoverBorder: 'hover:border-red-500/30' },
               ].map((stat, i) => (
-                <div key={i} className="premium-card flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl bg-surface-800/50 flex items-center justify-center ${stat.color} border border-surface-700`}>
-                    <stat.icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-surface-400 text-xs font-bold uppercase tracking-wider">{stat.label}</p>
-                    <p className="text-2xl font-black text-white">{stat.value}</p>
+                <div key={i} className={`premium-card p-4 group ${stat.hoverBorder} transition-colors`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-surface-400 text-sm font-medium">{stat.label}</p>
+                      <h3 className="text-2xl font-bold text-white mt-2">{stat.value}</h3>
+                    </div>
+                    <div className={`p-2 rounded-lg ${stat.bg} ${stat.hover} transition-colors border border-surface-700/50`}>
+                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                    </div>
                   </div>
                 </div>
               ))}
