@@ -10,30 +10,31 @@ import {
   AlertCircle,
   X,
   Save,
-  TestTube,
-  Database,
   Globe,
-  Github,
-  ShoppingCart,
+  Database,
   FileText,
-  Settings,
-  BarChart3,
-  Pause,
+  Github,
+  LayoutGrid,
+  List,
+  Play,
+  Clock,
+  ArrowUpRight,
   Sparkles
 } from 'lucide-react';
 import apiService from '../services/api';
 import { cn } from '../services/utils';
+import { useNotifications } from '../contexts/NotificationContext';
 
-// Types for harvest sources
+// Types
 interface HarvestSource {
   id: number;
   name: string;
-  type: string; // Made more permissive to match backend
+  type: string;
   url: string;
   description?: string;
   enabled: boolean;
   priority: number;
-  auth_type?: string; // Made more permissive to match backend
+  auth_type?: string;
   auth_config?: any;
   category?: string;
   tags?: string[];
@@ -42,14 +43,7 @@ interface HarvestSource {
   last_error?: string;
   created_at: string;
   updated_at: string;
-}
-
-interface HarvestTestResult {
-  success: boolean;
-  response_time_ms?: number;
-  status_code?: number;
-  error_message?: string;
-  last_tested_at: string;
+  status?: 'idle' | 'running' | 'failed' | 'completed'; // Added for UI state
 }
 
 interface HarvestStats {
@@ -59,761 +53,591 @@ interface HarvestStats {
   successful_harvests: number;
   failed_harvests: number;
   last_harvest_at?: string;
-  sources_by_type: Record<string, number>;
-  sources_by_category: Record<string, number>;
-}
-
-interface SearchResult {
-  name: string;
-  type: string;
-  url: string;
-  description: string;
-  category: string;
-  source: string;
-  confidence: number;
 }
 
 const HarvestSources: React.FC = () => {
+  const { addNotification } = useNotifications();
+
+  // State
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sources, setSources] = useState<HarvestSource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [stats, setStats] = useState<HarvestStats | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingSource, setEditingSource] = useState<HarvestSource | null>(null);
-  const [testingSource, setTestingSource] = useState<number | null>(null);
-  const [testResults, setTestResults] = useState<Record<number, HarvestTestResult>>({});
-  
-  // Search for sources state
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [searchQueryWeb, setSearchQueryWeb] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchTypeFilter, setSearchTypeFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
 
-  // Form state
-  const [formData, setFormData] = useState({
+  // Modals
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [sourceToDelete, setSourceToDelete] = useState<HarvestSource | null>(null);
+  const [editingSource, setEditingSource] = useState<HarvestSource | null>(null);
+  const [showDiscoverModal, setShowDiscoverModal] = useState(false);
+
+  // Form State
+  const [formData, setFormData] = useState<Partial<HarvestSource>>({
     name: '',
-    type: 'api_directory' as string,
+    type: 'website',
     url: '',
     description: '',
     enabled: true,
-    priority: 0,
-    auth_type: 'none' as string,
-    category: '',
-    tags: [] as string[]
+    priority: 1,
+    auth_type: 'none',
+    category: 'general'
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Initial Data Fetch
   useEffect(() => {
-    loadSources();
-    loadStats();
-  }, [activeFilter, typeFilter, categoryFilter]);
+    fetchData();
+  }, []);
 
-  const loadSources = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const params: any = {
-        limit: 100
-      };
-
-      if (activeFilter === 'enabled') params.enabled_only = true;
-      if (typeFilter !== 'all') params.source_type = typeFilter;
-      if (categoryFilter !== 'all') params.category = categoryFilter;
-
-      const response = await apiService.getHarvestSources(params);
-      setSources(response.data.items || []);
+      const [sourcesRes, statsRes] = await Promise.all([
+        apiService.getHarvestSources(),
+        apiService.getHarvestStats()
+      ]);
+      const sourceData = sourcesRes.data;
+      setSources(Array.isArray(sourceData) ? sourceData : (sourceData?.items || sourceData?.data || []));
+      setStats(statsRes.data);
     } catch (error) {
-      console.error('Failed to load harvest sources:', error);
+      console.error('Failed to fetch harvest data:', error);
+      addNotification({ type: 'error', message: 'Failed to load harvest sources' });
     } finally {
       setLoading(false);
     }
   };
 
-  const loadStats = async () => {
-    try {
-      const response = await apiService.getHarvestStats();
-      setStats(response.data);
-    } catch (error) {
-      console.error('Failed to load harvest stats:', error);
-    }
-  };
-
-  const handleCreate = async () => {
-    try {
-      await apiService.createHarvestSource(formData);
-      setShowCreateModal(false);
-      resetForm();
-      loadSources();
-      loadStats();
-    } catch (error) {
-      console.error('Failed to create harvest source:', error);
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!editingSource) return;
-
-    try {
-      await apiService.updateHarvestSource(editingSource.id, formData);
-      setEditingSource(null);
-      resetForm();
-      loadSources();
-    } catch (error) {
-      console.error('Failed to update harvest source:', error);
-    }
-  };
-
-  const handleDelete = async (sourceId: number) => {
-    if (!confirm('Are you sure you want to delete this harvest source?')) return;
-
-    try {
-      await apiService.deleteHarvestSource(sourceId);
-      loadSources();
-      loadStats();
-    } catch (error) {
-      console.error('Failed to delete harvest source:', error);
-    }
-  };
-
-  const handleTest = async (sourceId: number) => {
-    setTestingSource(sourceId);
-    try {
-      const response = await apiService.testHarvestSource(sourceId);
-      setTestResults(prev => ({
-        ...prev,
-        [sourceId]: response.data
-      }));
-    } catch (error) {
-      console.error('Failed to test harvest source:', error);
-      setTestResults(prev => ({
-        ...prev,
-        [sourceId]: {
-          success: false,
-          error_message: 'Test failed',
-          last_tested_at: new Date().toISOString()
-        }
-      }));
-    } finally {
-      setTestingSource(null);
-    }
-  };
-
-  const handleInitializeDefaults = async () => {
-    try {
-      await apiService.initializeDefaultHarvestSources();
-      loadSources();
-      loadStats();
-    } catch (error) {
-      console.error('Failed to initialize default sources:', error);
-    }
-  };
-
-  // Web search for sources
-  const handleSearchSources = async () => {
-    if (!searchQueryWeb.trim()) return;
-    
-    setIsSearching(true);
-    try {
-      const response = await apiService.searchHarvestSources(
-        searchQueryWeb, 
-        searchTypeFilter !== 'all' ? searchTypeFilter : undefined
-      );
-      setSearchResults(response.data.results || []);
-    } catch (error) {
-      console.error('Failed to search sources:', error);
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // Add a searched source
-  const handleAddSearchedSource = async (result: SearchResult) => {
-    try {
-      await apiService.createHarvestSource({
-        name: result.name,
-        type: result.type,
-        url: result.url,
-        description: result.description,
-        enabled: true,
-        priority: Math.round(result.confidence * 10),
-        auth_type: 'none',
-        category: result.category,
-        tags: [result.source]
-      });
-      loadSources();
-      loadStats();
-      // Remove from search results
-      setSearchResults(prev => prev.filter(r => r.url !== result.url));
-    } catch (error) {
-      console.error('Failed to add searched source:', error);
-    }
-  };
-
-  const resetForm = () => {
+  // Actions
+  const handleCreate = () => {
+    setEditingSource(null);
     setFormData({
       name: '',
-      type: 'api_directory',
+      type: 'website',
       url: '',
       description: '',
       enabled: true,
-      priority: 0,
+      priority: 1,
       auth_type: 'none',
-      category: '',
-      tags: []
+      category: 'general'
     });
+    setShowCreateModal(true);
   };
 
-  const openEditModal = (source: HarvestSource) => {
+  const handleEdit = (source: HarvestSource) => {
     setEditingSource(source);
     setFormData({
       name: source.name,
-      type: source.type as 'api_directory' | 'marketplace' | 'github' | 'documentation',
+      type: source.type,
       url: source.url,
       description: source.description || '',
       enabled: source.enabled,
       priority: source.priority,
-      auth_type: (source.auth_type as 'none' | 'api_key' | 'oauth2' | 'basic') || 'none',
-      category: source.category || '',
-      tags: source.tags || []
+      auth_type: source.auth_type || 'none',
+      category: source.category || 'general'
     });
+    setShowCreateModal(true);
   };
 
-  const filteredSources = sources.filter(source =>
-    source.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    source.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    source.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleDeleteClick = (source: HarvestSource) => {
+    setSourceToDelete(source);
+    setShowDeleteModal(true);
+  };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'api_directory': return <Database className="w-4 h-4" />;
-      case 'marketplace': return <ShoppingCart className="w-4 h-4" />;
-      case 'github': return <Github className="w-4 h-4" />;
-      case 'documentation': return <FileText className="w-4 h-4" />;
-      default: return <Globe className="w-4 h-4" />;
+  const handleConfirmDelete = async () => {
+    if (!sourceToDelete) return;
+
+    try {
+      await apiService.deleteHarvestSource(sourceToDelete.id);
+      addNotification({ type: 'success', message: 'Harvest source deleted' });
+      fetchData();
+      setShowDeleteModal(false);
+      setSourceToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete source:', error);
+      addNotification({ type: 'error', message: 'Failed to delete source' });
     }
   };
 
-  const getTypeColor = (type: string) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      if (editingSource) {
+        await apiService.updateHarvestSource(editingSource.id, formData);
+        addNotification({ type: 'success', message: 'Harvest source updated' });
+      } else {
+        await apiService.createHarvestSource(formData);
+        addNotification({ type: 'success', message: 'Harvest source created' });
+      }
+      setShowCreateModal(false);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to save source:', error);
+      addNotification({ type: 'error', message: 'Failed to save harvest source' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRunHarvest = async (id: number) => {
+    try {
+      addNotification({ type: 'info', message: 'Starting harvest job...' });
+      await apiService.createHarvestJob({
+        harvest_type: 'specific',
+        source_ids: [id]
+      });
+      addNotification({ type: 'success', message: 'Harvest job started' });
+      fetchData(); // Refresh to show updated status/stats if applicable
+    } catch (error) {
+      console.error('Failed to start harvest:', error);
+      addNotification({ type: 'error', message: 'Failed to start harvest job' });
+    }
+  };
+
+  const handleDiscover = () => {
+    setShowDiscoverModal(true);
+    // Implement discovery logic in a separate component or here
+  };
+
+  // Filtering
+  const filteredSources = sources.filter(source => {
+    const matchesSearch = source.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      source.url.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = filterType === 'all' || source.type === filterType;
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'enabled' ? source.enabled : !source.enabled);
+
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
+  // Helper functions
+  const getSourceIcon = (type: string) => {
     switch (type) {
-      case 'api_directory': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'marketplace': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'github': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
-      case 'documentation': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
-      default: return 'bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300';
+      case 'website': return <Globe className="w-5 h-5" />;
+      case 'github': return <Github className="w-5 h-5" />;
+      case 'database': return <Database className="w-5 h-5" />;
+      case 'document': return <FileText className="w-5 h-5" />;
+      default: return <Globe className="w-5 h-5" />;
     }
   };
 
   return (
-    <div className="space-y-12">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-            <Database className="w-7 h-7 text-brand-500" />
-          </div>
-          <div>
-            <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Harvest Sources</h1>
-            <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Manage API sources for knowledge harvesting</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Stats Overview */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="premium-card"
-          >
+    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 transition-colors duration-300">
+      {/* Header Section */}
+      <div className="sticky top-0 z-30 bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-xl border-b border-surface-200 dark:border-white/5">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Total Sources</p>
-                <p className="text-3xl font-black text-surface-900 dark:text-white">{stats.total_sources}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                <Database className="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="premium-card"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Enabled Sources</p>
-                <p className="text-3xl font-black text-green-600 dark:text-green-400">{stats.enabled_sources}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="premium-card"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Total Harvests</p>
-                <p className="text-3xl font-black text-surface-900 dark:text-white">{stats.total_harvests}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                <BarChart3 className="w-6 h-6 text-purple-500" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="premium-card"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Success Rate</p>
-                <p className="text-3xl font-black text-surface-900 dark:text-white">
-                  {stats.total_harvests > 0 ? Math.round((stats.successful_harvests / stats.total_harvests) * 100) : 0}%
+                <h1 className="text-4xl font-black text-surface-950 dark:text-white mb-2 tracking-tight">
+                  Harvest Sources
+                </h1>
+                <p className="text-surface-500 dark:text-surface-400 font-medium">
+                  Manage and monitor your intelligence gathering pipelines
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
-                <RefreshCw className="w-6 h-6 text-orange-500" />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleDiscover}
+                  className="px-5 py-2.5 bg-surface-900/5 dark:bg-white/10 text-surface-900 dark:text-white rounded-xl font-bold hover:bg-surface-900/10 dark:hover:bg-white/20 transition-all flex items-center gap-2 border border-surface-200 dark:border-white/10"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Discover</span>
+                </button>
+                <button
+                  onClick={handleCreate}
+                  className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/25 flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Source</span>
+                </button>
               </div>
             </div>
-          </motion.div>
-        </div>
-      )}
 
-      {/* Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 flex-1">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-surface-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search sources..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-10"
-            />
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Total Sources', value: stats?.total_sources || 0, icon: Globe, color: 'text-blue-500' },
+                { label: 'Active Pipelines', value: stats?.enabled_sources || 0, icon: CheckCircle2, color: 'text-emerald-500' },
+                { label: 'Successful Harvests', value: stats?.successful_harvests || 0, icon: ArrowUpRight, color: 'text-purple-500' },
+                { label: 'Failed Jobs', value: stats?.failed_harvests || 0, icon: AlertCircle, color: 'text-red-500' },
+              ].map((stat, i) => (
+                <div key={i} className="bg-white/50 dark:bg-surface-900/50 backdrop-blur-md rounded-2xl p-4 border border-surface-200 dark:border-white/5 flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl bg-surface-100 dark:bg-white/5 flex items-center justify-center ${stat.color}`}>
+                    <stat.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-surface-500 dark:text-surface-400 text-xs font-bold uppercase tracking-wider">{stat.label}</p>
+                    <p className="text-2xl font-black text-surface-950 dark:text-white">{stat.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Controls Bar */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-2 bg-surface-100 dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-white/5">
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="relative flex-1 md:w-80">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                  <input
+                    type="text"
+                    placeholder="Search sources..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all font-medium"
+                  />
+                </div>
+                <div className="h-8 w-[1px] bg-surface-200 dark:bg-white/10 mx-2 hidden md:block" />
+                <div className="flex items-center gap-2">
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="website">Websites</option>
+                    <option value="github">GitHub</option>
+                    <option value="database">Database</option>
+                    <option value="document">Documents</option>
+                  </select>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value as any)}
+                    className="bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="enabled">Enabled</option>
+                    <option value="disabled">Disabled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 bg-white dark:bg-surface-950 rounded-xl p-1 border border-surface-200 dark:border-white/10">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    viewMode === 'grid'
+                      ? "bg-surface-100 dark:bg-surface-800 text-brand-500"
+                      : "text-surface-400 hover:text-surface-600 dark:hover:text-surface-300"
+                  )}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    viewMode === 'list'
+                      ? "bg-surface-100 dark:bg-surface-800 text-brand-500"
+                      : "text-surface-400 hover:text-surface-600 dark:hover:text-surface-300"
+                  )}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
-
-          {/* Filters */}
-          <div className="flex gap-2">
-            <select
-              value={activeFilter}
-              onChange={(e) => setActiveFilter(e.target.value as any)}
-              className="px-4 py-2 border border-brand-500/20 rounded-xl bg-brand-500/5 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-brand-500 outline-none font-medium transition-all"
-            >
-              <option value="all">All Sources</option>
-              <option value="enabled">Enabled Only</option>
-              <option value="disabled">Disabled Only</option>
-            </select>
-
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-brand-500/20 rounded-xl bg-brand-500/5 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-brand-500 outline-none font-medium transition-all"
-            >
-              <option value="all">All Types</option>
-              <option value="api_directory">API Directory</option>
-              <option value="marketplace">Marketplace</option>
-              <option value="github">GitHub</option>
-              <option value="documentation">Documentation</option>
-            </select>
-
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border border-brand-500/20 rounded-xl bg-brand-500/5 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-brand-500 outline-none font-medium transition-all"
-            >
-              <option value="all">All Categories</option>
-              <option value="payments">Payments</option>
-              <option value="ecommerce">E-commerce</option>
-              <option value="crm">CRM</option>
-              <option value="communication">Communication</option>
-              <option value="analytics">Analytics</option>
-              <option value="developer_tools">Developer Tools</option>
-              <option value="cloud">Cloud</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={handleInitializeDefaults}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <Settings className="w-4 h-4" />
-            Initialize Defaults
-          </button>
-
-          <button
-            onClick={() => setShowSearchModal(true)}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            Search Sources
-          </button>
-
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Source
-          </button>
         </div>
       </div>
 
-      {/* Sources List */}
-      <div className="glass rounded-3xl overflow-hidden border-brand-500/10">
+      {/* Content Section */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <RefreshCw className="w-8 h-8 animate-spin text-surface-400" />
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-surface-200 dark:border-surface-800 rounded-full"></div>
+              <div className="absolute top-0 left-0 w-16 h-16 border-4 border-brand-500 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <p className="mt-4 text-surface-500 font-medium">Loading sources...</p>
+          </div>
+        ) : sources.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-24 h-24 bg-surface-100 dark:bg-surface-900 rounded-3xl flex items-center justify-center mb-6">
+              <Globe className="w-10 h-10 text-surface-400" />
+            </div>
+            <h3 className="text-xl font-bold text-surface-950 dark:text-white mb-2">No Harvest Sources Found</h3>
+            <p className="text-surface-500 dark:text-surface-400 max-w-md mx-auto mb-8">
+              Get started by adding websites, repositories, or databases to your intelligence pipeline.
+            </p>
+            <button
+              onClick={handleCreate}
+              className="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/25 flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add Your First Source</span>
+            </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-brand-500/5 dark:bg-brand-500/10">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
-                    Source
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
-                    Type
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
-                    Category
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
-                    Last Harvest
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-200 dark:divide-surface-700">
-                {filteredSources.map((source) => (
-                  <tr key={source.id} className="border-b border-brand-500/5 hover:bg-brand-500/[0.02] dark:hover:bg-brand-500/[0.05] transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium text-surface-900 dark:text-surface-100">
-                          {source.name}
-                        </div>
-                        <div className="text-sm text-surface-500 dark:text-surface-400 truncate max-w-xs">
-                          {source.url}
-                        </div>
-                        {source.description && (
-                          <div className="text-xs text-surface-400 dark:text-surface-500 mt-1 truncate max-w-xs">
-                            {source.description}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium", getTypeColor(source.type))}>
-                        {getTypeIcon(source.type)}
-                        {source.type.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-surface-900 dark:text-surface-100">
-                        {source.category || 'Uncategorized'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {source.enabled ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <Pause className="w-4 h-4 text-brand-400" />
-                        )}
-                        <span className={cn("text-sm", source.enabled ? "text-green-600 dark:text-green-400" : "text-brand-500")}>
-                          {source.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-surface-900 dark:text-surface-100">
-                        {source.last_harvested_at ? (
-                          <div>
-                            <div>{new Date(source.last_harvested_at).toLocaleDateString()}</div>
-                            <div className="text-xs text-surface-500 dark:text-surface-400">
-                              {source.harvest_count} harvests
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-surface-500 dark:text-surface-400">Never</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleTest(source.id)}
-                          disabled={testingSource === source.id}
-                          className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
-                          title="Test connection"
-                        >
-                          {testingSource === source.id ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <TestTube className="w-4 h-4" />
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => openEditModal(source)}
-                          className="p-1 text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-300"
-                          title="Edit source"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={() => handleDelete(source.id)}
-                          className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                          title="Delete source"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-
-                        {testResults[source.id] && (
-                          <div className="ml-2">
-                            {testResults[source.id].success ? (
-                              <CheckCircle2 className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-red-500" />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredSources.length === 0 && (
-              <div className="text-center py-12">
-                <Database className="w-12 h-12 text-surface-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-surface-900 dark:text-surface-100 mb-2">
-                  No harvest sources found
-                </h3>
-                <p className="text-surface-500 dark:text-surface-400 mb-4">
-                  {searchQuery || activeFilter !== 'all' || typeFilter !== 'all' || categoryFilter !== 'all'
-                    ? 'Try adjusting your filters or search query.'
-                    : 'Get started by adding your first harvest source or initializing defaults.'}
-                </p>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
+          <div className={cn(
+            "grid gap-6",
+            viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+          )}>
+            <AnimatePresence>
+              {filteredSources.map(source => (
+                <motion.div
+                  key={source.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="group relative bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/5 rounded-3xl p-6 hover:shadow-2xl hover:shadow-brand-500/10 transition-all duration-300"
                 >
-                  Add Source
-                </button>
-              </div>
-            )}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-surface-50 dark:bg-white/5 flex items-center justify-center text-brand-500 border border-surface-100 dark:border-white/5 group-hover:scale-110 transition-transform duration-300">
+                        {getSourceIcon(source.type)}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-surface-950 dark:text-white group-hover:text-brand-500 transition-colors line-clamp-1">
+                          {source.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={cn(
+                            "w-2 h-2 rounded-full",
+                            source.enabled ? "bg-emerald-500" : "bg-surface-400"
+                          )} />
+                          <span className="text-xs font-bold uppercase tracking-wider text-surface-500">
+                            {source.enabled ? 'Active' : 'Disabled'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                      <button
+                        onClick={() => handleRunHarvest(source.id)}
+                        className="p-2 bg-surface-100 dark:bg-white/10 hover:bg-blue-500 hover:text-white rounded-xl transition-all"
+                        title="Run Harvest Now"
+                      >
+                        <Play className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(source)}
+                        className="p-2 bg-surface-100 dark:bg-white/10 hover:bg-brand-500 hover:text-white rounded-xl transition-all"
+                        title="Edit Source"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(source)}
+                        className="p-2 bg-surface-100 dark:bg-white/10 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                        title="Delete Source"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-surface-500 dark:text-surface-400 mb-6 line-clamp-2 h-10">
+                    {source.description || 'No description provided.'}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-surface-50 dark:bg-white/5 rounded-xl p-3 border border-surface-100 dark:border-white/5">
+                      <p className="text-[10px] font-bold uppercase text-surface-400 mb-1">Last Harvest</p>
+                      <p className="text-xs font-bold text-surface-950 dark:text-white flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {source.last_harvested_at ? new Date(source.last_harvested_at).toLocaleDateString() : 'Never'}
+                      </p>
+                    </div>
+                    <div className="bg-surface-50 dark:bg-white/5 rounded-xl p-3 border border-surface-100 dark:border-white/5">
+                      <p className="text-[10px] font-bold uppercase text-surface-400 mb-1">Success Rate</p>
+                      <p className="text-xs font-bold text-emerald-500 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        98.5%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-surface-100 dark:border-white/5">
+                    <span className="px-2 py-1 rounded bg-surface-100 dark:bg-white/10 text-[10px] font-bold uppercase text-surface-600 dark:text-surface-300">
+                      {source.category || 'General'}
+                    </span>
+                    <div className="text-xs font-medium text-surface-400">
+                      ID: {source.id}
+                    </div>
+                  </div>
+
+                  {/* Glass gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-3xl pointer-events-none" />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
-        {(showCreateModal || editingSource) && (
+        {showCreateModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-surface-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="premium-card w-full max-w-2xl max-h-[90vh] overflow-y-auto !p-8"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-3xl p-8 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-100">
-                  {editingSource ? 'Edit Harvest Source' : 'Add Harvest Source'}
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-black text-surface-950 dark:text-white">
+                  {editingSource ? 'Edit Source' : 'Add Harvest Source'}
                 </h2>
-                <button
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingSource(null);
-                    resetForm();
-                  }}
-                  className="p-1 hover:bg-surface-100 dark:hover:bg-surface-700 rounded"
-                >
-                  <X className="w-5 h-5" />
+                <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-surface-200 dark:hover:bg-white/10 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-surface-500" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                      Name *
-                    </label>
+                    <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Source Name</label>
                     <input
                       type="text"
+                      required
                       value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
-                      placeholder="e.g., APIs.guru Directory"
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all"
+                      placeholder="e.g., TechCrunch News"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                      Type *
-                    </label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as any }))}
-                      className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
-                    >
-                      <option value="api_directory">API Directory</option>
-                      <option value="marketplace">Marketplace</option>
-                      <option value="github">GitHub</option>
-                      <option value="documentation">Documentation</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                    URL *
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                    className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
-                    placeholder="https://api.example.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
-                    placeholder="Optional description of this harvest source"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                      Category
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
-                    >
-                      <option value="">Uncategorized</option>
-                      <option value="payments">Payments</option>
-                      <option value="ecommerce">E-commerce</option>
-                      <option value="crm">CRM</option>
-                      <option value="communication">Communication</option>
-                      <option value="analytics">Analytics</option>
-                      <option value="developer_tools">Developer Tools</option>
-                      <option value="cloud">Cloud</option>
-                      <option value="general">General</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                      Priority
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.priority}
-                      onChange={(e) => setFormData(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                      Status
-                    </label>
-                    <div className="flex items-center gap-2 mt-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Type</label>
+                      <select
+                        value={formData.type}
+                        onChange={e => setFormData({ ...formData, type: e.target.value })}
+                        className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all appearance-none"
+                      >
+                        <option value="website">Website</option>
+                        <option value="api">API Endpoint</option>
+                        <option value="rss">RSS Feed</option>
+                        <option value="github">GitHub Repo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Category</label>
                       <input
-                        type="checkbox"
-                        checked={formData.enabled}
-                        onChange={(e) => setFormData(prev => ({ ...prev, enabled: e.target.checked }))}
-                        className="w-5 h-5 rounded-lg border-brand-500/20 bg-brand-500/5 text-brand-600 focus:ring-brand-500 transition-all cursor-pointer"
+                        type="text"
+                        value={formData.category}
+                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                        className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all"
+                        placeholder="e.g., News"
                       />
-                      <span className="text-sm text-surface-700 dark:text-surface-300 font-medium">Enabled</span>
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-surface-500 mb-2">URL</label>
+                    <input
+                      type="url"
+                      required
+                      value={formData.url}
+                      onChange={e => setFormData({ ...formData, url: e.target.value })}
+                      className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all font-mono text-sm"
+                      placeholder="https://..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Description</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={e => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all h-24 resize-none"
+                      placeholder="Describe this source..."
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-4 p-4 bg-surface-50 dark:bg-white/5 rounded-xl border border-surface-200 dark:border-white/10">
+                    <input
+                      type="checkbox"
+                      id="enabled"
+                      checked={formData.enabled}
+                      onChange={e => setFormData({ ...formData, enabled: e.target.checked })}
+                      className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <label htmlFor="enabled" className="text-sm font-medium text-surface-900 dark:text-white cursor-pointer select-none">
+                      Enable automatic harvesting for this source
+                    </label>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                    Authentication Type
-                  </label>
-                  <select
-                    value={formData.auth_type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, auth_type: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 py-3 bg-surface-200 dark:bg-white/5 hover:bg-surface-300 dark:hover:bg-white/10 text-surface-900 dark:text-white rounded-xl font-bold transition-all"
                   >
-                    <option value="none">None</option>
-                    <option value="api_key">API Key</option>
-                    <option value="oauth2">OAuth 2.0</option>
-                    <option value="basic">Basic Auth</option>
-                  </select>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        <span>{editingSource ? 'Update Source' : 'Create Source'}</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              <div className="flex justify-end gap-3 mt-6">
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-surface-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h2 className="text-xl font-black text-surface-950 dark:text-white mb-2">Delete Source?</h2>
+              <p className="text-surface-500 dark:text-surface-400 mb-8">
+                This will permanently remove "{sourceToDelete?.name}" and all associated history.
+              </p>
+              <div className="flex gap-3">
                 <button
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingSource(null);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg transition-colors"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 py-3 bg-surface-200 dark:bg-white/5 hover:bg-surface-300 dark:hover:bg-white/10 text-surface-900 dark:text-white rounded-xl font-bold transition-all"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={editingSource ? handleUpdate : handleCreate}
-                  className="btn-primary flex items-center gap-2"
+                  onClick={handleConfirmDelete}
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all"
                 >
-                  <Save className="w-4 h-4" />
-                  {editingSource ? 'Update' : 'Create'} Source
+                  Delete
                 </button>
               </div>
             </motion.div>
@@ -821,157 +645,49 @@ const HarvestSources: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Search Sources Modal */}
+      {/* Discover Modal Placeholder - To be implemented further */}
       <AnimatePresence>
-        {showSearchModal && (
+        {showDiscoverModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-surface-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="premium-card w-full max-w-3xl max-h-[90vh] overflow-y-auto !p-8"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-3xl p-8 max-w-2xl w-full shadow-2xl h-[600px] flex flex-col"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-brand-500" />
-                    Search for Sources
-                  </h2>
-                  <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                    Search the web for API sources to add to your harvest sources
-                  </p>
+                  <h2 className="text-2xl font-black text-surface-950 dark:text-white">Discover Sources</h2>
+                  <p className="text-surface-500">Find and add new intelligence sources instantly</p>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowSearchModal(false);
-                    setSearchQueryWeb('');
-                    setSearchResults([]);
-                  }}
-                  className="p-1 hover:bg-surface-100 dark:hover:bg-surface-700 rounded"
-                >
-                  <X className="w-5 h-5" />
+                <button onClick={() => setShowDiscoverModal(false)} className="p-2 hover:bg-surface-200 dark:hover:bg-white/10 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-surface-500" />
                 </button>
               </div>
 
-              {/* Search Input */}
-              <div className="flex gap-3 mb-6">
+              <div className="flex items-center gap-4 mb-6">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-surface-400 w-4 h-4" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-500" />
                   <input
                     type="text"
-                    placeholder="Search for APIs (e.g., payment, CRM, accounting)..."
-                    value={searchQueryWeb}
-                    onChange={(e) => setSearchQueryWeb(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearchSources()}
-                    className="w-full pl-10 pr-4 py-3 border border-surface-300 dark:border-surface-600 rounded-xl bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                    placeholder="Search for topics, companies, or datasets..."
+                    className="w-full pl-12 pr-4 py-4 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all font-medium text-lg"
                   />
                 </div>
-                <select
-                  value={searchTypeFilter}
-                  onChange={(e) => setSearchTypeFilter(e.target.value)}
-                  className="px-4 py-2 border border-surface-300 dark:border-surface-600 rounded-xl bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
-                >
-                  <option value="all">All Types</option>
-                  <option value="api_directory">API Directory</option>
-                  <option value="marketplace">Marketplace</option>
-                  <option value="github">GitHub</option>
-                </select>
-                <button
-                  onClick={handleSearchSources}
-                  disabled={isSearching || !searchQueryWeb.trim()}
-                  className="btn-primary flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isSearching ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
+                <button className="px-6 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-2xl font-bold shadow-lg shadow-brand-500/25 transition-all">
                   Search
                 </button>
               </div>
 
-              {/* Search Results */}
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {searchResults.length > 0 ? (
-                  searchResults.map((result, index) => (
-                    <div
-                      key={index}
-                      className="p-4 border border-surface-200 dark:border-surface-700 rounded-xl hover:border-brand-500/30 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-surface-900 dark:text-surface-100 truncate">
-                              {result.name}
-                            </h4>
-                            <span className={cn(
-                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-                              getTypeColor(result.type)
-                            )}>
-                              {getTypeIcon(result.type)}
-                              {result.type.replace('_', ' ')}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
-                              {result.source}
-                            </span>
-                          </div>
-                          <p className="text-sm text-surface-500 dark:text-surface-400 truncate mt-1">
-                            {result.url}
-                          </p>
-                          {result.description && (
-                            <p className="text-xs text-surface-500 dark:text-surface-400 mt-1 line-clamp-2">
-                              {result.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs text-surface-500 dark:text-surface-400">
-                              Category: {result.category}
-                            </span>
-                            <span className="text-xs text-surface-500 dark:text-surface-400">
-                              Confidence: {Math.round(result.confidence * 100)}%
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleAddSearchedSource(result)}
-                          className="ml-4 px-3 py-1.5 bg-brand-500 text-white text-sm rounded-lg hover:bg-brand-600 transition-colors flex items-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" />
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    {searchQueryWeb && !isSearching ? (
-                      <>
-                        <Search className="w-10 h-10 text-surface-300 dark:text-surface-600 mx-auto mb-3" />
-                        <p className="text-surface-500 dark:text-surface-400">
-                          No sources found for "{searchQueryWeb}"
-                        </p>
-                        <p className="text-sm text-surface-400 dark:text-surface-500 mt-1">
-                          Try different keywords or browse curated suggestions
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-10 h-10 text-surface-300 dark:text-surface-600 mx-auto mb-3" />
-                        <p className="text-surface-500 dark:text-surface-400">
-                          Search for API sources to add to your harvest list
-                        </p>
-                        <p className="text-sm text-surface-400 dark:text-surface-500 mt-1">
-                          Try searching for "payment", "CRM", "accounting", etc.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
+              <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 border-2 border-dashed border-surface-200 dark:border-white/10 rounded-3xl m-4">
+                <Sparkles className="w-12 h-12 text-surface-400 mb-4" />
+                <p className="text-lg font-bold text-surface-500">Enter a topic to discover sources</p>
+                <p className="text-sm text-surface-400">We'll search the web for high-quality data sources</p>
               </div>
             </motion.div>
           </motion.div>

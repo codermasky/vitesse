@@ -849,6 +849,10 @@ class ApiService {
   // ==================== Vitesse Multi-Step Integration Workflow ====================
 
   // Step 1: Create integration from discovery results
+  async getVitesseIntegrations(): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/vitesse/integrations");
+  }
+
   async createVitesseIntegration(payload: {
     name: string;
     source_discovery: any;

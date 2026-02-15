@@ -132,7 +132,11 @@ const IntegrationBuilder: React.FC = () => {
   const loadIntegrations = async () => {
     try {
       const response = await apiService.getIntegrations({ limit: 20 });
-      setIntegrations(response.data.items || []);
+      let items = response.data.items;
+      if (!items && Array.isArray(response.data)) items = response.data;
+      if (!items && response.data?.data && Array.isArray(response.data.data)) items = response.data.data;
+
+      setIntegrations(Array.isArray(items) ? items : []);
     } catch (error) {
       console.error('Failed to load integrations:', error);
     } finally {
