@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
             backend="qdrant",
             url=os.getenv("QDRANT_URL", "http://localhost:6333"),
             api_key=os.getenv("QDRANT_API_KEY"),
-            prefer_grpc=True,
+            prefer_grpc=False,  # Use HTTP to avoid gRPC serialization issues
         )
 
         # Check and seed knowledge bases

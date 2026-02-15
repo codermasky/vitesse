@@ -112,7 +112,7 @@ class QdrantKnowledge(KnowledgeDB):
         url: Optional[str] = None,
         api_key: Optional[str] = None,
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-        prefer_grpc: bool = True,
+        prefer_grpc: bool = False,  # Default to HTTP to avoid gRPC serialization issues
     ):
         self.url = url or os.getenv("QDRANT_URL", "http://localhost:6333")
         self.api_key = api_key or os.getenv("QDRANT_API_KEY")
@@ -135,6 +135,7 @@ class QdrantKnowledge(KnowledgeDB):
                 api_key=self.api_key,
                 prefer_grpc=self.prefer_grpc,
                 timeout=30,  # Increased timeout
+                check_compatibility=False,  # Skip version check for compatibility
             )
 
             # Initialize embedder with explicit model download and caching
@@ -322,8 +323,93 @@ class QdrantKnowledge(KnowledgeDB):
                 )
                 return []
 
+            # Validate embedder is working before generating embeddings
+            if self.embedder is None:
+                logger.error("Embedder not initialized, attempting to reinitialize")
+                await self.initialize()
+                if self.embedder is None:
+                    logger.error("Failed to initialize embedder")
+                    return []
+
+            # Test embedder with a simple text before batch encoding
+            try:
+                test_emb = self.embedder.encode(["test"], show_progress_bar=False)
+                if not hasattr(test_emb, 'shape') or test_emb.shape[1] != 384:
+                    logger.error(
+                        "Embedder test failed: invalid embedding dimension",
+                        expected_dim=384,
+                        actual_shape=str(test_emb.shape) if hasattr(test_emb, 'shape') else "no shape",
+                    )
+                    return []
+            except Exception as e:
+                logger.error("Embedder test failed", error=str(e))
+                return []
+
             # Generate embeddings (synchronous call)
-            embeddings = self.embedder.encode(contents, show_progress_bar=False)
+            try:
+                embeddings = self.embedder.encode(contents, show_progress_bar=False)
+                logger.info(
+                    "Embeddings encoding completed",
+                    collection=collection,
+                    input_count=len(contents),
+                    output_shape=str(embeddings.shape) if hasattr(embeddings, 'shape') else "unknown",
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to generate embeddings",
+                    collection=collection,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    num_docs=len(contents),
+                )
+                return []
+
+            # Validate embeddings output is not empty or malformed
+            if embeddings is None:
+                logger.error(
+                    "Embeddings generation returned None",
+                    collection=collection,
+                    num_docs=len(contents),
+                )
+                return []
+
+            if not hasattr(embeddings, 'shape'):
+                logger.error(
+                    "Embeddings do not have shape attribute",
+                    collection=collection,
+                    type=type(embeddings),
+                )
+                return []
+
+            if len(embeddings.shape) != 2:
+                logger.error(
+                    "Embeddings have unexpected number of dimensions",
+                    collection=collection,
+                    expected_dims=2,
+                    actual_dims=len(embeddings.shape),
+                    actual_shape=embeddings.shape,
+                )
+                return []
+
+            if embeddings.shape[0] == 0:
+                logger.error(
+                    "Embeddings have zero rows",
+                    collection=collection,
+                    actual_shape=embeddings.shape,
+                )
+                return []
+
+            # Check dimension - safely handle both 1D and 2D cases
+            actual_dim = embeddings.shape[1] if len(embeddings.shape) > 1 else embeddings.shape[0]
+            if actual_dim != 384:
+                logger.error(
+                    "Embeddings have wrong dimension",
+                    collection=collection,
+                    expected_dim=384,
+                    actual_dim=actual_dim,
+                    full_shape=str(embeddings.shape),
+                )
+                return []
 
             # Debug log embedding details
             logger.debug(
@@ -344,14 +430,28 @@ class QdrantKnowledge(KnowledgeDB):
                 # Handle both numpy array and list cases
                 emb_array = emb.tolist() if hasattr(emb, 'tolist') else emb
                 
-                # Check if embedding has valid dimensions
-                # embeddings is 2D: (num_docs, embedding_dim)
-                # Each row should be a 384-dimensional vector
-                # When iterating, each emb can be 1D (384,) or 2D (1, 384)
-                emb_dim = len(emb_array) if isinstance(emb_array, list) else emb.shape[0]
+                # Check if embedding is empty or has zero dimensions FIRST
+                # This catches cases like [[]] or [] before dimension checks
+                is_empty = False
+                if isinstance(emb_array, list):
+                    # Check if it's an empty list or a list containing empty lists
+                    if len(emb_array) == 0:
+                        is_empty = True
+                    elif len(emb_array) == 1 and (isinstance(emb_array[0], list) and len(emb_array[0]) == 0):
+                        # Case: [[]] - 2D array with shape (1, 0)
+                        is_empty = True
                 
-                # For 1D array (384,), check the first dimension
-                # For 2D array (1, 384), check the second dimension
+                if is_empty:
+                    logger.warning(
+                        "Skipping document with empty/zero-dimensional embedding",
+                        collection=collection,
+                        doc_index=i,
+                        embedding_array=str(emb_array)[:100],
+                        content_preview=contents[i][:100] if contents[i] else "empty",
+                    )
+                    continue
+                
+                # Check if embedding has valid dimensions using numpy shape
                 if hasattr(emb, 'shape'):
                     if len(emb.shape) == 1:
                         # 1D array: shape should be (384,)
@@ -367,7 +467,16 @@ class QdrantKnowledge(KnowledgeDB):
                             )
                             continue
                     elif len(emb.shape) == 2:
-                        # 2D array: shape should be (1, 384) or (n, 384)
+                        # Check for zero dimensions first
+                        if emb.shape[0] == 0 or emb.shape[1] == 0:
+                            logger.warning(
+                                "Skipping document with zero-dimensional embedding",
+                                collection=collection,
+                                doc_index=i,
+                                embedding_shape=str(emb.shape),
+                                content_preview=contents[i][:100] if contents[i] else "empty",
+                            )
+                            continue
                         if emb.shape[1] != 384:
                             logger.warning(
                                 "Skipping document with invalid embedding dimension",
@@ -407,10 +516,33 @@ class QdrantKnowledge(KnowledgeDB):
                 if hasattr(emb, 'tolist'):
                     emb_list = emb.tolist()
                     # If 2D, take the first row
+                    # Check for empty or zero-dimensional case
                     if len(emb_list) == 1:
+                        # Check if the inner list is empty
+                        if isinstance(emb_list[0], list) and len(emb_list[0]) == 0:
+                            logger.warning(
+                                "Skipping document with empty embedding after tolist",
+                                collection=collection,
+                                doc_index=i,
+                                content_preview=contents[i][:100] if contents[i] else "empty",
+                            )
+                            continue
                         emb_list = emb_list[0]
                 else:
                     emb_list = emb_array
+                
+                # Final validation: ensure the resulting list has 384 elements
+                if not isinstance(emb_list, list) or len(emb_list) != 384:
+                    logger.warning(
+                        "Skipping document with invalid embedding after conversion",
+                        collection=collection,
+                        doc_index=i,
+                        expected_dim=384,
+                        actual_type=type(emb_list).__name__,
+                        actual_len=len(emb_list) if isinstance(emb_list, list) else "N/A",
+                        content_preview=contents[i][:100] if contents[i] else "empty",
+                    )
+                    continue
                 
                 valid_embeddings.append(emb_list)
                 valid_contents.append(contents[i])
@@ -427,6 +559,14 @@ class QdrantKnowledge(KnowledgeDB):
                 return []
 
             # Prepare points for Qdrant
+            logger.info(
+                "Preparing points for Qdrant",
+                collection=collection,
+                num_valid_embeddings=len(valid_embeddings),
+                sample_embedding_len=len(valid_embeddings[0]) if valid_embeddings else 0,
+                sample_embedding_first5=valid_embeddings[0][:5] if valid_embeddings and len(valid_embeddings[0]) > 0 else "empty",
+            )
+            
             points = [
                 models.PointStruct(
                     id=int(
@@ -437,6 +577,16 @@ class QdrantKnowledge(KnowledgeDB):
                 )
                 for i in range(len(valid_embeddings))
             ]
+
+            # Log the vector dimensions being sent to Qdrant
+            for i, pt in enumerate(points):
+                logger.info(
+                    "Point vector info",
+                    collection=collection,
+                    point_id=pt.id,
+                    vector_len=len(pt.vector),
+                    vector_first3=pt.vector[:3] if len(pt.vector) > 0 else "empty",
+                )
 
             # Upload points to Qdrant
             self.client.upsert(
