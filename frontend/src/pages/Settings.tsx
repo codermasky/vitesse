@@ -147,8 +147,9 @@ const Settings: React.FC = () => {
         password: '',
         poll_interval: 60
     });
-    const [emailTestResult, setEmailTestResult] = useState<{ success: boolean; message: string } | null>(null);
-    const [testingEmail, setTestingEmail] = useState(false);
+    // Email config state - commented out until backend endpoints are implemented
+    // const [emailTestResult, setEmailTestResult] = useState<{ success: boolean; message: string } | null>(null);
+    // const [testingEmail, setTestingEmail] = useState(false);
 
     // Azure AD SSO Settings State
     const [azureADConfig, setAzureADConfig] = useState({
@@ -195,36 +196,38 @@ const Settings: React.FC = () => {
     const [managedProducts, setManagedProducts] = useState<string[]>([]);
     const [newProduct, setNewProduct] = useState('');
 
-    const handleSaveEmailConfig = async () => {
-        setIsSaving(true);
-        try {
-            await apiService.updateEmailConfig(emailConfig);
-            // Optionally show success toast
-        } catch (error) {
-            console.error('Failed to save email config:', error);
-        } finally {
-            setIsSaving(false);
-        }
-    };
+    // Email config handlers commented out - endpoints not implemented
+    // const handleSaveEmailConfig = async () => {
+    //     setIsSaving(true);
+    //     try {
+    //         await apiService.updateEmailConfig(emailConfig);
+    //         // Optionally show success toast
+    //     } catch (error) {
+    //         console.error('Failed to save email config:', error);
+    //     } finally {
+    //         setIsSaving(false);
+    //     }
+    // };
 
-    const handleTestEmail = async () => {
-        setTestingEmail(true);
-        setEmailTestResult(null);
-        try {
-            const response = await apiService.testEmailConnection(emailConfig);
-            setEmailTestResult({
-                success: response.data.status === 'success',
-                message: response.data.message
-            });
-        } catch (error) {
-            setEmailTestResult({
-                success: false,
-                message: 'Connection failed'
-            });
-        } finally {
-            setTestingEmail(false);
-        }
-    };
+
+    // const handleTestEmail = async () => {
+    //     setTestingEmail(true);
+    //     setEmailTestResult(null);
+    //     try {
+    //         const response = await apiService.testEmailConnection(emailConfig);
+    //         setEmailTestResult({
+    //             success: response.data.status === 'success',
+    //             message: response.data.message
+    //         });
+    //     } catch (error) {
+    //         setEmailTestResult({
+    //             success: false,
+    //             message: 'Connection failed'
+    //         });
+    //     } finally {
+    //         setTestingEmail(false);
+    //     }
+    // };
 
     const handleSaveAzureADConfig = async () => {
         setIsSaving(true);
@@ -425,11 +428,11 @@ const Settings: React.FC = () => {
 
     const fetchSettings = async () => {
         try {
-            const [settingsResponse, visionResponse, daResponse, emailResponse, azureADResponse, sharePointResponse, productsResponse] = await Promise.all([
+            const [settingsResponse, visionResponse, daResponse, azureADResponse, sharePointResponse, productsResponse] = await Promise.all([
                 apiService.getLLMSettings(),
                 apiService.getVisionStatus(),
                 apiService.getDevilAdvocateStatus(),
-                apiService.getEmailConfig().catch(() => ({ data: null })),
+                // apiService.getEmailConfig().catch(() => ({ data: null })), // Commented out - endpoint not implemented
                 apiService.getAzureADConfig().catch(() => ({ data: null })),
                 apiService.getSharePointConfig().catch(() => ({ data: null })),
                 apiService.getProducts().catch(() => ({ data: [] }))
@@ -437,9 +440,10 @@ const Settings: React.FC = () => {
             setSettings(settingsResponse.data);
             setVisionEnabled(visionResponse.data.enabled);
             setDaEnabled(daResponse.data.enabled);
-            if (emailResponse.data) {
-                setEmailConfig(emailResponse.data);
-            }
+            // Email config endpoint not implemented yet
+            // if (emailResponse.data) {
+            //     setEmailConfig(emailResponse.data);
+            // }
             if (azureADResponse.data) {
                 setAzureADConfig({
                     AZURE_AD_ENABLED: azureADResponse.data.AZURE_AD_ENABLED || false,
@@ -719,102 +723,102 @@ const Settings: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
                             {activeTab === 'appearance' ? <BrainCircuit className="w-7 h-7 text-brand-500" /> :
-                             activeTab === 'whitelabel' ? <Palette className="w-7 h-7 text-brand-500" /> :
-                             activeTab === 'sidekick' ? <Sparkles className="w-7 h-7 text-brand-500" /> :
-                             activeTab === 'wayfinder' ? <Bot className="w-7 h-7 text-brand-500" /> :
-                             activeTab === 'features' ? <Zap className="w-7 h-7 text-brand-500" /> :
-                             activeTab === 'users' ? <Users className="w-7 h-7 text-brand-500" /> :
-                             activeTab === 'monitoring' ? <Activity className="w-7 h-7 text-brand-500" /> :
-                             <Cpu className="w-7 h-7 text-brand-500" />}
+                                activeTab === 'whitelabel' ? <Palette className="w-7 h-7 text-brand-500" /> :
+                                    activeTab === 'sidekick' ? <Sparkles className="w-7 h-7 text-brand-500" /> :
+                                        activeTab === 'wayfinder' ? <Bot className="w-7 h-7 text-brand-500" /> :
+                                            activeTab === 'features' ? <Zap className="w-7 h-7 text-brand-500" /> :
+                                                activeTab === 'users' ? <Users className="w-7 h-7 text-brand-500" /> :
+                                                    activeTab === 'monitoring' ? <Activity className="w-7 h-7 text-brand-500" /> :
+                                                        <Cpu className="w-7 h-7 text-brand-500" />}
                         </div>
                         <div>
                             <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">
                                 {activeTab === 'appearance' ? 'Appearance' :
-                                 activeTab === 'whitelabel' ? 'Branding & Whitelabel' :
-                                 activeTab === 'sidekick' ? 'Vitesse AI Assistant' :
-                                 activeTab === 'wayfinder' ? 'Vitesse AI Navigator' :
-                                 activeTab === 'features' ? 'Feature Matrix' :
-                                 activeTab === 'users' ? 'User Management' :
-                                 activeTab === 'monitoring' ? 'LLM Monitoring' :
-                                 'LLM Services'}
+                                    activeTab === 'whitelabel' ? 'Branding & Whitelabel' :
+                                        activeTab === 'sidekick' ? 'Vitesse AI Assistant' :
+                                            activeTab === 'wayfinder' ? 'Vitesse AI Navigator' :
+                                                activeTab === 'features' ? 'Feature Matrix' :
+                                                    activeTab === 'users' ? 'User Management' :
+                                                        activeTab === 'monitoring' ? 'LLM Monitoring' :
+                                                            'LLM Services'}
                             </h1>
                             <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">
                                 {activeTab === 'appearance' ? "Personalize your experience with curated color themes and modern design aesthetics." :
-                                 activeTab === 'sidekick' ? "Configure your proactive AI companion's behavior and intelligence level." :
-                                 activeTab === 'wayfinder' ? "Manage your always-on navigation assistant and help system." :
-                                 activeTab === 'integrations' ? "Connect external services like Email for automated ingestion pipelines." :
-                                 activeTab === 'features' ? "Enable or disable Vitesse AI features and use cases for your organization." :
-                                 activeTab === 'whitelabel' ? "Customize the platform's brand name, logo, and core identity." :
-                                 activeTab === 'users' ? "Manage users, roles, and access permissions." :
-                                 activeTab === 'monitoring' ? "Monitor LLM performance, traces, costs, and analytics via Langfuse integration." :
-                                 "Configure your enterprise AI providers, manage API gateways, and assign specialized models."}
+                                    activeTab === 'sidekick' ? "Configure your proactive AI companion's behavior and intelligence level." :
+                                        activeTab === 'wayfinder' ? "Manage your always-on navigation assistant and help system." :
+                                            activeTab === 'integrations' ? "Connect external services like Email for automated ingestion pipelines." :
+                                                activeTab === 'features' ? "Enable or disable Vitesse AI features and use cases for your organization." :
+                                                    activeTab === 'whitelabel' ? "Customize the platform's brand name, logo, and core identity." :
+                                                        activeTab === 'users' ? "Manage users, roles, and access permissions." :
+                                                            activeTab === 'monitoring' ? "Monitor LLM performance, traces, costs, and analytics via Langfuse integration." :
+                                                                "Configure your enterprise AI providers, manage API gateways, and assign specialized models."}
                             </p>
                         </div>
                     </div>
                     {(activeTab === 'providers' || (activeTab === 'agents' && activeAgentTab === 'configuration')) && (
                         <div className="flex flex-col md:flex-row gap-4">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="flex items-center gap-4 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 p-4 rounded-2xl shadow-sm"
-                        >
-                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border transition-all", visionEnabled ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-surface-100 dark:bg-brand-500/5 border-brand-100 dark:border-brand-500/10 text-brand-400 dark:text-surface-500")}>
-                                {visionEnabled ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-surface-950 dark:text-white">Multi-Modal Vision</h3>
-                                <p className="text-[10px] uppercase font-black tracking-wider text-brand-400 dark:text-surface-500">
-                                    {visionEnabled ? "Analysis Enabled" : "Text-Only Mode"}
-                                </p>
-                            </div>
-                            <button
-                                onClick={toggleVision}
-                                className={cn(
-                                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-brand-50 dark:focus:ring-offset-[#0A0F1E] ml-4",
-                                    visionEnabled ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
-                                )}
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex items-center gap-4 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 p-4 rounded-2xl shadow-sm"
                             >
-                                <span
+                                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border transition-all", visionEnabled ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-surface-100 dark:bg-brand-500/5 border-brand-100 dark:border-brand-500/10 text-brand-400 dark:text-surface-500")}>
+                                    {visionEnabled ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-surface-950 dark:text-white">Multi-Modal Vision</h3>
+                                    <p className="text-[10px] uppercase font-black tracking-wider text-brand-400 dark:text-surface-500">
+                                        {visionEnabled ? "Analysis Enabled" : "Text-Only Mode"}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={toggleVision}
                                     className={cn(
-                                        "inline-block h-4 w-4 transform rounded-full bg-surface-100 dark:bg-surface-900 transition-transform",
-                                        visionEnabled ? "translate-x-6" : "translate-x-1"
+                                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-brand-50 dark:focus:ring-offset-[#0A0F1E] ml-4",
+                                        visionEnabled ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
                                     )}
-                                />
-                            </button>
-                        </motion.div>
+                                >
+                                    <span
+                                        className={cn(
+                                            "inline-block h-4 w-4 transform rounded-full bg-surface-100 dark:bg-surface-900 transition-transform",
+                                            visionEnabled ? "translate-x-6" : "translate-x-1"
+                                        )}
+                                    />
+                                </button>
+                            </motion.div>
 
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.1 }}
-                            className="flex items-center gap-4 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 p-4 rounded-2xl shadow-sm"
-                        >
-                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border transition-all", daEnabled ? "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-surface-100 dark:bg-brand-500/5 border-brand-100 dark:border-brand-500/10 text-brand-400 dark:text-surface-500")}>
-                                <BrainCircuit className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-surface-950 dark:text-white">Devil's Advocate</h3>
-                                <p className="text-[10px] uppercase font-black tracking-wider text-brand-400 dark:text-surface-500">
-                                    {daEnabled ? "Critique Active" : "Fast Mode"}
-                                </p>
-                            </div>
-                            <button
-                                onClick={toggleDA}
-                                className={cn(
-                                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-brand-50 dark:focus:ring-offset-[#0A0F1E] ml-4",
-                                    daEnabled ? "bg-purple-600" : "bg-brand-200 dark:bg-surface-700"
-                                )}
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.1 }}
+                                className="flex items-center gap-4 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 p-4 rounded-2xl shadow-sm"
                             >
-                                <span
+                                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border transition-all", daEnabled ? "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-surface-100 dark:bg-brand-500/5 border-brand-100 dark:border-brand-500/10 text-brand-400 dark:text-surface-500")}>
+                                    <BrainCircuit className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-surface-950 dark:text-white">Devil's Advocate</h3>
+                                    <p className="text-[10px] uppercase font-black tracking-wider text-brand-400 dark:text-surface-500">
+                                        {daEnabled ? "Critique Active" : "Fast Mode"}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={toggleDA}
                                     className={cn(
-                                        "inline-block h-4 w-4 transform rounded-full bg-surface-100 dark:bg-surface-900 transition-transform",
-                                        daEnabled ? "translate-x-6" : "translate-x-1"
+                                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-brand-50 dark:focus:ring-offset-[#0A0F1E] ml-4",
+                                        daEnabled ? "bg-purple-600" : "bg-brand-200 dark:bg-surface-700"
                                     )}
-                                />
-                            </button>
-                        </motion.div>
-                    </div>
-                )}
+                                >
+                                    <span
+                                        className={cn(
+                                            "inline-block h-4 w-4 transform rounded-full bg-surface-100 dark:bg-surface-900 transition-transform",
+                                            daEnabled ? "translate-x-6" : "translate-x-1"
+                                        )}
+                                    />
+                                </button>
+                            </motion.div>
+                        </div>
+                    )}
                 </div>
             </motion.div>
 
@@ -1580,1307 +1584,1215 @@ const Settings: React.FC = () => {
                                 </div>
                             </div>
 
-                            <form onSubmit={(e) => { e.preventDefault(); handleSaveEmailConfig(); }} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">IMAP Server</label>
-                                        <input
-                                            type="text"
-                                            value={emailConfig.server}
-                                            onChange={(e) => setEmailConfig({ ...emailConfig, server: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="imap.gmail.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Port</label>
-                                        <input
-                                            type="number"
-                                            value={emailConfig.port}
-                                            onChange={(e) => setEmailConfig({ ...emailConfig, port: parseInt(e.target.value) })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="993"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Username</label>
-                                        <input
-                                            type="text"
-                                            autoComplete="username"
-                                            value={emailConfig.username}
-                                            onChange={(e) => setEmailConfig({ ...emailConfig, username: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="user@example.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">App Password</label>
-                                        <div className="relative">
-                                            <input
-                                                type="password"
-                                                autoComplete="current-password"
-                                                value={emailConfig.password}
-                                                onChange={(e) => setEmailConfig({ ...emailConfig, password: e.target.value })}
-                                                className="w-full bg-surface-100 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                                placeholder="••••••••"
-                                            />
-                                            <p className="mt-2 text-[10px] text-surface-500 dark:text-surface-400 leading-relaxed">
-                                                For Gmail, you must use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-brand-500 hover:text-brand-600 underline">App Password</a> if 2-Step Verification is enabled.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Poll Frequency (Seconds)</label>
-                                        <input
-                                            type="number"
-                                            min="10"
-                                            value={emailConfig.poll_interval}
-                                            onChange={(e) => setEmailConfig({ ...emailConfig, poll_interval: parseInt(e.target.value) || 60 })}
-                                            className="w-full bg-surface-100 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="60"
-                                        />
-                                    </div>
-                                </div>
-                            </form>
-
-                            <div className="border-t border-brand-100 dark:border-brand-500/5 pt-6 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <div className={cn("w-2 h-2 rounded-full animate-pulse", emailConfig.enabled ? "bg-emerald-500" : "bg-surface-400")} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500">
-                                                {emailConfig.enabled ? "Scheduler Running" : "Scheduler Stopped"}
-                                            </span>
-                                        </div>
-                                        {/* @ts-ignore */}
-                                        {emailConfig.last_poll_time && (
-                                            <span className="text-[10px] text-surface-400 ml-4">
-                                                {/* @ts-ignore */}
-                                                Last active: {new Date(emailConfig.last_poll_time + 'Z').toLocaleTimeString()}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <button
-                                        onClick={handleTestEmail}
-                                        disabled={testingEmail}
-                                        className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
-                                    >
-                                        {testingEmail ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                                        Test Connection
-                                    </button>
-                                    {emailTestResult && (
-                                        <div className={cn("text-xs font-bold flex items-center gap-2", emailTestResult.success ? "text-emerald-500" : "text-red-500")}>
-                                            {emailTestResult.success ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                            {emailTestResult.message}
-                                        </div>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={handleSaveEmailConfig}
-                                    disabled={isSaving}
-                                    className="btn-primary px-8 py-3"
-                                >
-                                    {isSaving ? "Saving..." : "Save Configuration"}
-                                </button>
+                            {/* Email config form - endpoints not implemented yet */}
+                            <div className="text-center py-12 text-surface-400">
+                                <p>Email configuration endpoints are not yet implemented in the backend.</p>
+                                <p className="text-sm mt-2">This feature will be available in a future update.</p>
                             </div>
                         </div>
 
                         {/* SharePoint Configuration */}
-                        <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8 max-w-4xl mx-auto">
-                            <div className="flex items-start justify-between mb-8">
-                                <div className="flex gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                                        <Globe className="w-7 h-7 text-blue-500" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-surface-950 dark:text-white">SharePoint Integration</h3>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Enterprise Document Management</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs font-bold text-surface-500 uppercase tracking-widest">{sharePointConfig.enabled ? "Active" : "Inactive"}</span>
-                                    <button
-                                        onClick={() => setSharePointConfig({ ...sharePointConfig, enabled: !sharePointConfig.enabled })}
-                                        className={cn(
-                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                                            sharePointConfig.enabled ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
-                                        )}
-                                    >
-                                        <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", sharePointConfig.enabled ? "translate-x-6" : "translate-x-1")} />
-                                    </button>
-                                </div>
+                <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8 max-w-4xl mx-auto">
+                    <div className="flex items-start justify-between mb-8">
+                        <div className="flex gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                                <Globe className="w-7 h-7 text-blue-500" />
                             </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-surface-950 dark:text-white">SharePoint Integration</h3>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Enterprise Document Management</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-surface-500 uppercase tracking-widest">{sharePointConfig.enabled ? "Active" : "Inactive"}</span>
+                            <button
+                                onClick={() => setSharePointConfig({ ...sharePointConfig, enabled: !sharePointConfig.enabled })}
+                                className={cn(
+                                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                                    sharePointConfig.enabled ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
+                                )}
+                            >
+                                <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", sharePointConfig.enabled ? "translate-x-6" : "translate-x-1")} />
+                            </button>
+                        </div>
+                    </div>
 
-                            <form onSubmit={(e) => { e.preventDefault(); handleSaveSharePointConfig(); }} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">SharePoint URL</label>
-                                        <input
-                                            type="text"
-                                            value={sharePointConfig.site_url}
-                                            onChange={(e) => setSharePointConfig({ ...sharePointConfig, site_url: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="https://your-domain.sharepoint.com/sites/your-site"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Sync Interval (Minutes)</label>
-                                        <input
-                                            type="number"
-                                            value={sharePointConfig.sync_interval}
-                                            onChange={(e) => setSharePointConfig({ ...sharePointConfig, sync_interval: parseInt(e.target.value) })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="60"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client ID</label>
-                                        <input
-                                            type="text"
-                                            autoComplete="username"
-                                            value={sharePointConfig.client_id}
-                                            onChange={(e) => setSharePointConfig({ ...sharePointConfig, client_id: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="Client ID"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client Secret</label>
-                                        <input
-                                            type="password"
-                                            autoComplete="current-password"
-                                            value={sharePointConfig.client_secret}
-                                            onChange={(e) => setSharePointConfig({ ...sharePointConfig, client_secret: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="Client Secret"
-                                        />
-                                    </div>
-                                </div>
-                            </form>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSaveSharePointConfig(); }} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">SharePoint URL</label>
+                                <input
+                                    type="text"
+                                    value={sharePointConfig.site_url}
+                                    onChange={(e) => setSharePointConfig({ ...sharePointConfig, site_url: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="https://your-domain.sharepoint.com/sites/your-site"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Sync Interval (Minutes)</label>
+                                <input
+                                    type="number"
+                                    value={sharePointConfig.sync_interval}
+                                    onChange={(e) => setSharePointConfig({ ...sharePointConfig, sync_interval: parseInt(e.target.value) })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="60"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client ID</label>
+                                <input
+                                    type="text"
+                                    autoComplete="username"
+                                    value={sharePointConfig.client_id}
+                                    onChange={(e) => setSharePointConfig({ ...sharePointConfig, client_id: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="Client ID"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client Secret</label>
+                                <input
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={sharePointConfig.client_secret}
+                                    onChange={(e) => setSharePointConfig({ ...sharePointConfig, client_secret: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="Client Secret"
+                                />
+                            </div>
+                        </div>
+                    </form>
 
-                            <div className="border-t border-brand-100 dark:border-brand-500/5 pt-6 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <button
-                                            onClick={handleTestSharePoint}
-                                            disabled={testingSharePoint}
-                                            className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
-                                        >
-                                            {testingSharePoint ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                                            Test Configuration
-                                        </button>
-                                        <button
-                                            onClick={handleAnalyzeSharePointSetup}
-                                            disabled={testingSharePoint}
-                                            className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
-                                        >
-                                            <Terminal className="w-4 h-4" />
-                                            Analyze Setup
-                                        </button>
-                                        <button
-                                            onClick={handleFullSharePointSetup}
-                                            disabled={testingSharePoint}
-                                            className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
-                                        >
-                                            <Bot className="w-4 h-4" />
-                                            Full Setup
-                                        </button>
-                                        {sharePointTestResult && (
-                                            <div className={cn("text-xs font-bold flex items-center gap-2", sharePointTestResult.success ? "text-emerald-500" : "text-red-500")}>
-                                                {sharePointTestResult.success ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                                {sharePointTestResult.message}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                    <div className="border-t border-brand-100 dark:border-brand-500/5 pt-6 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4">
                                 <button
-                                    onClick={handleSaveSharePointConfig}
-                                    disabled={isSaving}
-                                    className="btn-primary px-8 py-3"
+                                    onClick={handleTestSharePoint}
+                                    disabled={testingSharePoint}
+                                    className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
                                 >
-                                    {isSaving ? "Saving..." : "Save Configuration"}
+                                    {testingSharePoint ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                    Test Configuration
                                 </button>
-                            </div>
-                        </div>
-
-                        {/* Azure AD SSO Configuration */}
-                        <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8 max-w-4xl mx-auto">
-                            <div className="flex items-start justify-between mb-8">
-                                <div className="flex gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                                        <Globe className="w-7 h-7 text-blue-500" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-surface-950 dark:text-white">Azure AD SSO</h3>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Single Sign-On Integration</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs font-bold text-surface-500 uppercase tracking-widest">{azureADConfig.AZURE_AD_ENABLED ? "Active" : "Inactive"}</span>
-                                    <button
-                                        onClick={() => setAzureADConfig({ ...azureADConfig, AZURE_AD_ENABLED: !azureADConfig.AZURE_AD_ENABLED })}
-                                        className={cn(
-                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                                            azureADConfig.AZURE_AD_ENABLED ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
-                                        )}
-                                    >
-                                        <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", azureADConfig.AZURE_AD_ENABLED ? "translate-x-6" : "translate-x-1")} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <form onSubmit={(e) => { e.preventDefault(); handleSaveAzureADConfig(); }} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client ID</label>
-                                        <input
-                                            type="text"
-                                            autoComplete="username"
-                                            value={azureADConfig.AZURE_AD_CLIENT_ID}
-                                            onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_CLIENT_ID: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="Application (client) ID"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client Secret</label>
-                                        <input
-                                            type="password"
-                                            autoComplete="current-password"
-                                            value={azureADConfig.AZURE_AD_CLIENT_SECRET}
-                                            onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_CLIENT_SECRET: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="Client secret"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Tenant ID</label>
-                                        <input
-                                            type="text"
-                                            value={azureADConfig.AZURE_AD_TENANT_ID}
-                                            onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_TENANT_ID: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="Directory (tenant) ID"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Redirect URI</label>
-                                        <input
-                                            type="text"
-                                            value={azureADConfig.AZURE_AD_REDIRECT_URI}
-                                            onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_REDIRECT_URI: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="http://localhost:3000/login"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="col-span-1 md:col-span-2">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Scopes</label>
-                                        <input
-                                            type="text"
-                                            value={azureADConfig.AZURE_AD_SCOPES}
-                                            onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_SCOPES: e.target.value })}
-                                            className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                            placeholder="User.Read"
-                                        />
-                                    </div>
-                                </div>
-                            </form>
-
-                            <div className="border-t border-brand-100 dark:border-brand-500/5 pt-6 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <button
-                                            onClick={handleTestAzureAD}
-                                            disabled={testingAzureAD}
-                                            className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
-                                        >
-                                            {testingAzureAD ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                                            Test Configuration
-                                        </button>
-                                        <button
-                                            onClick={handleTroubleshootAzureAD}
-                                            disabled={testingAzureAD}
-                                            className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
-                                        >
-                                            <Terminal className="w-4 h-4" />
-                                            Troubleshoot
-                                        </button>
-                                        <button
-                                            onClick={() => setIsAutomateSetupModalOpen(true)}
-                                            disabled={testingAzureAD}
-                                            className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
-                                        >
-                                            <Bot className="w-4 h-4" />
-                                            Automate Setup
-                                        </button>
-                                        {azureADTestResult && (
-                                            <div className={cn("text-xs font-bold flex items-center gap-2", azureADTestResult.success ? "text-emerald-500" : "text-red-500")}>
-                                                {azureADTestResult.success ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                                {azureADTestResult.message}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                                 <button
-                                    onClick={handleSaveAzureADConfig}
-                                    disabled={isSaving}
-                                    className="btn-primary px-8 py-3"
+                                    onClick={handleAnalyzeSharePointSetup}
+                                    disabled={testingSharePoint}
+                                    className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
                                 >
-                                    {isSaving ? "Saving..." : "Save Configuration"}
+                                    <Terminal className="w-4 h-4" />
+                                    Analyze Setup
                                 </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                ) : activeTab === 'wayfinder' ? (
-                    <motion.div
-                        key="wayfinder"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-8"
-                    >
-                        <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8">
-                            <div className="flex items-start justify-between mb-8">
-                                <div className="flex gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-                                        <Bot className="w-7 h-7 text-brand-500" />
+                                <button
+                                    onClick={handleFullSharePointSetup}
+                                    disabled={testingSharePoint}
+                                    className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
+                                >
+                                    <Bot className="w-4 h-4" />
+                                    Full Setup
+                                </button>
+                                {sharePointTestResult && (
+                                    <div className={cn("text-xs font-bold flex items-center gap-2", sharePointTestResult.success ? "text-emerald-500" : "text-red-500")}>
+                                        {sharePointTestResult.success ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                                        {sharePointTestResult.message}
                                     </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-surface-950 dark:text-white">AgentStack Wayfinder</h3>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">AI Support & Navigation Agent</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs font-bold text-surface-500 uppercase tracking-widest">{aiSettings.wayfinder.enabled ? "Enabled" : "Disabled"}</span>
-                                    <button
-                                        onClick={() => updateAISettings('wayfinder', { enabled: !aiSettings.wayfinder.enabled })}
-                                        className={cn(
-                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                                            aiSettings.wayfinder.enabled ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
-                                        )}
-                                    >
-                                        <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", aiSettings.wayfinder.enabled ? "translate-x-6" : "translate-x-1")} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="p-6 rounded-2xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100 dark:border-brand-500/5">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-2">
-                                            <BrainCircuit className="w-4 h-4 text-brand-500" />
-                                            <label className="text-sm font-bold text-surface-950 dark:text-white">Welcome Message</label>
-                                        </div>
-                                        <button
-                                            onClick={() => updateAISettings('wayfinder', { showWelcome: !aiSettings.wayfinder.showWelcome })}
-                                            className={cn(
-                                                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                                                aiSettings.wayfinder.showWelcome ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
-                                            )}
-                                        >
-                                            <span className={cn("inline-block h-3 w-3 transform rounded-full bg-white transition-transform", aiSettings.wayfinder.showWelcome ? "translate-x-5" : "translate-x-1")} />
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-brand-400 dark:text-surface-500 uppercase font-black tracking-widest leading-relaxed">
-                                        Show an automated greeting when the Wayfinder is opened for the first time in a session.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
-                ) : activeTab === 'products' ? (
-                    <motion.div
-                        key="products"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-8"
-                    >
-                        <div className="glass p-12 border border-brand-500/10 max-w-4xl mx-auto">
-                            <div className="flex items-start justify-between mb-8">
-                                <div className="flex gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-                                        <Sparkles className="w-7 h-7 text-brand-500" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-surface-950 dark:text-white">Product Intelligence Segregation</h3>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Manage product perspectives for specialized indexing</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className="flex gap-4">
-                                    <input
-                                        type="text"
-                                        value={newProduct}
-                                        onChange={(e) => setNewProduct(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddProduct()}
-                                        placeholder="Add new product (e.g. compliance-ai)"
-                                        className="flex-1 bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
-                                    />
-                                    <button
-                                        onClick={handleAddProduct}
-                                        className="btn-primary px-8 py-3 rounded-xl text-sm font-bold"
-                                    >
-                                        Add Product
-                                    </button>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {managedProducts.map((product) => (
-                                        <div
-                                            key={product}
-                                            className="p-4 rounded-xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100 dark:border-brand-500/5 flex items-center justify-between group"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                                                <span className="text-sm font-bold text-surface-950 dark:text-white uppercase tracking-wider">{product}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => handleRemoveProduct(product)}
-                                                className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-surface-400 hover:text-red-500 rounded-lg transition-all"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {managedProducts.length === 0 && (
-                                        <div className="col-span-full py-12 text-center text-surface-400 font-medium italic">
-                                            No products configured. System will use general perspective.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
-                ) : activeTab === 'features' && user?.is_superuser ? (
-                    <motion.div
-                        key="features"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-8"
-                    >
-                        <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8 max-w-4xl mx-auto">
-                            <div className="flex items-start justify-between mb-8">
-                                <div className="flex gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-                                        <Zap className="w-7 h-7 text-brand-500" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-surface-950 dark:text-white">Feature Matrix</h3>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Enable or disable AgentStack features</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-6">
-                                {loadingFeatures ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <RefreshCw className="w-6 h-6 animate-spin text-brand-500" />
-                                        <span className="ml-2 text-surface-600 dark:text-surface-400">Loading features...</span>
-                                    </div>
-                                ) : (
-                                    Object.entries(featureFlags).map(([feature, enabled]) => (
-                                        <div key={feature} className="flex items-center justify-between p-4 bg-surface-50 dark:bg-brand-500/5 rounded-xl border border-brand-100 dark:border-brand-500/10">
-                                            <div className="flex-1">
-                                                <h4 className="text-sm font-bold text-surface-950 dark:text-white capitalize">
-                                                    {feature.replace(/_/g, ' ')}
-                                                </h4>
-                                                <p className="text-xs text-surface-600 dark:text-surface-400 mt-1">
-                                                    {featureDescriptions[feature] || 'No description available'}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => updateFeatureFlag(feature, !enabled)}
-                                                className={cn(
-                                                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
-                                                    enabled ? "bg-brand-500" : "bg-surface-300 dark:bg-surface-600"
-                                                )}
-                                            >
-                                                <span
-                                                    className={cn(
-                                                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                                                        enabled ? "translate-x-6" : "translate-x-1"
-                                                    )}
-                                                />
-                                            </button>
-                                        </div>
-                                    ))
                                 )}
                             </div>
                         </div>
-                    </motion.div>
-                ) : activeTab === 'users' ? (
-                    <motion.div
-                        key="users"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-8"
-                    >
-                        <UserManagement />
-                    </motion.div>
-                ) : activeTab === 'performance' && user?.is_superuser ? (
-                    <motion.div
-                        key="performance"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-8"
-                    >
-                        <AdminPerformanceDashboard />
-                    </motion.div>
-                ) : activeTab === 'monitoring' ? (
-                    <motion.div
-                        key="monitoring"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-8"
-                    >
-                        {/* Sub-navigation for LLM Monitoring */}
-                        <div className="flex flex-wrap gap-1 p-1 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 rounded-2xl w-fit shadow-sm">
-                            {(['dashboard', 'traces', 'analytics', 'configuration'] as const).map((tab) => (
+                        <button
+                            onClick={handleSaveSharePointConfig}
+                            disabled={isSaving}
+                            className="btn-primary px-8 py-3"
+                        >
+                            {isSaving ? "Saving..." : "Save Configuration"}
+                        </button>
+                    </div>
+                </div >
+
+                {/* Azure AD SSO Configuration */}
+                <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8 max-w-4xl mx-auto">
+                    <div className="flex items-start justify-between mb-8">
+                        <div className="flex gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                                <Globe className="w-7 h-7 text-blue-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-surface-950 dark:text-white">Azure AD SSO</h3>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Single Sign-On Integration</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-surface-500 uppercase tracking-widest">{azureADConfig.AZURE_AD_ENABLED ? "Active" : "Inactive"}</span>
+                            <button
+                                onClick={() => setAzureADConfig({ ...azureADConfig, AZURE_AD_ENABLED: !azureADConfig.AZURE_AD_ENABLED })}
+                                className={cn(
+                                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                                    azureADConfig.AZURE_AD_ENABLED ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
+                                )}
+                            >
+                                <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", azureADConfig.AZURE_AD_ENABLED ? "translate-x-6" : "translate-x-1")} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <form onSubmit={(e) => { e.preventDefault(); handleSaveAzureADConfig(); }} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client ID</label>
+                                <input
+                                    type="text"
+                                    autoComplete="username"
+                                    value={azureADConfig.AZURE_AD_CLIENT_ID}
+                                    onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_CLIENT_ID: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="Application (client) ID"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Client Secret</label>
+                                <input
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={azureADConfig.AZURE_AD_CLIENT_SECRET}
+                                    onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_CLIENT_SECRET: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="Client secret"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Tenant ID</label>
+                                <input
+                                    type="text"
+                                    value={azureADConfig.AZURE_AD_TENANT_ID}
+                                    onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_TENANT_ID: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="Directory (tenant) ID"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Redirect URI</label>
+                                <input
+                                    type="text"
+                                    value={azureADConfig.AZURE_AD_REDIRECT_URI}
+                                    onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_REDIRECT_URI: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="http://localhost:3000/login"
+                                />
+                            </div>
+                        </div>
+                        <div className="col-span-1 md:col-span-2">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mb-2 block">Scopes</label>
+                                <input
+                                    type="text"
+                                    value={azureADConfig.AZURE_AD_SCOPES}
+                                    onChange={(e) => setAzureADConfig({ ...azureADConfig, AZURE_AD_SCOPES: e.target.value })}
+                                    className="w-full bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                                    placeholder="User.Read"
+                                />
+                            </div>
+                        </div>
+                    </form>
+
+                    <div className="border-t border-brand-100 dark:border-brand-500/5 pt-6 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4">
                                 <button
-                                    key={tab}
-                                    onClick={() => setActiveMonitoringTab(tab)}
+                                    onClick={handleTestAzureAD}
+                                    disabled={testingAzureAD}
+                                    className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
+                                >
+                                    {testingAzureAD ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                    Test Configuration
+                                </button>
+                                <button
+                                    onClick={handleTroubleshootAzureAD}
+                                    disabled={testingAzureAD}
+                                    className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
+                                >
+                                    <Terminal className="w-4 h-4" />
+                                    Troubleshoot
+                                </button>
+                                <button
+                                    onClick={() => setIsAutomateSetupModalOpen(true)}
+                                    disabled={testingAzureAD}
+                                    className="btn-secondary !bg-surface-100 dark:!bg-brand-500/5 !text-brand-600 dark:!text-brand-400 flex items-center gap-2"
+                                >
+                                    <Bot className="w-4 h-4" />
+                                    Automate Setup
+                                </button>
+                                {azureADTestResult && (
+                                    <div className={cn("text-xs font-bold flex items-center gap-2", azureADTestResult.success ? "text-emerald-500" : "text-red-500")}>
+                                        {azureADTestResult.success ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                                        {azureADTestResult.message}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleSaveAzureADConfig}
+                            disabled={isSaving}
+                            className="btn-primary px-8 py-3"
+                        >
+                            {isSaving ? "Saving..." : "Save Configuration"}
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+            ) : activeTab === 'wayfinder' ? (
+            <motion.div
+                key="wayfinder"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+            >
+                <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8">
+                    <div className="flex items-start justify-between mb-8">
+                        <div className="flex gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                                <Bot className="w-7 h-7 text-brand-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-surface-950 dark:text-white">AgentStack Wayfinder</h3>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">AI Support & Navigation Agent</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-surface-500 uppercase tracking-widest">{aiSettings.wayfinder.enabled ? "Enabled" : "Disabled"}</span>
+                            <button
+                                onClick={() => updateAISettings('wayfinder', { enabled: !aiSettings.wayfinder.enabled })}
+                                className={cn(
+                                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                                    aiSettings.wayfinder.enabled ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
+                                )}
+                            >
+                                <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", aiSettings.wayfinder.enabled ? "translate-x-6" : "translate-x-1")} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="p-6 rounded-2xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100 dark:border-brand-500/5">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <BrainCircuit className="w-4 h-4 text-brand-500" />
+                                    <label className="text-sm font-bold text-surface-950 dark:text-white">Welcome Message</label>
+                                </div>
+                                <button
+                                    onClick={() => updateAISettings('wayfinder', { showWelcome: !aiSettings.wayfinder.showWelcome })}
                                     className={cn(
-                                        "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                                        activeMonitoringTab === tab
-                                            ? "bg-brand-primary text-surface-950 dark:text-white shadow-xl shadow-brand-primary/20"
-                                            : "text-brand-900/60 hover:text-surface-950 dark:text-white dark:hover:text-white"
+                                        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                                        aiSettings.wayfinder.showWelcome ? "bg-brand-primary" : "bg-brand-200 dark:bg-surface-700"
                                     )}
                                 >
-                                    {tab === 'configuration' ? 'Config' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                    <span className={cn("inline-block h-3 w-3 transform rounded-full bg-white transition-transform", aiSettings.wayfinder.showWelcome ? "translate-x-5" : "translate-x-1")} />
                                 </button>
-                            ))}
+                            </div>
+                            <p className="text-[10px] text-brand-400 dark:text-surface-500 uppercase font-black tracking-widest leading-relaxed">
+                                Show an automated greeting when the Wayfinder is opened for the first time in a session.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+            ) : activeTab === 'products' ? (
+            <motion.div
+                key="products"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+            >
+                <div className="glass p-12 border border-brand-500/10 max-w-4xl mx-auto">
+                    <div className="flex items-start justify-between mb-8">
+                        <div className="flex gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                                <Sparkles className="w-7 h-7 text-brand-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-surface-950 dark:text-white">Product Intelligence Segregation</h3>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Manage product perspectives for specialized indexing</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                value={newProduct}
+                                onChange={(e) => setNewProduct(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddProduct()}
+                                placeholder="Add new product (e.g. compliance-ai)"
+                                className="flex-1 bg-surface-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-500/10 rounded-xl p-3 text-sm focus:outline-none focus:border-brand-500/50"
+                            />
+                            <button
+                                onClick={handleAddProduct}
+                                className="btn-primary px-8 py-3 rounded-xl text-sm font-bold"
+                            >
+                                Add Product
+                            </button>
                         </div>
 
-                        {/* Sub-tab Content */}
-                        <AnimatePresence mode="wait">
-                            {activeMonitoringTab === 'dashboard' && (
-                                <motion.div
-                                    key="dashboard"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {managedProducts.map((product) => (
+                                <div
+                                    key={product}
+                                    className="p-4 rounded-xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100 dark:border-brand-500/5 flex items-center justify-between group"
                                 >
-                                    <LangfuseDashboard />
-                                </motion.div>
-                            )}
-
-                            {activeMonitoringTab === 'traces' && (
-                                <motion.div
-                                    key="traces"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                >
-                                    <LangfuseTraces />
-                                </motion.div>
-                            )}
-
-                            {activeMonitoringTab === 'analytics' && (
-                                <motion.div
-                                    key="analytics"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                >
-                                    <CostDashboard />
-                                </motion.div>
-                            )}
-
-                            {activeMonitoringTab === 'configuration' && (
-                                <motion.div
-                                    key="configuration"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                    className="border border-brand-primary/10 dark:border-brand-500/20 rounded-3xl p-8 bg-surface-50 dark:bg-brand-500/[0.03]"
-                                >
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <Activity className="w-6 h-6 text-brand-primary" />
-                                        <div>
-                                            <h2 className="text-2xl font-black text-surface-950 dark:text-white">LLM Monitoring Configuration</h2>
-                                            <p className="text-sm text-brand-600 dark:text-brand-400 mt-1">Configure LangFuse credentials to enable LLM call tracking and monitoring</p>
-                                        </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                        <span className="text-sm font-bold text-surface-950 dark:text-white uppercase tracking-wider">{product}</span>
                                     </div>
-                                    <LangFuseConfig />
-                                </motion.div>
+                                    <button
+                                        onClick={() => handleRemoveProduct(product)}
+                                        className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-surface-400 hover:text-red-500 rounded-lg transition-all"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {managedProducts.length === 0 && (
+                                <div className="col-span-full py-12 text-center text-surface-400 font-medium italic">
+                                    No products configured. System will use general perspective.
+                                </div>
                             )}
-                        </AnimatePresence>
-                    </motion.div>
-                ) : null}
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+            ) : activeTab === 'features' && user?.is_superuser ? (
+            <motion.div
+                key="features"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+            >
+                <div className="premium-card bg-surface-100 dark:bg-brand-500/[0.02] border-brand-100 dark:border-brand-500/5 p-8 max-w-4xl mx-auto">
+                    <div className="flex items-start justify-between mb-8">
+                        <div className="flex gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                                <Zap className="w-7 h-7 text-brand-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-surface-950 dark:text-white">Feature Matrix</h3>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-400 dark:text-surface-500 mt-1">Enable or disable AgentStack features</p>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div className="space-y-6">
+                        {loadingFeatures ? (
+                            <div className="flex items-center justify-center py-8">
+                                <RefreshCw className="w-6 h-6 animate-spin text-brand-500" />
+                                <span className="ml-2 text-surface-600 dark:text-surface-400">Loading features...</span>
+                            </div>
+                        ) : (
+                            Object.entries(featureFlags).map(([feature, enabled]) => (
+                                <div key={feature} className="flex items-center justify-between p-4 bg-surface-50 dark:bg-brand-500/5 rounded-xl border border-brand-100 dark:border-brand-500/10">
+                                    <div className="flex-1">
+                                        <h4 className="text-sm font-bold text-surface-950 dark:text-white capitalize">
+                                            {feature.replace(/_/g, ' ')}
+                                        </h4>
+                                        <p className="text-xs text-surface-600 dark:text-surface-400 mt-1">
+                                            {featureDescriptions[feature] || 'No description available'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => updateFeatureFlag(feature, !enabled)}
+                                        className={cn(
+                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+                                            enabled ? "bg-brand-500" : "bg-surface-300 dark:bg-surface-600"
+                                        )}
+                                    >
+                                        <span
+                                            className={cn(
+                                                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                                                enabled ? "translate-x-6" : "translate-x-1"
+                                            )}
+                                        />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </motion.div>
+            ) : activeTab === 'users' ? (
+            <motion.div
+                key="users"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+            >
+                <UserManagement />
+            </motion.div>
+            ) : activeTab === 'performance' && user?.is_superuser ? (
+            <motion.div
+                key="performance"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+            >
+                <AdminPerformanceDashboard />
+            </motion.div>
+            ) : activeTab === 'monitoring' ? (
+            <motion.div
+                key="monitoring"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+            >
+                {/* Sub-navigation for LLM Monitoring */}
+                <div className="flex flex-wrap gap-1 p-1 bg-surface-100 dark:bg-brand-500/[0.03] border border-brand-primary/10 rounded-2xl w-fit shadow-sm">
+                    {(['dashboard', 'traces', 'analytics', 'configuration'] as const).map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveMonitoringTab(tab)}
+                            className={cn(
+                                "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                activeMonitoringTab === tab
+                                    ? "bg-brand-primary text-surface-950 dark:text-white shadow-xl shadow-brand-primary/20"
+                                    : "text-brand-900/60 hover:text-surface-950 dark:text-white dark:hover:text-white"
+                            )}
+                        >
+                            {tab === 'configuration' ? 'Config' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Sub-tab Content */}
+                <AnimatePresence mode="wait">
+                    {activeMonitoringTab === 'dashboard' && (
+                        <motion.div
+                            key="dashboard"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <LangfuseDashboard />
+                        </motion.div>
+                    )}
+
+                    {activeMonitoringTab === 'traces' && (
+                        <motion.div
+                            key="traces"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <LangfuseTraces />
+                        </motion.div>
+                    )}
+
+                    {activeMonitoringTab === 'analytics' && (
+                        <motion.div
+                            key="analytics"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <CostDashboard />
+                        </motion.div>
+                    )}
+
+                    {activeMonitoringTab === 'configuration' && (
+                        <motion.div
+                            key="configuration"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="border border-brand-primary/10 dark:border-brand-500/20 rounded-3xl p-8 bg-surface-50 dark:bg-brand-500/[0.03]"
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <Activity className="w-6 h-6 text-brand-primary" />
+                                <div>
+                                    <h2 className="text-2xl font-black text-surface-950 dark:text-white">LLM Monitoring Configuration</h2>
+                                    <p className="text-sm text-brand-600 dark:text-brand-400 mt-1">Configure LangFuse credentials to enable LLM call tracking and monitoring</p>
+                                </div>
+                            </div>
+                            <LangFuseConfig />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </motion.div>
+        ) : null}
             </AnimatePresence>
 
             {/* Provider Modal */}
-            <AnimatePresence>
-                {isProviderModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div
-                            variants={modalBackdrop}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
-                            onClick={() => setIsProviderModalOpen(false)}
-                        />
-                        <motion.div
-                            variants={modalContent}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="relative w-full max-w-lg bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
-                        >
-                            <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
-                                {editingProvider.provider_id ? 'Edit Provider' : 'Add Provider'}
-                            </h2>
+    <AnimatePresence>
+        {
+            isProviderModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        variants={modalBackdrop}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
+                        onClick={() => setIsProviderModalOpen(false)}
+                    />
+                    <motion.div
+                        variants={modalContent}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="relative w-full max-w-lg bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
+                    >
+                        <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
+                            {editingProvider.provider_id ? 'Edit Provider' : 'Add Provider'}
+                        </h2>
 
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider ID</label>
-                                    <input
-                                        type="text"
-                                        value={editingProvider.provider_id || ''}
-                                        onChange={e => setEditingProvider({ ...editingProvider, provider_id: e.target.value })}
-                                        disabled={!!editingProvider.provider_id && settings?.providers.some(p => p.provider_id === editingProvider.provider_id)}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors disabled:opacity-50"
-                                        placeholder="unique-id"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider Name</label>
-                                    <input
-                                        type="text"
-                                        value={editingProvider.name || ''}
-                                        onChange={e => setEditingProvider({ ...editingProvider, name: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                        placeholder="Display Name"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider Type</label>
-                                    <select
-                                        value={editingProvider.provider_type || 'openai'}
-                                        onChange={e => setEditingProvider({ ...editingProvider, provider_type: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                    >
-                                        <option value="openai">OpenAI Compatible</option>
-                                        <option value="anthropic">Anthropic</option>
-                                        <option value="bedrock">AWS Bedrock</option>
-                                        <option value="ollama">Ollama (Custom)</option>
-                                        <option value="azure">Azure OpenAI</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">API Endpoint</label>
-                                    <input
-                                        type="text"
-                                        value={editingProvider.api_endpoint || ''}
-                                        onChange={e => setEditingProvider({ ...editingProvider, api_endpoint: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors font-mono text-sm"
-                                        placeholder={editingProvider.provider_type === 'ollama' ? "http://remote-ip:11434/v1" : "https://api.openai.com/v1"}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">API Key</label>
-                                    <input
-                                        type="password"
-                                        value={editingProvider.api_key || ''}
-                                        onChange={e => setEditingProvider({ ...editingProvider, api_key: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors font-mono text-sm"
-                                        placeholder={editingProvider.provider_id ? "(Leave blank to keep existing)" : "sk-..."}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Models (Comma Separated)</label>
-                                    <input
-                                        type="text"
-                                        value={Array.isArray(editingProvider.models) ? editingProvider.models.join(', ') : editingProvider.models || ''}
-                                        onChange={e => setEditingProvider({ ...editingProvider, models: e.target.value.split(',').map(s => s.trim()) })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                        placeholder="gpt-4, gpt-3.5-turbo"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Default Model</label>
-                                    <input
-                                        type="text"
-                                        value={editingProvider.default_model || ''}
-                                        onChange={e => setEditingProvider({ ...editingProvider, default_model: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                        placeholder="gpt-4"
-                                    />
-                                </div>
+                        <div className="space-y-5">
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider ID</label>
+                                <input
+                                    type="text"
+                                    value={editingProvider.provider_id || ''}
+                                    onChange={e => setEditingProvider({ ...editingProvider, provider_id: e.target.value })}
+                                    disabled={!!editingProvider.provider_id && settings?.providers.some(p => p.provider_id === editingProvider.provider_id)}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors disabled:opacity-50"
+                                    placeholder="unique-id"
+                                />
                             </div>
-
-                            <div className="flex justify-end gap-3 mt-8">
-                                <button
-                                    onClick={() => setIsProviderModalOpen(false)}
-                                    className="px-6 py-3 rounded-xl text-sm font-bold text-surface-500 dark:text-white hover:text-surface-950 dark:hover:text-surface-950 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveProvider}
-                                    disabled={isSaving}
-                                    className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
-                                >
-                                    {isSaving ? 'Saving...' : 'Save Configuration'}
-                                </button>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider Name</label>
+                                <input
+                                    type="text"
+                                    value={editingProvider.name || ''}
+                                    onChange={e => setEditingProvider({ ...editingProvider, name: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                    placeholder="Display Name"
+                                />
                             </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider Type</label>
+                                <select
+                                    value={editingProvider.provider_type || 'openai'}
+                                    onChange={e => setEditingProvider({ ...editingProvider, provider_type: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                >
+                                    <option value="openai">OpenAI Compatible</option>
+                                    <option value="anthropic">Anthropic</option>
+                                    <option value="bedrock">AWS Bedrock</option>
+                                    <option value="ollama">Ollama (Custom)</option>
+                                    <option value="azure">Azure OpenAI</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">API Endpoint</label>
+                                <input
+                                    type="text"
+                                    value={editingProvider.api_endpoint || ''}
+                                    onChange={e => setEditingProvider({ ...editingProvider, api_endpoint: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors font-mono text-sm"
+                                    placeholder={editingProvider.provider_type === 'ollama' ? "http://remote-ip:11434/v1" : "https://api.openai.com/v1"}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">API Key</label>
+                                <input
+                                    type="password"
+                                    value={editingProvider.api_key || ''}
+                                    onChange={e => setEditingProvider({ ...editingProvider, api_key: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors font-mono text-sm"
+                                    placeholder={editingProvider.provider_id ? "(Leave blank to keep existing)" : "sk-..."}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Models (Comma Separated)</label>
+                                <input
+                                    type="text"
+                                    value={Array.isArray(editingProvider.models) ? editingProvider.models.join(', ') : editingProvider.models || ''}
+                                    onChange={e => setEditingProvider({ ...editingProvider, models: e.target.value.split(',').map(s => s.trim()) })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                    placeholder="gpt-4, gpt-3.5-turbo"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Default Model</label>
+                                <input
+                                    type="text"
+                                    value={editingProvider.default_model || ''}
+                                    onChange={e => setEditingProvider({ ...editingProvider, default_model: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                    placeholder="gpt-4"
+                                />
+                            </div>
+                        </div>
 
-            {/* Mapping Modal */}
-            <AnimatePresence>
-                {isMappingModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div
-                            variants={modalBackdrop}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
-                            onClick={() => setIsMappingModalOpen(false)}
-                        />
-                        <motion.div
-                            variants={modalContent}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="relative w-full max-w-5xl bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
-                        >
-                            <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
-                                Edit Agent Mapping
-                            </h2>
+                        <div className="flex justify-end gap-3 mt-8">
+                            <button
+                                onClick={() => setIsProviderModalOpen(false)}
+                                className="px-6 py-3 rounded-xl text-sm font-bold text-surface-500 dark:text-white hover:text-surface-950 dark:hover:text-surface-950 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveProvider}
+                                disabled={isSaving}
+                                className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
+                            >
+                                {isSaving ? 'Saving...' : 'Save Configuration'}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )
+        }
+    </AnimatePresence>
 
-                            <div className="flex flex-col lg:flex-row gap-8">
-                                <div className="flex-1 space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div>
-                                            <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Agent Name/ID</label>
-                                            <input
-                                                type="text"
-                                                value={editingMapping.agent_id || ''}
-                                                onChange={e => setEditingMapping({ ...editingMapping, agent_id: e.target.value })}
-                                                className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                                placeholder="e.g. analyst-agent"
-                                                disabled={!!editingMapping.agent_id && settings?.mappings.some(m => m.agent_id === editingMapping.agent_id)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">System Role / Label</label>
-                                            <input
-                                                type="text"
-                                                value={editingMapping.role || ''}
-                                                onChange={e => setEditingMapping({ ...editingMapping, role: e.target.value })}
-                                                className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                                placeholder="e.g. Core Orchestrator"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider</label>
-                                            <select
-                                                value={editingMapping.provider_id || ''}
-                                                onChange={e => setEditingMapping({ ...editingMapping, provider_id: e.target.value, model_name: '' })}
-                                                className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                            >
-                                                <option value="" disabled>Select Provider</option>
-                                                {settings?.providers.map(p => (
-                                                    <option key={p.provider_id} value={p.provider_id}>{p.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
+    {/* Mapping Modal */}
+    <AnimatePresence>
+        {
+            isMappingModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        variants={modalBackdrop}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
+                        onClick={() => setIsMappingModalOpen(false)}
+                    />
+                    <motion.div
+                        variants={modalContent}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="relative w-full max-w-5xl bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
+                    >
+                        <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
+                            Edit Agent Mapping
+                        </h2>
+
+                        <div className="flex flex-col lg:flex-row gap-8">
+                            <div className="flex-1 space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Agent Name/ID</label>
+                                        <input
+                                            type="text"
+                                            value={editingMapping.agent_id || ''}
+                                            onChange={e => setEditingMapping({ ...editingMapping, agent_id: e.target.value })}
+                                            className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                            placeholder="e.g. analyst-agent"
+                                            disabled={!!editingMapping.agent_id && settings?.mappings.some(m => m.agent_id === editingMapping.agent_id)}
+                                        />
                                     </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div>
-                                            <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Model</label>
-                                            <select
-                                                value={editingMapping.model_name || ''}
-                                                onChange={e => setEditingMapping({ ...editingMapping, model_name: e.target.value })}
-                                                className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                                disabled={!editingMapping.provider_id}
-                                            >
-                                                <option value="" disabled>Select Model</option>
-                                                {settings?.providers.find(p => p.provider_id === editingMapping.provider_id)?.models.map(m => (
-                                                    <option key={m} value={m}>{m}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">API Endpoint Override</label>
-                                            <input
-                                                type="text"
-                                                value={editingMapping.parameters?.api_endpoint || ''}
-                                                onChange={e => setEditingMapping({
-                                                    ...editingMapping,
-                                                    parameters: { ...editingMapping.parameters, api_endpoint: e.target.value }
-                                                })}
-                                                className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors font-mono text-sm"
-                                                placeholder="http://remote-ip:11434/v1"
-                                            />
-                                        </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">System Role / Label</label>
+                                        <input
+                                            type="text"
+                                            value={editingMapping.role || ''}
+                                            onChange={e => setEditingMapping({ ...editingMapping, role: e.target.value })}
+                                            className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                            placeholder="e.g. Core Orchestrator"
+                                        />
                                     </div>
-
-                                    <div className="space-y-6">
-                                        {/* Prompt Template Selection */}
-                                        <div className="premium-card p-6 space-y-4">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="text-sm font-black text-surface-950 dark:text-white">
-                                                    Prompt Template
-                                                </h4>
-                                                <span className="text-xs px-2 py-1 rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold">
-                                                    {editingMapping.prompt_template_id ? 'Linked' : 'Legacy'}
-                                                </span>
-                                            </div>
-
-                                            {/* Template Selector */}
-                                            <div>
-                                                <label className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase mb-2 block">
-                                                    Select Template
-                                                </label>
-                                                <select
-                                                    value={editingMapping.prompt_template_id || 'legacy'}
-                                                    onChange={e => {
-                                                        const value = e.target.value;
-                                                        if (value === 'legacy') {
-                                                            setEditingMapping({
-                                                                ...editingMapping,
-                                                                prompt_template_id: null
-                                                            });
-                                                        } else {
-                                                            setEditingMapping({
-                                                                ...editingMapping,
-                                                                prompt_template_id: value
-                                                            });
-                                                        }
-                                                    }}
-                                                    className="w-full bg-white dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/20 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
-                                                >
-                                                    <option value="legacy">Use Legacy System Prompt (Below)</option>
-                                                    <optgroup label="Available Templates">
-                                                        {/* Templates will be loaded dynamically */}
-                                                        <option value="template-1">Analyst Extraction v3 (Latest)</option>
-                                                        <option value="template-2">Covenant Analysis v2</option>
-                                                        <option value="template-3">Risk Assessment v1</option>
-                                                    </optgroup>
-                                                </select>
-                                            </div>
-
-                                            {/* Template Preview */}
-                                            {editingMapping.prompt_template_id && (
-                                                <div className="bg-surface-50 dark:bg-brand-500/5 rounded-lg p-4 space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase">
-                                                            Template Preview
-                                                        </span>
-                                                        <button className="text-xs text-brand-500 hover:text-brand-600 font-bold">
-                                                            View Full Template →
-                                                        </button>
-                                                    </div>
-                                                    <div className="text-xs text-surface-700 dark:text-surface-300 font-mono bg-white dark:bg-brand-500/10 rounded p-3 max-h-32 overflow-y-auto">
-                                                        You are an expert Credit Analyst with access to document coordinate mappings...
-                                                    </div>
-                                                    <div className="grid grid-cols-3 gap-2 pt-2">
-                                                        <div className="text-center">
-                                                            <div className="text-xs text-surface-500 dark:text-surface-400">Version</div>
-                                                            <div className="text-sm font-bold text-surface-950 dark:text-white">v3</div>
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <div className="text-xs text-surface-500 dark:text-surface-400">Avg Latency</div>
-                                                            <div className="text-sm font-bold text-surface-950 dark:text-white">2.3s</div>
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <div className="text-xs text-surface-500 dark:text-surface-400">Success Rate</div>
-                                                            <div className="text-sm font-bold text-green-600 dark:text-green-400">98%</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Legacy Prompts (Deprecated) */}
-                                        {!editingMapping.prompt_template_id && (
-                                            <div className="space-y-4">
-                                                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg">
-                                                    <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                                                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                                                        <strong>Deprecated:</strong> Inline prompts will be removed in a future version. Please migrate to prompt templates.
-                                                    </p>
-                                                </div>
-
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider">System Prompt (Legacy)</label>
-                                                        <button
-                                                            onClick={() => setEditingMapping({ ...editingMapping, system_prompt: '' })}
-                                                            className="text-[10px] text-brand-500 hover:text-brand-600 font-bold uppercase tracking-widest"
-                                                        >
-                                                            Reset to Default
-                                                        </button>
-                                                    </div>
-                                                    <textarea
-                                                        value={editingMapping.system_prompt || ''}
-                                                        onChange={e => setEditingMapping({ ...editingMapping, system_prompt: e.target.value })}
-                                                        className="w-full h-48 bg-surface-50 dark:bg-[#050810] border border-brand-100 dark:border-brand-500/10 rounded-2xl p-4 text-sm font-mono text-surface-950 dark:text-surface-300 focus:outline-none focus:border-brand-500/50 resize-y"
-                                                        placeholder="Enter system prompt instructions..."
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider">Refinement Prompt (Legacy)</label>
-                                                        <button
-                                                            onClick={() => setEditingMapping({ ...editingMapping, refinement_prompt: '' })}
-                                                            className="text-[10px] text-brand-500 hover:text-brand-600 font-bold uppercase tracking-widest"
-                                                        >
-                                                            Reset to Default
-                                                        </button>
-                                                    </div>
-                                                    <textarea
-                                                        value={editingMapping.refinement_prompt || ''}
-                                                        onChange={e => setEditingMapping({ ...editingMapping, refinement_prompt: e.target.value })}
-                                                        className="w-full h-32 bg-surface-50 dark:bg-[#050810] border border-brand-100 dark:border-brand-500/10 rounded-2xl p-4 text-sm font-mono text-surface-950 dark:text-surface-300 focus:outline-none focus:border-brand-500/50 resize-y"
-                                                        placeholder="Enter refinement prompt instructions..."
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
+                                    <div>
+                                        <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Provider</label>
+                                        <select
+                                            value={editingMapping.provider_id || ''}
+                                            onChange={e => setEditingMapping({ ...editingMapping, provider_id: e.target.value, model_name: '' })}
+                                            className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                        >
+                                            <option value="" disabled>Select Provider</option>
+                                            {settings?.providers.map(p => (
+                                                <option key={p.provider_id} value={p.provider_id}>{p.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
 
-                                {editingMapping.agent_id && (
-                                    <div className="w-full lg:w-80 space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Model</label>
+                                        <select
+                                            value={editingMapping.model_name || ''}
+                                            onChange={e => setEditingMapping({ ...editingMapping, model_name: e.target.value })}
+                                            className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                            disabled={!editingMapping.provider_id}
+                                        >
+                                            <option value="" disabled>Select Model</option>
+                                            {settings?.providers.find(p => p.provider_id === editingMapping.provider_id)?.models.map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">API Endpoint Override</label>
+                                        <input
+                                            type="text"
+                                            value={editingMapping.parameters?.api_endpoint || ''}
+                                            onChange={e => setEditingMapping({
+                                                ...editingMapping,
+                                                parameters: { ...editingMapping.parameters, api_endpoint: e.target.value }
+                                            })}
+                                            className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors font-mono text-sm"
+                                            placeholder="http://remote-ip:11434/v1"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {/* Prompt Template Selection */}
+                                    <div className="premium-card p-6 space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-surface-950 dark:text-white flex items-center gap-2">
-                                                <RefreshCw className={cn("w-4 h-4 text-brand-500", isFetchingHistory && "animate-spin")} />
-                                                Version History
-                                            </h3>
-                                            <span className="px-2 py-0.5 rounded bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase">
-                                                {promptHistory.length} Versions
+                                            <h4 className="text-sm font-black text-surface-950 dark:text-white">
+                                                Prompt Template
+                                            </h4>
+                                            <span className="text-xs px-2 py-1 rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold">
+                                                {editingMapping.prompt_template_id ? 'Linked' : 'Legacy'}
                                             </span>
                                         </div>
 
-                                        <div className="bg-surface-50 dark:bg-[#050810] border border-brand-100 dark:border-brand-500/10 rounded-2xl overflow-hidden max-h-[600px] overflow-y-auto">
-                                            {promptHistory.length > 0 ? (
-                                                <div className="divide-y divide-brand-100 dark:divide-brand-500/10">
-                                                    {promptHistory.map((h) => (
-                                                        <div key={h.id} className="p-4 hover:bg-brand-500/[0.02] transition-colors group">
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">
-                                                                    v{h.version}
-                                                                </span>
-                                                                <span className="text-[10px] text-surface-400 font-medium">
-                                                                    {new Date(h.created_at).toLocaleDateString()}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-[10px] text-surface-500 dark:text-surface-400 line-clamp-2 italic mb-3">
-                                                                {h.comment || "No comment"}
-                                                            </p>
-                                                            <button
-                                                                onClick={() => handleRevertPrompt(h.id)}
-                                                                disabled={isSaving}
-                                                                className="w-full py-1.5 rounded-lg border border-brand-500/20 text-[10px] font-black uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-all opacity-0 group-hover:opacity-100"
-                                                            >
-                                                                Revert to This
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="p-8 text-center">
-                                                    <p className="text-xs text-surface-400 italic">No historical versions available.</p>
-                                                </div>
-                                            )}
+                                        {/* Template Selector */}
+                                        <div>
+                                            <label className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase mb-2 block">
+                                                Select Template
+                                            </label>
+                                            <select
+                                                value={editingMapping.prompt_template_id || 'legacy'}
+                                                onChange={e => {
+                                                    const value = e.target.value;
+                                                    if (value === 'legacy') {
+                                                        setEditingMapping({
+                                                            ...editingMapping,
+                                                            prompt_template_id: null
+                                                        });
+                                                    } else {
+                                                        setEditingMapping({
+                                                            ...editingMapping,
+                                                            prompt_template_id: value
+                                                        });
+                                                    }
+                                                }}
+                                                className="w-full bg-white dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/20 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                                            >
+                                                <option value="legacy">Use Legacy System Prompt (Below)</option>
+                                                <optgroup label="Available Templates">
+                                                    {/* Templates will be loaded dynamically */}
+                                                    <option value="template-1">Analyst Extraction v3 (Latest)</option>
+                                                    <option value="template-2">Covenant Analysis v2</option>
+                                                    <option value="template-3">Risk Assessment v1</option>
+                                                </optgroup>
+                                            </select>
                                         </div>
 
-                                        <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
-                                            <h4 className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                                <AlertCircle className="w-3 h-3" />
-                                                Schema Info
-                                            </h4>
-                                            <p className="text-[10px] text-blue-900/60 dark:text-blue-200/40 leading-relaxed font-medium">
-                                                Available variables: <code className="text-blue-600 dark:text-blue-400">{'{context}'}</code>, <code className="text-blue-600 dark:text-blue-400">{'{question}'}</code>, <code className="text-blue-600 dark:text-blue-400">{'{feedback}'}</code>. Changes require re-indexing if model type changes significantly.
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex justify-end gap-3 mt-10 border-t border-brand-100 dark:border-brand-500/10 pt-8">
-                                <button
-                                    onClick={() => setIsMappingModalOpen(false)}
-                                    className="px-6 py-3 rounded-xl text-sm font-bold text-surface-500 dark:text-white hover:text-surface-950 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveMapping}
-                                    disabled={isSaving}
-                                    className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20"
-                                >
-                                    {isSaving ? 'Saving Changes...' : 'Commit Configuration'}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Azure AD Automate Setup Modal */}
-            <AnimatePresence>
-                {isAutomateSetupModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div
-                            variants={modalBackdrop}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
-                            onClick={() => setIsAutomateSetupModalOpen(false)}
-                        />
-                        <motion.div
-                            variants={modalContent}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="relative w-full max-w-lg bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
-                        >
-                            <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
-                                Automate Azure AD Setup
-                            </h2>
-
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Azure AD Tenant ID</label>
-                                    <input
-                                        type="text"
-                                        value={automateSetupConfig.tenant_id}
-                                        onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, tenant_id: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                        placeholder="Directory (tenant) ID"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Azure AD Access Token</label>
-                                    <input
-                                        type="text"
-                                        value={automateSetupConfig.access_token}
-                                        onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, access_token: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                        placeholder="Bearer token"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Application Name</label>
-                                    <input
-                                        type="text"
-                                        value={automateSetupConfig.app_name}
-                                        onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, app_name: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                        placeholder="AgentStack"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Redirect URI</label>
-                                    <input
-                                        type="text"
-                                        value={automateSetupConfig.redirect_uri}
-                                        onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, redirect_uri: e.target.value })}
-                                        className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
-                                        placeholder="http://localhost:8002/api/v1/auth/azuread/callback"
-                                    />
-                                </div>
-                            </div>
-
-                            {automateSetupResult && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    className={cn(
-                                        "mt-6 p-4 rounded-2xl border flex items-start gap-3",
-                                        automateSetupResult.success ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400"
-                                    )}
-                                >
-                                    {automateSetupResult.success ? <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
-                                    <div className="flex-1">
-                                        <p className="text-sm font-bold tracking-tight">{automateSetupResult.message}</p>
-                                        {automateSetupResult.application_info && (
-                                            <div className="mt-2 text-xs font-mono">
-                                                <p>Client ID: {automateSetupResult.application_info.client_id}</p>
-                                                <p>Tenant ID: {automateSetupResult.application_info.tenant_id}</p>
+                                        {/* Template Preview */}
+                                        {editingMapping.prompt_template_id && (
+                                            <div className="bg-surface-50 dark:bg-brand-500/5 rounded-lg p-4 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase">
+                                                        Template Preview
+                                                    </span>
+                                                    <button className="text-xs text-brand-500 hover:text-brand-600 font-bold">
+                                                        View Full Template →
+                                                    </button>
+                                                </div>
+                                                <div className="text-xs text-surface-700 dark:text-surface-300 font-mono bg-white dark:bg-brand-500/10 rounded p-3 max-h-32 overflow-y-auto">
+                                                    You are an expert Credit Analyst with access to document coordinate mappings...
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2 pt-2">
+                                                    <div className="text-center">
+                                                        <div className="text-xs text-surface-500 dark:text-surface-400">Version</div>
+                                                        <div className="text-sm font-bold text-surface-950 dark:text-white">v3</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-xs text-surface-500 dark:text-surface-400">Avg Latency</div>
+                                                        <div className="text-sm font-bold text-surface-950 dark:text-white">2.3s</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-xs text-surface-500 dark:text-surface-400">Success Rate</div>
+                                                        <div className="text-sm font-bold text-green-600 dark:text-green-400">98%</div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
-                                        {automateSetupResult.error && (
-                                            <p className="mt-2 text-xs">{automateSetupResult.error}</p>
+                                    </div>
+
+                                    {/* Legacy Prompts (Deprecated) */}
+                                    {!editingMapping.prompt_template_id && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg">
+                                                <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                                                <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                                                    <strong>Deprecated:</strong> Inline prompts will be removed in a future version. Please migrate to prompt templates.
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider">System Prompt (Legacy)</label>
+                                                    <button
+                                                        onClick={() => setEditingMapping({ ...editingMapping, system_prompt: '' })}
+                                                        className="text-[10px] text-brand-500 hover:text-brand-600 font-bold uppercase tracking-widest"
+                                                    >
+                                                        Reset to Default
+                                                    </button>
+                                                </div>
+                                                <textarea
+                                                    value={editingMapping.system_prompt || ''}
+                                                    onChange={e => setEditingMapping({ ...editingMapping, system_prompt: e.target.value })}
+                                                    className="w-full h-48 bg-surface-50 dark:bg-[#050810] border border-brand-100 dark:border-brand-500/10 rounded-2xl p-4 text-sm font-mono text-surface-950 dark:text-surface-300 focus:outline-none focus:border-brand-500/50 resize-y"
+                                                    placeholder="Enter system prompt instructions..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider">Refinement Prompt (Legacy)</label>
+                                                    <button
+                                                        onClick={() => setEditingMapping({ ...editingMapping, refinement_prompt: '' })}
+                                                        className="text-[10px] text-brand-500 hover:text-brand-600 font-bold uppercase tracking-widest"
+                                                    >
+                                                        Reset to Default
+                                                    </button>
+                                                </div>
+                                                <textarea
+                                                    value={editingMapping.refinement_prompt || ''}
+                                                    onChange={e => setEditingMapping({ ...editingMapping, refinement_prompt: e.target.value })}
+                                                    className="w-full h-32 bg-surface-50 dark:bg-[#050810] border border-brand-100 dark:border-brand-500/10 rounded-2xl p-4 text-sm font-mono text-surface-950 dark:text-surface-300 focus:outline-none focus:border-brand-500/50 resize-y"
+                                                    placeholder="Enter refinement prompt instructions..."
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {editingMapping.agent_id && (
+                                <div className="w-full lg:w-80 space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-bold text-surface-950 dark:text-white flex items-center gap-2">
+                                            <RefreshCw className={cn("w-4 h-4 text-brand-500", isFetchingHistory && "animate-spin")} />
+                                            Version History
+                                        </h3>
+                                        <span className="px-2 py-0.5 rounded bg-brand-500/10 text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase">
+                                            {promptHistory.length} Versions
+                                        </span>
+                                    </div>
+
+                                    <div className="bg-surface-50 dark:bg-[#050810] border border-brand-100 dark:border-brand-500/10 rounded-2xl overflow-hidden max-h-[600px] overflow-y-auto">
+                                        {promptHistory.length > 0 ? (
+                                            <div className="divide-y divide-brand-100 dark:divide-brand-500/10">
+                                                {promptHistory.map((h) => (
+                                                    <div key={h.id} className="p-4 hover:bg-brand-500/[0.02] transition-colors group">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">
+                                                                v{h.version}
+                                                            </span>
+                                                            <span className="text-[10px] text-surface-400 font-medium">
+                                                                {new Date(h.created_at).toLocaleDateString()}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[10px] text-surface-500 dark:text-surface-400 line-clamp-2 italic mb-3">
+                                                            {h.comment || "No comment"}
+                                                        </p>
+                                                        <button
+                                                            onClick={() => handleRevertPrompt(h.id)}
+                                                            disabled={isSaving}
+                                                            className="w-full py-1.5 rounded-lg border border-brand-500/20 text-[10px] font-black uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-all opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            Revert to This
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-8 text-center">
+                                                <p className="text-xs text-surface-400 italic">No historical versions available.</p>
+                                            </div>
                                         )}
                                     </div>
-                                </motion.div>
-                            )}
 
-                            <div className="flex justify-end gap-3 mt-8">
-                                <button
-                                    onClick={() => setIsAutomateSetupModalOpen(false)}
-                                    className="px-6 py-3 rounded-xl text-sm font-bold text-surface-500 dark:text-white hover:text-surface-950 dark:hover:text-surface-950 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleAutomateAzureADSetup}
-                                    disabled={automatingSetup}
-                                    className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
-                                >
-                                    {automatingSetup ? 'Automating...' : 'Automate Setup'}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Azure AD Troubleshooting Results */}
-            <AnimatePresence>
-                {troubleshootingResult && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div
-                            variants={modalBackdrop}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
-                            onClick={() => setTroubleshootingResult(null)}
-                        />
-                        <motion.div
-                            variants={modalContent}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            className="relative w-full max-w-2xl bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
-                        >
-                            <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
-                                Azure AD Troubleshooting Results
-                            </h2>
-
-                            {troubleshootingResult.issues.length > 0 ? (
-                                <div className="space-y-4">
-                                    <div>
-                                        <h3 className="text-sm font-bold text-surface-950 dark:text-white mb-3">Identified Issues ({troubleshootingResult.issues.length})</h3>
-                                        <div className="space-y-2">
-                                            {troubleshootingResult.issues.map((issue: string, index: number) => (
-                                                <div key={index} className="flex items-start gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/20">
-                                                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                                                    <p className="text-sm text-surface-950 dark:text-white">{issue}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-sm font-bold text-surface-950 dark:text-white mb-3">Recommendations ({troubleshootingResult.recommendations.length})</h3>
-                                        <div className="space-y-2">
-                                            {troubleshootingResult.recommendations.map((recommendation: string, index: number) => (
-                                                <div key={index} className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                                                    <p className="text-sm text-surface-950 dark:text-white">{recommendation}</p>
-                                                </div>
-                                            ))}
-                                        </div>
+                                    <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                                        <h4 className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                            <AlertCircle className="w-3 h-3" />
+                                            Schema Info
+                                        </h4>
+                                        <p className="text-[10px] text-blue-900/60 dark:text-blue-200/40 leading-relaxed font-medium">
+                                            Available variables: <code className="text-blue-600 dark:text-blue-400">{'{context}'}</code>, <code className="text-blue-600 dark:text-blue-400">{'{question}'}</code>, <code className="text-blue-600 dark:text-blue-400">{'{feedback}'}</code>. Changes require re-indexing if model type changes significantly.
+                                        </p>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                                    <h3 className="text-xl font-bold text-surface-950 dark:text-white mb-2">No Issues Found</h3>
-                                    <p className="text-surface-600 dark:text-surface-400">Your Azure AD configuration is working correctly.</p>
-                                </div>
                             )}
+                        </div>
 
-                            <div className="flex justify-end gap-3 mt-8">
-                                <button
-                                    onClick={() => setTroubleshootingResult(null)}
-                                    className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Confirmation Modals */}
-            <AnimatePresence>
-                {(providerToDelete || mappingToDelete) && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-surface-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-brand-500/10 rounded-3xl p-8 max-w-md w-full shadow-2xl"
-                        >
-                            <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-6">
-                                <Trash2 className="w-8 h-8 text-red-500" />
-                            </div>
-                            <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-2">Are you absolutely sure?</h2>
-                            <p className="text-surface-600 dark:text-surface-400 mb-8 leading-relaxed">
-                                {providerToDelete
-                                    ? `The provider "${providerToDelete}" and all its configuration will be permanently removed. This may affect existing agent mappings.`
-                                    : `The mapping for agent "${mappingToDelete?.replace(/-/g, ' ')}" will be permanently removed. This action cannot be undone.`
-                                }
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setProviderToDelete(null);
-                                        setMappingToDelete(null);
-                                    }}
-                                    disabled={isSaving}
-                                    className="flex-1 py-4 bg-surface-100 dark:bg-brand-500/5 hover:bg-surface-200 dark:hover:bg-surface-50/10 text-surface-950 dark:text-white rounded-2xl font-bold transition-all border border-surface-200 dark:border-brand-500/10 disabled:opacity-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => providerToDelete ? confirmDeleteProvider() : confirmDeleteMapping()}
-                                    disabled={isSaving}
-                                    className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-surface-950 dark:text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-red-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <RefreshCw className="w-4 h-4 animate-spin" />
-                                            Deleting...
-                                        </>
-                                    ) : (
-                                        'Delete Now'
-                                    )}
-                                </button>
-                            </div>
-                        </motion.div>
+                        <div className="flex justify-end gap-3 mt-10 border-t border-brand-100 dark:border-brand-500/10 pt-8">
+                            <button
+                                onClick={() => setIsMappingModalOpen(false)}
+                                className="px-6 py-3 rounded-xl text-sm font-bold text-surface-500 dark:text-white hover:text-surface-950 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveMapping}
+                                disabled={isSaving}
+                                className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20"
+                            >
+                                {isSaving ? 'Saving Changes...' : 'Commit Configuration'}
+                            </button>
+                        </div>
                     </motion.div>
-                )}
-            </AnimatePresence>
+                </div>
+            )
+        }
+    </AnimatePresence>
+
+    {/* Azure AD Automate Setup Modal */}
+    <AnimatePresence>
+        {
+            isAutomateSetupModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        variants={modalBackdrop}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
+                        onClick={() => setIsAutomateSetupModalOpen(false)}
+                    />
+                    <motion.div
+                        variants={modalContent}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="relative w-full max-w-lg bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
+                    >
+                        <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
+                            Automate Azure AD Setup
+                        </h2>
+
+                        <div className="space-y-5">
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Azure AD Tenant ID</label>
+                                <input
+                                    type="text"
+                                    value={automateSetupConfig.tenant_id}
+                                    onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, tenant_id: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                    placeholder="Directory (tenant) ID"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Azure AD Access Token</label>
+                                <input
+                                    type="text"
+                                    value={automateSetupConfig.access_token}
+                                    onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, access_token: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                    placeholder="Bearer token"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Application Name</label>
+                                <input
+                                    type="text"
+                                    value={automateSetupConfig.app_name}
+                                    onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, app_name: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                    placeholder="AgentStack"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-brand-400 dark:text-surface-400 uppercase tracking-wider mb-2 block">Redirect URI</label>
+                                <input
+                                    type="text"
+                                    value={automateSetupConfig.redirect_uri}
+                                    onChange={e => setAutomateSetupConfig({ ...automateSetupConfig, redirect_uri: e.target.value })}
+                                    className="w-full bg-surface-100 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10 rounded-xl px-4 py-3 text-surface-950 dark:text-white focus:outline-none focus:border-brand-500/50 transition-colors"
+                                    placeholder="http://localhost:8002/api/v1/auth/azuread/callback"
+                                />
+                            </div>
+                        </div>
+
+                        {automateSetupResult && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className={cn(
+                                    "mt-6 p-4 rounded-2xl border flex items-start gap-3",
+                                    automateSetupResult.success ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400"
+                                )}
+                            >
+                                {automateSetupResult.success ? <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold tracking-tight">{automateSetupResult.message}</p>
+                                    {automateSetupResult.application_info && (
+                                        <div className="mt-2 text-xs font-mono">
+                                            <p>Client ID: {automateSetupResult.application_info.client_id}</p>
+                                            <p>Tenant ID: {automateSetupResult.application_info.tenant_id}</p>
+                                        </div>
+                                    )}
+                                    {automateSetupResult.error && (
+                                        <p className="mt-2 text-xs">{automateSetupResult.error}</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+
+                        <div className="flex justify-end gap-3 mt-8">
+                            <button
+                                onClick={() => setIsAutomateSetupModalOpen(false)}
+                                className="px-6 py-3 rounded-xl text-sm font-bold text-surface-500 dark:text-white hover:text-surface-950 dark:hover:text-surface-950 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAutomateAzureADSetup}
+                                disabled={automatingSetup}
+                                className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
+                            >
+                                {automatingSetup ? 'Automating...' : 'Automate Setup'}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )
+        }
+    </AnimatePresence>
+
+    {/* Azure AD Troubleshooting Results */}
+    <AnimatePresence>
+        {
+            troubleshootingResult && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        variants={modalBackdrop}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="absolute inset-0 bg-surface-900/60 backdrop-blur-sm"
+                        onClick={() => setTroubleshootingResult(null)}
+                    />
+                    <motion.div
+                        variants={modalContent}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        className="relative w-full max-w-2xl bg-surface-100 dark:bg-surface-900 border border-brand-100 dark:border-brand-500/10 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
+                    >
+                        <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-6">
+                            Azure AD Troubleshooting Results
+                        </h2>
+
+                        {troubleshootingResult.issues.length > 0 ? (
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-surface-950 dark:text-white mb-3">Identified Issues ({troubleshootingResult.issues.length})</h3>
+                                    <div className="space-y-2">
+                                        {troubleshootingResult.issues.map((issue: string, index: number) => (
+                                            <div key={index} className="flex items-start gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/20">
+                                                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                                                <p className="text-sm text-surface-950 dark:text-white">{issue}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-sm font-bold text-surface-950 dark:text-white mb-3">Recommendations ({troubleshootingResult.recommendations.length})</h3>
+                                    <div className="space-y-2">
+                                        {troubleshootingResult.recommendations.map((recommendation: string, index: number) => (
+                                            <div key={index} className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                                                <p className="text-sm text-surface-950 dark:text-white">{recommendation}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-surface-950 dark:text-white mb-2">No Issues Found</h3>
+                                <p className="text-surface-600 dark:text-surface-400">Your Azure AD configuration is working correctly.</p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 mt-8">
+                            <button
+                                onClick={() => setTroubleshootingResult(null)}
+                                className="btn-primary px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )
+        }
+    </AnimatePresence>
+
+    {/* Confirmation Modals */}
+    <AnimatePresence>
+        {
+            (providerToDelete || mappingToDelete) && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-surface-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+                >
+                    <motion.div
+                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                        className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-brand-500/10 rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                    >
+                        <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-6">
+                            <Trash2 className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h2 className="text-2xl font-black text-surface-950 dark:text-white mb-2">Are you absolutely sure?</h2>
+                        <p className="text-surface-600 dark:text-surface-400 mb-8 leading-relaxed">
+                            {providerToDelete
+                                ? `The provider "${providerToDelete}" and all its configuration will be permanently removed. This may affect existing agent mappings.`
+                                : `The mapping for agent "${mappingToDelete?.replace(/-/g, ' ')}" will be permanently removed. This action cannot be undone.`
+                            }
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setProviderToDelete(null);
+                                    setMappingToDelete(null);
+                                }}
+                                disabled={isSaving}
+                                className="flex-1 py-4 bg-surface-100 dark:bg-brand-500/5 hover:bg-surface-200 dark:hover:bg-surface-50/10 text-surface-950 dark:text-white rounded-2xl font-bold transition-all border border-surface-200 dark:border-brand-500/10 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => providerToDelete ? confirmDeleteProvider() : confirmDeleteMapping()}
+                                disabled={isSaving}
+                                className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-surface-950 dark:text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-red-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    'Delete Now'
+                                )}
+                            </button>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )
+        }
+    </AnimatePresence >
         </div >
     );
 };
