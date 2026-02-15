@@ -23,12 +23,14 @@ import { ProductSelectionStep } from '../components/ProductSelectionStep';
 interface DiscoveryResult {
     api_name: string;
     description: string;
-    category: string;
+    documentation_url?: string;  // Required by backend DiscoveryResult
+    category?: string;          // Keep for UI display purposes
     confidence_score: number;
     base_url?: string;
     auth_type?: string;
     source?: string; // 'google' | 'directory' | 'spec'
     spec_url?: string; // If available
+    tags?: string[];
 }
 
 interface NewIntegrationProps {
@@ -142,13 +144,15 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
 
     const handleSelectProduct = (product: string) => {
         setSelectedProduct(product);
-        // Create a mock DiscoveryResult for the selected product
+        // Create a mock DiscoveryResult for the selected product with required fields
         setSelectedDest({
             api_name: product,
             description: `Linedata ${product} Product`,
             category: 'linedata-product',
             confidence_score: 1.0,
-            source: 'product'
+            source: 'product',
+            documentation_url: `https://www.linedata.com/${product.toLowerCase().replace(' ', '-')}`,
+            tags: ['linedata', 'product', product.toLowerCase()]
         });
         setCurrentStep('configure');
     };

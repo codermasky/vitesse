@@ -13,8 +13,8 @@ class DiscoveryResult(BaseModel):
 
     api_name: str = Field(..., description="Name of the discovered API")
     description: str = Field(..., description="Brief description of the API")
-    documentation_url: str = Field(
-        ..., description="URL to API documentation or homepage"
+    documentation_url: Optional[str] = Field(
+        default=None, description="URL to API documentation or homepage"
     )
     spec_url: Optional[str] = Field(
         default=None, description="Direct URL to OpenAPI/Swagger spec if known"
