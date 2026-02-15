@@ -58,7 +58,6 @@ class KnowledgeHarvester(VitesseAgent):
         self.harvest_sources = {
             "api_directories": [
                 "https://api.apis.guru/v2/list.json",  # Current APIs.guru directory
-                "https://apis.guru/openapis.json",  # Alternative APIs.guru endpoint
             ],
             "api_marketplaces": [
                 "https://rapidapi.com/search/apis",  # RapidAPI marketplace

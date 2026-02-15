@@ -16,9 +16,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      # qdrant is optional - backend will work without it
-      # qdrant:
-      #   condition: service_healthy
+      qdrant:
+        condition: service_started
     volumes:
       - ./backend:/app
       - /Users/sujitm/Sandbox/aether:/app/aether

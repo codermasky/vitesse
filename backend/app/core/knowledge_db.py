@@ -111,7 +111,7 @@ class QdrantKnowledge(KnowledgeDB):
         self,
         url: Optional[str] = None,
         api_key: Optional[str] = None,
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         prefer_grpc: bool = True,
     ):
         self.url = url or os.getenv("QDRANT_URL", "http://localhost:6333")
@@ -134,11 +134,71 @@ class QdrantKnowledge(KnowledgeDB):
                 url=self.url,
                 api_key=self.api_key,
                 prefer_grpc=self.prefer_grpc,
-                timeout=10,
+                timeout=30,  # Increased timeout
             )
 
-            # Initialize embedder
-            self.embedder = SentenceTransformer(self.embedding_model)
+            # Initialize embedder with explicit model download and caching
+            # Try multiple cache locations to handle Docker environments
+            cache_dirs = [
+                os.path.expanduser("~/.cache/huggingface"),
+                "/root/.cache/huggingface",
+                "/app/.cache/huggingface",
+                ".cache",
+            ]
+            
+            embedder = None
+            last_error = None
+            
+            for cache_dir in cache_dirs:
+                try:
+                    os.makedirs(cache_dir, exist_ok=True)
+                    embedder = SentenceTransformer(
+                        self.embedding_model,
+                        cache_folder=cache_dir,
+                    )
+                    logger.info(
+                        "Loaded embedder with cache_dir",
+                        cache_dir=cache_dir,
+                        embedding_model=self.embedding_model,
+                    )
+                    break
+                except Exception as e:
+                    last_error = e
+                    logger.debug(
+                        "Failed to load embedder with cache_dir",
+                        cache_dir=cache_dir,
+                        error=str(e),
+                    )
+                    continue
+            
+            if embedder is None:
+                # Last resort: try without explicit cache
+                embedder = SentenceTransformer(self.embedding_model)
+            
+            self.embedder = embedder
+
+            # Test embedder to ensure it works correctly
+            test_texts = ["test", "hello world", "financial API integration"]
+            test_embedding = self.embedder.encode(test_texts, show_progress_bar=False)
+            
+            # Check for valid embedding shape
+            if not hasattr(test_embedding, 'shape'):
+                raise RuntimeError(
+                    f"Embedder model '{self.embedding_model}' did not return a numpy array"
+                )
+            
+            if len(test_embedding.shape) != 2 or test_embedding.shape[1] != 384:
+                raise RuntimeError(
+                    f"Embedder model '{self.embedding_model}' produced unexpected dimension: "
+                    f"expected shape (n, 384), got {test_embedding.shape}"
+                )
+
+            logger.info(
+                "Embedder initialized and tested",
+                embedding_model=self.embedding_model,
+                vector_dimension=test_embedding.shape[1],
+                test_samples=len(test_texts),
+            )
 
             # Test connection
             await self._test_connection()
@@ -265,16 +325,117 @@ class QdrantKnowledge(KnowledgeDB):
             # Generate embeddings (synchronous call)
             embeddings = self.embedder.encode(contents, show_progress_bar=False)
 
+            # Debug log embedding details
+            logger.debug(
+                "Embeddings generated",
+                collection=collection,
+                num_embeddings=len(embeddings),
+                embedding_shape=embeddings.shape if hasattr(embeddings, 'shape') else 'unknown',
+                sample_first_elem=embeddings[0].tolist()[:5] if len(embeddings) > 0 else 'empty',
+            )
+
+            # Validate embeddings before inserting - check for empty or invalid vectors
+            valid_embeddings = []
+            valid_contents = []
+            valid_payloads = []
+            valid_ids = []
+            
+            for i, emb in enumerate(embeddings):
+                # Handle both numpy array and list cases
+                emb_array = emb.tolist() if hasattr(emb, 'tolist') else emb
+                
+                # Check if embedding has valid dimensions
+                # embeddings is 2D: (num_docs, embedding_dim)
+                # Each row should be a 384-dimensional vector
+                # When iterating, each emb can be 1D (384,) or 2D (1, 384)
+                emb_dim = len(emb_array) if isinstance(emb_array, list) else emb.shape[0]
+                
+                # For 1D array (384,), check the first dimension
+                # For 2D array (1, 384), check the second dimension
+                if hasattr(emb, 'shape'):
+                    if len(emb.shape) == 1:
+                        # 1D array: shape should be (384,)
+                        if emb.shape[0] != 384:
+                            logger.warning(
+                                "Skipping document with invalid embedding dimension",
+                                collection=collection,
+                                doc_index=i,
+                                expected_dim=384,
+                                actual_dim=emb.shape[0],
+                                embedding_shape=str(emb.shape),
+                                content_preview=contents[i][:100] if contents[i] else "empty",
+                            )
+                            continue
+                    elif len(emb.shape) == 2:
+                        # 2D array: shape should be (1, 384) or (n, 384)
+                        if emb.shape[1] != 384:
+                            logger.warning(
+                                "Skipping document with invalid embedding dimension",
+                                collection=collection,
+                                doc_index=i,
+                                expected_dim=384,
+                                actual_dim=emb.shape[1],
+                                embedding_shape=str(emb.shape),
+                                content_preview=contents[i][:100] if contents[i] else "empty",
+                            )
+                            continue
+                    else:
+                        logger.warning(
+                            "Skipping document with invalid embedding dimension",
+                            collection=collection,
+                            doc_index=i,
+                            expected_dim=384,
+                            actual_dim="unknown",
+                            embedding_shape=str(emb.shape),
+                            content_preview=contents[i][:100] if contents[i] else "empty",
+                        )
+                        continue
+                elif isinstance(emb_array, list) and len(emb_array) > 0:
+                    # Check if it's a list of lists
+                    if isinstance(emb_array[0], list) and len(emb_array[0]) != 384:
+                        logger.warning(
+                            "Skipping document with invalid embedding dimension",
+                            collection=collection,
+                            doc_index=i,
+                            expected_dim=384,
+                            actual_dim=len(emb_array[0]),
+                            content_preview=contents[i][:100],
+                        )
+                        continue
+                
+                # Convert to flat list for Qdrant
+                if hasattr(emb, 'tolist'):
+                    emb_list = emb.tolist()
+                    # If 2D, take the first row
+                    if len(emb_list) == 1:
+                        emb_list = emb_list[0]
+                else:
+                    emb_list = emb_array
+                
+                valid_embeddings.append(emb_list)
+                valid_contents.append(contents[i])
+                valid_payloads.append(payloads[i])
+                valid_ids.append(ids_to_add[valid_indices[i]])
+
+            # Skip if no valid embeddings
+            if not valid_embeddings:
+                logger.warning(
+                    "No valid embeddings generated",
+                    collection=collection,
+                    total_docs=len(documents),
+                )
+                return []
+
             # Prepare points for Qdrant
             points = [
                 models.PointStruct(
                     id=int(
-                        uuid.UUID(ids_to_add[valid_indices[i]]).int % (2**63)
+                        uuid.UUID(valid_ids[i]).int % (2**63)
                     ),  # Convert UUID to int64
-                    vector=embeddings[i].tolist(),
-                    payload=payloads[i],
+                    vector=valid_embeddings[i],
+                    payload=valid_payloads[i],
                 )
-                for i in range(len(contents))
+                for i in range(len(valid_embeddings))
             ]
 
             # Upload points to Qdrant
@@ -287,18 +448,20 @@ class QdrantKnowledge(KnowledgeDB):
                 "Documents added to Qdrant",
                 collection=collection,
                 count=len(points),
-                skipped=len(skipped_indices),
+                skipped=len(skipped_indices) + (len(embeddings) - len(valid_embeddings)),
             )
 
-            return [ids_to_add[i] for i in valid_indices]
+            return valid_ids
 
         except Exception as e:
-            # Log at debug level to reduce noise
-            logger.debug(
+            # Log at warning level to make errors visible
+            logger.warning(
                 "Failed to add documents to Qdrant",
                 collection=collection,
                 error_type=type(e).__name__,
                 error_message=str(e),
+                total_docs=len(documents),
+                skipped_docs=len(skipped_indices),
             )
             return []
 
