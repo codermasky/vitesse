@@ -7,8 +7,8 @@ Business logic for managing harvest sources.
 import structlog
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, or_, func, select
 
 from app.models.harvest_source import HarvestSource
 from app.schemas.harvest_source import (
@@ -25,10 +25,10 @@ logger = structlog.get_logger(__name__)
 class HarvestSourceService:
     """Service for managing harvest sources."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def get_harvest_sources(
+    async def get_harvest_sources(
         self,
         skip: int = 0,
         limit: int = 100,
@@ -37,28 +37,30 @@ class HarvestSourceService:
         category: Optional[str] = None,
     ) -> List[HarvestSource]:
         """Get harvest sources with optional filtering."""
-        query = self.db.query(HarvestSource)
+        query = select(HarvestSource)
 
         if enabled_only:
-            query = query.filter(HarvestSource.enabled == True)
+            query = query.where(HarvestSource.enabled == True)
 
         if source_type:
-            query = query.filter(HarvestSource.type == source_type)
+            query = query.where(HarvestSource.type == source_type)
 
         if category:
-            query = query.filter(HarvestSource.category == category)
+            query = query.where(HarvestSource.category == category)
 
         query = query.order_by(HarvestSource.priority.desc(), HarvestSource.name)
+        query = query.offset(skip).limit(limit)
 
-        return query.offset(skip).limit(limit).all()
+        result = await self.db.execute(query)
+        return result.scalars().all()
 
-    def get_harvest_source_by_id(self, source_id: int) -> Optional[HarvestSource]:
+    async def get_harvest_source_by_id(self, source_id: int) -> Optional[HarvestSource]:
         """Get a harvest source by ID."""
-        return (
-            self.db.query(HarvestSource).filter(HarvestSource.id == source_id).first()
-        )
+        query = select(HarvestSource).where(HarvestSource.id == source_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
 
-    def create_harvest_source(self, source_data: HarvestSourceCreate) -> HarvestSource:
+    async def create_harvest_source(self, source_data: HarvestSourceCreate) -> HarvestSource:
         """Create a new harvest source."""
         db_source = HarvestSource(
             name=source_data.name,
@@ -74,8 +76,8 @@ class HarvestSourceService:
         )
 
         self.db.add(db_source)
-        self.db.commit()
-        self.db.refresh(db_source)
+        await self.db.commit()
+        await self.db.refresh(db_source)
 
         logger.info(
             "Created harvest source",
@@ -86,20 +88,20 @@ class HarvestSourceService:
 
         return db_source
 
-    def update_harvest_source(
+    async def update_harvest_source(
         self, source_id: int, update_data: HarvestSourceUpdate
     ) -> Optional[HarvestSource]:
         """Update an existing harvest source."""
-        db_source = self.get_harvest_source_by_id(source_id)
+        db_source = await self.get_harvest_source_by_id(source_id)
         if not db_source:
             return None
 
-        update_dict = update_data.dict(exclude_unset=True)
+        update_dict = update_data.model_dump(exclude_unset=True)
         for field, value in update_dict.items():
             setattr(db_source, field, value)
 
-        self.db.commit()
-        self.db.refresh(db_source)
+        await self.db.commit()
+        await self.db.refresh(db_source)
 
         logger.info(
             "Updated harvest source",
@@ -110,14 +112,14 @@ class HarvestSourceService:
 
         return db_source
 
-    def delete_harvest_source(self, source_id: int) -> bool:
+    async def delete_harvest_source(self, source_id: int) -> bool:
         """Delete a harvest source."""
-        db_source = self.get_harvest_source_by_id(source_id)
+        db_source = await self.get_harvest_source_by_id(source_id)
         if not db_source:
             return False
 
-        self.db.delete(db_source)
-        self.db.commit()
+        await self.db.delete(db_source)
+        await self.db.commit()
 
         logger.info(
             "Deleted harvest source",
@@ -129,7 +131,7 @@ class HarvestSourceService:
 
     async def test_harvest_source(self, source_id: int) -> HarvestTestResult:
         """Test connection to a harvest source."""
-        db_source = self.get_harvest_source_by_id(source_id)
+        db_source = await self.get_harvest_source_by_id(source_id)
         if not db_source:
             return HarvestTestResult(
                 success=False,
@@ -188,11 +190,11 @@ class HarvestSourceService:
                 error_details=str(e),
             )
 
-    def update_harvest_stats(
+    async def update_harvest_stats(
         self, source_id: int, success: bool, error_msg: Optional[str] = None
     ):
         """Update harvest statistics for a source."""
-        db_source = self.get_harvest_source_by_id(source_id)
+        db_source = await self.get_harvest_source_by_id(source_id)
         if not db_source:
             return
 
@@ -202,33 +204,32 @@ class HarvestSourceService:
         if not success and error_msg:
             db_source.last_error = error_msg[:1000]  # Truncate long errors
 
-        self.db.commit()
+        await self.db.commit()
 
-    def get_harvest_stats(self) -> Dict[str, Any]:
+    async def get_harvest_stats(self) -> Dict[str, Any]:
         """Get overall harvest statistics."""
-        total_sources = self.db.query(func.count(HarvestSource.id)).scalar()
-        enabled_sources = (
-            self.db.query(func.count(HarvestSource.id))
-            .filter(HarvestSource.enabled == True)
-            .scalar()
-        )
+        # Total sources
+        query = select(func.count(HarvestSource.id))
+        result = await self.db.execute(query)
+        total_sources = result.scalar()
+
+        # Enabled sources
+        query = select(func.count(HarvestSource.id)).where(HarvestSource.enabled == True)
+        result = await self.db.execute(query)
+        enabled_sources = result.scalar()
+
         disabled_sources = total_sources - enabled_sources
 
         # Count by type
-        type_counts = (
-            self.db.query(HarvestSource.type, func.count(HarvestSource.id))
-            .group_by(HarvestSource.type)
-            .all()
-        )
+        query = select(HarvestSource.type, func.count(HarvestSource.id)).group_by(HarvestSource.type)
+        result = await self.db.execute(query)
+        type_counts = result.all()
         sources_by_type = {t: c for t, c in type_counts}
 
         # Count by category
-        category_counts = (
-            self.db.query(HarvestSource.category, func.count(HarvestSource.id))
-            .filter(HarvestSource.category.isnot(None))
-            .group_by(HarvestSource.category)
-            .all()
-        )
+        query = select(HarvestSource.category, func.count(HarvestSource.id)).where(HarvestSource.category.isnot(None)).group_by(HarvestSource.category)
+        result = await self.db.execute(query)
+        category_counts = result.all()
         sources_by_category = {c: cnt for c, cnt in category_counts}
 
         return {
@@ -239,9 +240,12 @@ class HarvestSourceService:
             "sources_by_category": sources_by_category,
         }
 
-    def initialize_default_sources(self):
+    async def initialize_default_sources(self):
         """Initialize default harvest sources if none exist."""
-        existing_count = self.db.query(func.count(HarvestSource.id)).scalar()
+        query = select(func.count(HarvestSource.id))
+        result = await self.db.execute(query)
+        existing_count = result.scalar()
+        
         if existing_count > 0:
             return  # Already initialized
 
@@ -284,5 +288,5 @@ class HarvestSourceService:
             source = HarvestSource(**source_data)
             self.db.add(source)
 
-        self.db.commit()
+        await self.db.commit()
         logger.info("Initialized default harvest sources", count=len(default_sources))

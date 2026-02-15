@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Plus,
@@ -10,7 +11,8 @@ import {
   Code,
   Database,
   Zap,
-  Trash2
+  Trash2,
+  Settings
 } from 'lucide-react';
 import apiService from '../services/api';
 
@@ -50,6 +52,7 @@ interface TestResult {
 }
 
 const IntegrationBuilder: React.FC = () => {
+  const navigate = useNavigate();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
@@ -231,9 +234,8 @@ const IntegrationBuilder: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 + index * 0.1, duration: 0.3 }}
-                  className={`p-6 cursor-pointer hover:bg-white/5 transition-colors duration-200 ${
-                    selectedIntegration?.id === integration.id ? 'bg-white/10 border-r-2 border-purple-400' : ''
-                  }`}
+                  className={`p-6 cursor-pointer hover:bg-white/5 transition-colors duration-200 ${selectedIntegration?.id === integration.id ? 'bg-white/10 border-r-2 border-purple-400' : ''
+                    }`}
                   onClick={() => setSelectedIntegration(integration)}
                 >
                   <div className="flex items-center justify-between">
@@ -281,6 +283,15 @@ const IntegrationBuilder: React.FC = () => {
                     <p className="text-white/80">{selectedIntegration.description}</p>
                   </div>
                   <div className="flex items-center space-x-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => navigate(`/integrations/${selectedIntegration.id}/workflow`)}
+                      className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 shadow-lg"
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Manage
+                    </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}

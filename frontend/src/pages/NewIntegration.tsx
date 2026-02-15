@@ -94,7 +94,7 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
             if (type === 'source') {
                 setSourceResults(results);
             } else {
-            // Destination search removed - now using product selection
+                // Destination search removed - now using product selection
             }
 
             // Log search metadata for debugging
@@ -160,7 +160,7 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
         setError(null);
         try {
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
-            
+
             // Step 1: Create integration from discovery results
             const createPayload = {
                 name: `${selectedSource.api_name} → ${selectedDest.api_name}`,
@@ -208,13 +208,10 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
 
             console.log('Specifications ingested');
 
-            // For now, redirect to integrations list
-            // In a full UI, we would continue with Step 3 (map), Step 4 (test), Step 5 (deploy)
-            // and show progress through each step
-
+            // Redirect to the new value-add workflow page
             setShowSuccess(true);
             setTimeout(() => {
-                navigate(`/integrations?id=${integrationId}`);
+                navigate(`/integrations/${integrationId}/workflow`);
             }, 2500);
 
         } catch (error) {
@@ -346,7 +343,7 @@ export const NewIntegration: React.FC<NewIntegrationProps> = () => {
                                 />
                             </div>
                             <p className="text-xs text-surface-500 mt-4">
-                                Redirecting to dashboard...
+                                Redirecting to setup workflow...
                             </p>
                         </motion.div>
                     </motion.div>

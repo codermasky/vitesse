@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Chat from './pages/Chat';
 import Integrations from './pages/Integrations';
 import { NewIntegration } from './pages/NewIntegration';
+import { IntegrationWorkflow } from './pages/IntegrationWorkflow';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
@@ -60,6 +61,7 @@ const AppRoutes: React.FC = () => {
         <Route path="chat" element={<Chat />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="integrations/new" element={<NewIntegration />} />
+        <Route path="integrations/:id/workflow" element={<IntegrationWorkflow />} />
         <Route path="integrations/:id/edit" element={<NewIntegration isEditMode={true} />} />
         <Route path="knowledge-base" element={<KnowledgeBase />} />
         <Route path="harvest-sources" element={<HarvestSources />} />
