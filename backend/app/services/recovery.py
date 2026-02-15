@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import async_session_factory
 from app.models.queue_request import QueueRequest, QueueStatus
 
-# from app.agents.orchestrator import agent_orchestrator
+# from app.agents.vitesse_orchestrator import VitesseOrchestrator
 from app.services.queue_service import queue_service
 
 logger = structlog.get_logger(__name__)

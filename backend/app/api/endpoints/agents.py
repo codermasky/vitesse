@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Any, Dict, Optional
 from app.api import deps
-from app.agents.orchestrator import agent_orchestrator
+from app.agents.vitesse_orchestrator import VitesseOrchestrator
 
 router = APIRouter()
 
@@ -12,14 +12,25 @@ async def list_agents(current_user: Any = Depends(deps.get_current_user)):
     return {
         "agents": [
             {
+                "id": "discovery",
+                "name": "Discovery Agent",
+                "role": "API Discovery",
+                "description": "Searches for and qualifies API candidates based on user requirements and natural language queries.",
+                "capabilities": ["web_search", "url_validation", "relevance_scoring"],
+                "status": "active",
+                "success_rate": 0.92,
+                "avg_time_ms": 1800,
+                "category": "Discovery",
+            },
+            {
                 "id": "ingestor",
                 "name": "Ingestor Agent",
-                "role": "API Discovery and Specification",
-                "description": "Authonomously discovers API endpoints and synthesizes OpenAPI specifications from raw documentation.",
+                "role": "Specification Parsing",
+                "description": "Autonomous discovery and parsing of API specifications (OpenAPI, Swagger, HTML docs).",
                 "capabilities": [
-                    "api_discovery",
-                    "spec_synthesis",
-                    "html_parsing",
+                    "spec_parsing",
+                    "endpoint_extraction",
+                    "auth_detection",
                 ],
                 "status": "active",
                 "success_rate": 0.95,
@@ -27,34 +38,86 @@ async def list_agents(current_user: Any = Depends(deps.get_current_user)):
                 "category": "Integration",
             },
             {
-                "id": "deployer",
-                "name": "Deployment Agent",
-                "role": "Integration Deployment",
-                "description": "Generates and deploys standalone integration containers with self-healing capabilities.",
+                "id": "mapper",
+                "name": "Semantic Mapper",
+                "role": "Data Transformation",
+                "description": "Uses LLMs to generate semantic field mappings and transformation logic between disparate schemas.",
                 "capabilities": [
-                    "code_generation",
-                    "container_deployment",
-                    "process_management",
+                    "semantic_mapping",
+                    "transformation_logic",
+                    "schema_alignment",
                 ],
                 "status": "active",
+                "success_rate": 0.89,
+                "avg_time_ms": 4100,
+                "category": "Integration",
+            },
+            {
+                "id": "guardian",
+                "name": "Guardian Agent",
+                "role": "Validation & Testing",
+                "description": "Validates integrations using synthetic data, shadow testing, and automated health checks.",
+                "capabilities": [
+                    "synthetic_data_gen",
+                    "shadow_testing",
+                    "health_scoring",
+                ],
+                "status": "active",
+                "success_rate": 0.98,
+                "avg_time_ms": 2500,
+                "category": "Quality Assurance",
+            },
+            {
+                "id": "deployer",
+                "name": "Deployment Agent",
+                "role": "DevOps Orchestration",
+                "description": "Manages the containerization and deployment of verified integrations to target environments.",
+                "capabilities": ["containerization", "deployment_strategy", "rollback"],
+                "status": "active",
                 "success_rate": 1.00,
-                "avg_time_ms": 4500,
+                "avg_time_ms": 5200,
                 "category": "DevOps",
             },
             {
-                "id": "sentinel",
-                "name": "Sentinel Agent",
-                "role": "Security and compliance monitoring",
-                "description": "Monitors all system interactions for security threats, PII leakage, and policy violations.",
-                "capabilities": [
-                    "security_monitoring",
-                    "pii_detection",
-                    "audit_logging",
-                ],
+                "id": "monitor",
+                "name": "Integration Monitor",
+                "role": "Observability",
+                "description": "Continuously monitors active integrations for performance issues, errors, and schema drift.",
+                "capabilities": ["drift_detection", "metrics_collection", "alerting"],
                 "status": "active",
                 "success_rate": 1.00,
-                "avg_time_ms": 45,
-                "category": "Security",
+                "avg_time_ms": 150,
+                "category": "Observability",
+            },
+            {
+                "id": "healer",
+                "name": "Self-Healing Agent",
+                "role": "Autonomous Recovery",
+                "description": "Triggered by the Monitor to automatically attempt repairs on broken integrations.",
+                "capabilities": [
+                    "root_cause_analysis",
+                    "auto_remapping",
+                    "config_adjustment",
+                ],
+                "status": "standby",
+                "success_rate": 0.85,
+                "avg_time_ms": 6000,
+                "category": "Resilience",
+            },
+            {
+                "id": "knowledge_harvester",
+                "name": "Knowledge Harvester",
+                "role": "Knowledge Acquisition",
+                "description": "Proactively crawls external sources to build and update the system's knowledge graph.",
+                "capabilities": [
+                    "web_crawling",
+                    "pattern_extraction",
+                    "vector_indexing",
+                ],
+                "status": "active",
+                "success_rate": 0.94,
+                "avg_time_ms": 12000,
+                "category": "Intelligence",
             },
         ]
     }
@@ -80,14 +143,15 @@ async def get_pipeline_structure(current_user: Any = Depends(deps.get_current_us
 async def orchestrate_workflow(
     payload: Dict[str, Any], current_user: Any = Depends(deps.get_current_user)
 ):
-    """Generic entry point for agent orchestration."""
-    workflow_id = payload.get("workflow_id", "gen-work-" + str(current_user.id))
-    # Integration with orchestrator.process_workflow
-    return await agent_orchestrator.process_workflow(
-        workflow_id=workflow_id,
-        line_items=payload.get("data", []),
-        knowledge_context=[],
-        metadata=payload.get("metadata", {}),
+    """
+    Deprecated: Generic entry point for agent orchestration.
+
+    This endpoint is deprecated and will be removed in a future release.
+    Please use VitesseOrchestrator based endpoints (e.g. integration builder).
+    """
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint is deprecated. Use Vitesse Integration Factory endpoints.",
     )
 
 
