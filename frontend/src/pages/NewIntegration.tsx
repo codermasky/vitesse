@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -367,6 +367,13 @@ interface SearchStepProps {
     onBack?: () => void;
 }
 
+// Autocomplete suggestion type
+interface AutocompleteSuggestion {
+    name: string;
+    category: string;
+    description: string;
+}
+
 const SearchStep: React.FC<SearchStepProps> = ({
     title,
     description,
@@ -379,6 +386,78 @@ const SearchStep: React.FC<SearchStepProps> = ({
     selectedAPI,
     onBack
 }) => {
+    // Autocomplete state
+    const [autocompleteResults, setAutocompleteResults] = useState<AutocompleteSuggestion[]>([]);
+    const [showAutocomplete, setShowAutocomplete] = useState(false);
+    const [isLoadingAutocomplete, setIsLoadingAutocomplete] = useState(false);
+    const autocompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Debounced autocomplete fetch
+    useEffect(() => {
+        if (autocompleteTimeoutRef.current) {
+            clearTimeout(autocompleteTimeoutRef.current);
+        }
+
+        if (!query || query.length < 1) {
+            setAutocompleteResults([]);
+            setShowAutocomplete(false);
+            return;
+        }
+
+        // Debounce the autocomplete request
+        autocompleteTimeoutRef.current = setTimeout(async () => {
+            setIsLoadingAutocomplete(true);
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9001/api/v1';
+                const response = await axios.get(`${apiUrl}/vitesse/discover/autocomplete`, {
+                    params: { query, limit: 8 },
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                });
+
+                if (response.data.suggestions && response.data.suggestions.length > 0) {
+                    setAutocompleteResults(response.data.suggestions);
+                    setShowAutocomplete(true);
+                } else {
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
+                }
+            } catch (error) {
+                console.error('Autocomplete error:', error);
+                setAutocompleteResults([]);
+                setShowAutocomplete(false);
+            } finally {
+                setIsLoadingAutocomplete(false);
+            }
+        }, 200); // 200ms debounce
+
+        return () => {
+            if (autocompleteTimeoutRef.current) {
+                clearTimeout(autocompleteTimeoutRef.current);
+            }
+        };
+    }, [query]);
+
+    // Handle suggestion click
+    const handleSuggestionClick = (suggestion: AutocompleteSuggestion) => {
+        setQuery(suggestion.name);
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+    };
+
+    // Close autocomplete when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+                setShowAutocomplete(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
     return (
         <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -394,12 +473,13 @@ const SearchStep: React.FC<SearchStepProps> = ({
             </p>
 
             {/* Search Input */}
-            <div className="relative mb-8">
+            <div className="relative mb-8" ref={inputRef}>
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
                 <input
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
+                    onFocus={() => autocompleteResults.length > 0 && setShowAutocomplete(true)}
                     onKeyDown={(e) => e.key === 'Enter' && onSearch()}
                     placeholder="e.g., Shopify, GitHub, Stripe, CoinGecko..."
                     className="w-full pl-12 pr-32 py-4 bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-700 rounded-xl text-surface-950 dark:text-white placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
@@ -421,6 +501,48 @@ const SearchStep: React.FC<SearchStepProps> = ({
                         </>
                     )}
                 </button>
+
+                {/* Autocomplete Dropdown */}
+                <AnimatePresence>
+                    {showAutocomplete && autocompleteResults.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute z-50 w-full mt-2 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl overflow-hidden"
+                        >
+                            <div className="p-2">
+                                <p className="text-xs font-semibold text-surface-500 px-3 py-1 uppercase tracking-wide">
+                                    Suggestions
+                                </p>
+                                {autocompleteResults.map((suggestion, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleSuggestionClick(suggestion)}
+                                        className="w-full text-left px-3 py-2.5 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition-colors flex items-center gap-3"
+                                    >
+                                        <div className="flex-1">
+                                            <span className="font-medium text-surface-950 dark:text-white">
+                                                {suggestion.name}
+                                            </span>
+                                            <span className="text-xs text-surface-500 ml-2">
+                                                {suggestion.category}
+                                            </span>
+                                        </div>
+                                        <Sparkles className="w-3 h-3 text-brand-400" />
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Autocomplete Loading */}
+                {isLoadingAutocomplete && query && (
+                    <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                        <Loader2 className="w-4 h-4 animate-spin text-surface-400" />
+                    </div>
+                )}
             </div>
 
             {/* Enhanced Loading State with Progress */}
