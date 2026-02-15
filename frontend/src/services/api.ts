@@ -802,6 +802,12 @@ class ApiService {
     );
   }
 
+  async deployIntegration(integrationId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.post(
+      `/integration-builder/${integrationId}/deploy`,
+    );
+  }
+
   async getIntegrationTestResults(
     integrationId: string,
     limit?: number,

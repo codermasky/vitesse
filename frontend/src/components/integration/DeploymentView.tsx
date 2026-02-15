@@ -7,7 +7,6 @@ import {
     AlertTriangle,
     Globe,
     Box,
-    Layout,
     RefreshCw
 } from 'lucide-react';
 import { apiService } from '../../services/api';

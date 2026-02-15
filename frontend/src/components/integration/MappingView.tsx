@@ -7,8 +7,6 @@ import {
     ArrowRight,
     Sparkles,
     Save,
-    Check,
-    AlertCircle,
     Loader2
 } from 'lucide-react';
 import { apiService } from '../../services/api';
@@ -38,7 +36,8 @@ export const MappingView: React.FC<MappingViewProps> = ({ integration, onComplet
     });
     const [isSaving, setIsSaving] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // Error handling could be expanded in future versions
+    // const [error, setError] = useState<string | null>(null);
 
     const handleAddMapping = async () => {
         try {
@@ -54,7 +53,7 @@ export const MappingView: React.FC<MappingViewProps> = ({ integration, onComplet
             setIsAdding(false);
         } catch (err) {
             console.error('Failed to add mapping:', err);
-            setError('Failed to save mapping');
+            // setError('Failed to save mapping');
         } finally {
             setIsSaving(false);
         }
@@ -92,7 +91,7 @@ export const MappingView: React.FC<MappingViewProps> = ({ integration, onComplet
             onComplete();
         } catch (err) {
             console.error('Failed to update integration:', err);
-            setError('Failed to save progress');
+            // setError('Failed to save progress');
         } finally {
             setIsSaving(false);
         }
