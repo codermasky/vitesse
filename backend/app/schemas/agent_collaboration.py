@@ -26,12 +26,12 @@ class AgentActivityResponse(BaseModel):
     agent_name: str = Field(..., description="Human-readable agent name")
     status: str = Field(..., description="Current agent status (active, idle, error)")
     current_task: Optional[str] = Field(None, description="Currently executing task")
-    last_activity: str = Field(..., description="Last activity timestamp")
+    last_activity: datetime = Field(..., description="Last activity timestamp")
     tasks_completed: int = Field(..., ge=0, description="Total tasks completed")
     success_rate: float = Field(
         ..., ge=0, le=100, description="Task success rate percentage"
     )
-    average_response_time: int = Field(
+    average_response_time: float = Field(
         ..., ge=0, description="Average response time in seconds"
     )
 
@@ -43,7 +43,7 @@ class AgentCommunicationLog(BaseModel):
     """Schema for inter-agent communication log."""
 
     id: str = Field(..., description="Unique communication identifier")
-    timestamp: str = Field(..., description="Communication timestamp")
+    timestamp: datetime = Field(..., description="Communication timestamp")
     from_agent: str = Field(..., description="Sending agent ID")
     to_agent: str = Field(..., description="Receiving agent ID")
     message_type: str = Field(

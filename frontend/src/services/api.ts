@@ -64,7 +64,7 @@ class ApiService {
   }
 
   public getMonitoringDashboard(limitEvents: number = 20): Promise<AxiosResponse> {
-    return this.axiosInstance.get("/monitoring/dashboard", {
+    return this.axiosInstance.get("/vitesse/monitoring/dashboard", {
       params: { limit_events: limitEvents }
     });
   }
@@ -735,6 +735,11 @@ class ApiService {
     return this.axiosInstance.get("/agent-collaboration/shared-state");
   }
 
+  // Alias for getSharedState to avoid breaking changes if called elsewhere
+  async getAgentActivitySharedState(): Promise<AxiosResponse> {
+    return this.getSharedState();
+  }
+
   async getAgentActivity(hours?: number): Promise<AxiosResponse> {
     return this.axiosInstance.get("/agent-collaboration/agents/activity", {
       params: { hours },
@@ -796,6 +801,14 @@ class ApiService {
     return this.axiosInstance.delete(`/integration-builder/${integrationId}`);
   }
 
+  async deployIntegration(integrationId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.post(`/integration-builder/${integrationId}/deploy`);
+  }
+
+  async getVitesseIntegrations(): Promise<AxiosResponse> {
+    return this.getIntegrations();
+  }
+
   async addFieldMapping(
     integrationId: string,
     mappingData: any,
@@ -826,11 +839,7 @@ class ApiService {
     );
   }
 
-  async deployIntegration(integrationId: string): Promise<AxiosResponse> {
-    return this.axiosInstance.post(
-      `/vitesse/integrations/${integrationId}/deploy`,
-    );
-  }
+
 
   async getIntegrationTestResults(
     integrationId: string,
@@ -848,10 +857,7 @@ class ApiService {
 
   // ==================== Vitesse Multi-Step Integration Workflow ====================
 
-  // Step 1: Create integration from discovery results
-  async getVitesseIntegrations(): Promise<AxiosResponse> {
-    return this.axiosInstance.get("/vitesse/integrations");
-  }
+
 
   async createVitesseIntegration(payload: {
     name: string;
@@ -931,9 +937,7 @@ class ApiService {
   }
 
   // Agent Activity Dashboard methods
-  async getAgentActivitySharedState(): Promise<AxiosResponse> {
-    return this.axiosInstance.get("/agents/shared-state");
-  }
+
 
   async getWorkflowStatus(workflowId?: string): Promise<AxiosResponse> {
     const url = workflowId

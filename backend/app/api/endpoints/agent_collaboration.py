@@ -8,7 +8,7 @@ import structlog
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.services.harvest_collaboration_integration import AgentCollaborationService
@@ -22,11 +22,11 @@ from app.schemas.agent_collaboration import (
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/agent-collaboration", tags=["agent-collaboration"])
+router = APIRouter()
 
 
 @router.get("/shared-state", response_model=SharedStateResponse)
-async def get_shared_state(db: Session = Depends(get_db)):
+async def get_shared_state(db: AsyncSession = Depends(get_db)):
     """Get the current shared whiteboard state."""
     try:
         # TODO: Implement shared state management with database
@@ -69,11 +69,13 @@ async def get_shared_state(db: Session = Depends(get_db)):
 @router.get("/agents/activity", response_model=List[AgentActivityResponse])
 async def get_agent_activity(
     hours: int = Query(24, ge=1, le=168),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get recent agent activity."""
     try:
-        activities = AgentCollaborationService.get_agent_activities(db, hours=hours)
+        activities = await AgentCollaborationService.get_agent_activities(
+            db, hours=hours
+        )
         return activities
 
     except Exception as e:
@@ -85,11 +87,11 @@ async def get_agent_activity(
 async def get_communication_log(
     hours: int = Query(1, ge=1, le=24),
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get recent inter-agent communication logs."""
     try:
-        communications = AgentCollaborationService.get_agent_communications(
+        communications = await AgentCollaborationService.get_agent_communications(
             db, hours=hours, limit=limit
         )
         return communications
@@ -102,10 +104,10 @@ async def get_communication_log(
 
 
 @router.get("/agents/{agent_id}/metrics", response_model=AgentMetrics)
-async def get_agent_metrics(agent_id: str, db: Session = Depends(get_db)):
+async def get_agent_metrics(agent_id: str, db: AsyncSession = Depends(get_db)):
     """Get detailed metrics for a specific agent."""
     try:
-        metrics = AgentCollaborationService.get_agent_metrics(db, agent_id)
+        metrics = await AgentCollaborationService.get_agent_metrics(db, agent_id)
         if not metrics:
             raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
         return metrics
@@ -118,10 +120,10 @@ async def get_agent_metrics(agent_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/stats/overview", response_model=CollaborationStats)
-async def get_collaboration_stats(db: Session = Depends(get_db)):
+async def get_collaboration_stats(db: AsyncSession = Depends(get_db)):
     """Get overall collaboration statistics."""
     try:
-        stats = AgentCollaborationService.get_collaboration_stats(db)
+        stats = await AgentCollaborationService.get_collaboration_stats(db)
         return stats
 
     except Exception as e:

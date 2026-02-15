@@ -254,47 +254,56 @@ class AgentCollaborationService:
     """Service for agent collaboration operations."""
 
     @staticmethod
-    def get_agent_activities(db: Session, hours: int = 24) -> List[AgentActivity]:
+    async def get_agent_activities(
+        db: AsyncSession, hours: int = 24
+    ) -> List[AgentActivity]:
         """Get recent agent activities."""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-        return (
-            db.query(AgentActivity)
+        query = (
+            select(AgentActivity)
             .filter(AgentActivity.last_activity >= cutoff_time)
             .order_by(desc(AgentActivity.last_activity))
-            .all()
         )
+        result = await db.execute(query)
+        return result.scalars().all()
 
     @staticmethod
-    def get_agent_communications(
-        db: Session, hours: int = 1, limit: int = 50
+    async def get_agent_communications(
+        db: AsyncSession, hours: int = 1, limit: int = 50
     ) -> List[AgentCommunication]:
         """Get recent agent communications."""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-        return (
-            db.query(AgentCommunication)
+        query = (
+            select(AgentCommunication)
             .filter(AgentCommunication.timestamp >= cutoff_time)
             .order_by(desc(AgentCommunication.timestamp))
             .limit(limit)
-            .all()
         )
+        result = await db.execute(query)
+        return result.scalars().all()
 
     @staticmethod
-    def get_agent_metrics(db: Session, agent_id: str) -> Optional[AgentMetrics]:
+    async def get_agent_metrics(
+        db: AsyncSession, agent_id: str
+    ) -> Optional[AgentMetrics]:
         """Get metrics for a specific agent."""
-        return db.query(AgentMetrics).filter(AgentMetrics.agent_id == agent_id).first()
+        query = select(AgentMetrics).filter(AgentMetrics.agent_id == agent_id)
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def update_agent_activity(
-        db: Session,
+    async def update_agent_activity(
+        db: AsyncSession,
         agent_id: str,
         agent_name: str,
         status: str,
         current_task: Optional[str] = None,
     ) -> AgentActivity:
         """Update or create agent activity."""
-        activity = (
-            db.query(AgentActivity).filter(AgentActivity.agent_id == agent_id).first()
+        result = await db.execute(
+            select(AgentActivity).filter(AgentActivity.agent_id == agent_id)
         )
+        activity = result.scalar_one_or_none()
 
         if activity:
             activity.status = status
@@ -309,13 +318,13 @@ class AgentCollaborationService:
             )
             db.add(activity)
 
-        db.commit()
-        db.refresh(activity)
+        await db.commit()
+        await db.refresh(activity)
         return activity
 
     @staticmethod
-    def create_agent_communication(
-        db: Session,
+    async def create_agent_communication(
+        db: AsyncSession,
         comm_id: str,
         from_agent: str,
         to_agent: str,
@@ -335,18 +344,23 @@ class AgentCollaborationService:
             metadata=metadata,
         )
         db.add(communication)
-        db.commit()
-        db.refresh(communication)
+        await db.commit()
+        await db.refresh(communication)
         return communication
 
     @staticmethod
-    def get_collaboration_stats(db: Session) -> Dict[str, Any]:
+    async def get_collaboration_stats(db: AsyncSession) -> Dict[str, Any]:
         """Get collaboration statistics."""
         # Agent counts
-        total_agents = db.query(func.count(AgentActivity.id)).scalar()
-        active_agents = (
-            db.query(AgentActivity).filter(AgentActivity.status == "active").count()
+        total_agents_result = await db.execute(select(func.count(AgentActivity.id)))
+        total_agents = total_agents_result.scalar() or 0
+
+        active_agents_result = await db.execute(
+            select(func.count(AgentActivity.id)).filter(
+                AgentActivity.status == "active"
+            )
         )
+        active_agents = active_agents_result.scalar() or 0
 
         # Workflow counts (simplified - would need workflow table)
         total_workflows = 0  # Placeholder
@@ -354,14 +368,14 @@ class AgentCollaborationService:
 
         # Communication stats
         now = datetime.utcnow()
-        communications_today = (
-            db.query(AgentCommunication)
-            .filter(
-                AgentCommunication.timestamp
-                >= now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        comms_today_result = await db.execute(
+            select(func.count(AgentCommunication.id)).filter(
+                AgentCommunication.timestamp >= today_start
             )
-            .count()
         )
+        communications_today = comms_today_result.scalar() or 0
 
         # Average collaboration score (simplified)
         avg_collaboration_score = 82.5  # Placeholder
@@ -370,20 +384,18 @@ class AgentCollaborationService:
         system_uptime = 99.7  # Placeholder
 
         # Average response time
-        avg_response_time = (
-            db.query(func.avg(AgentActivity.average_response_time)).scalar() or 45
+        avg_resp_time_result = await db.execute(
+            select(func.avg(AgentActivity.average_response_time))
         )
+        avg_response_time = avg_resp_time_result.scalar() or 45
 
         # Tasks completed today
-        tasks_today = (
-            db.query(func.sum(AgentActivity.tasks_completed))
-            .filter(
-                AgentActivity.last_activity
-                >= now.replace(hour=0, minute=0, second=0, microsecond=0)
+        tasks_today_result = await db.execute(
+            select(func.sum(AgentActivity.tasks_completed)).filter(
+                AgentActivity.last_activity >= today_start
             )
-            .scalar()
-            or 0
         )
+        tasks_today = tasks_today_result.scalar() or 0
 
         # Error rate (simplified)
         error_rate = 3.2  # Placeholder

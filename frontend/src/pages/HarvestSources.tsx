@@ -226,31 +226,31 @@ const HarvestSources: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 transition-colors duration-300">
+    <div className="min-h-screen bg-surface-950 transition-colors duration-300 p-6">
       {/* Header Section */}
-      <div className="sticky top-0 z-30 bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-xl border-b border-surface-200 dark:border-white/5">
+      <div className="sticky top-0 z-30 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-black text-surface-950 dark:text-white mb-2 tracking-tight">
-                  Harvest Sources
+                <h1 className="text-3xl font-bold text-white tracking-tight">
+                  <span className="text-gradient">Harvest Sources</span>
                 </h1>
-                <p className="text-surface-500 dark:text-surface-400 font-medium">
+                <p className="text-surface-400 mt-1">
                   Manage and monitor your intelligence gathering pipelines
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleDiscover}
-                  className="px-5 py-2.5 bg-surface-900/5 dark:bg-white/10 text-surface-900 dark:text-white rounded-xl font-bold hover:bg-surface-900/10 dark:hover:bg-white/20 transition-all flex items-center gap-2 border border-surface-200 dark:border-white/10"
+                  className="btn-secondary flex items-center gap-2"
                 >
                   <Search className="w-4 h-4" />
                   <span>Discover</span>
                 </button>
                 <button
                   onClick={handleCreate}
-                  className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/25 flex items-center gap-2"
+                  className="btn-primary flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Source</span>
@@ -261,42 +261,42 @@ const HarvestSources: React.FC = () => {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[
-                { label: 'Total Sources', value: stats?.total_sources || 0, icon: Globe, color: 'text-blue-500' },
-                { label: 'Active Pipelines', value: stats?.enabled_sources || 0, icon: CheckCircle2, color: 'text-emerald-500' },
-                { label: 'Successful Harvests', value: stats?.successful_harvests || 0, icon: ArrowUpRight, color: 'text-purple-500' },
-                { label: 'Failed Jobs', value: stats?.failed_harvests || 0, icon: AlertCircle, color: 'text-red-500' },
+                { label: 'Total Sources', value: stats?.total_sources || 0, icon: Globe, color: 'text-blue-400' },
+                { label: 'Active Pipelines', value: stats?.enabled_sources || 0, icon: CheckCircle2, color: 'text-emerald-400' },
+                { label: 'Successful Harvests', value: stats?.successful_harvests || 0, icon: ArrowUpRight, color: 'text-purple-400' },
+                { label: 'Failed Jobs', value: stats?.failed_harvests || 0, icon: AlertCircle, color: 'text-red-400' },
               ].map((stat, i) => (
-                <div key={i} className="bg-white/50 dark:bg-surface-900/50 backdrop-blur-md rounded-2xl p-4 border border-surface-200 dark:border-white/5 flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl bg-surface-100 dark:bg-white/5 flex items-center justify-center ${stat.color}`}>
+                <div key={i} className="premium-card flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl bg-surface-800/50 flex items-center justify-center ${stat.color} border border-surface-700`}>
                     <stat.icon className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-surface-500 dark:text-surface-400 text-xs font-bold uppercase tracking-wider">{stat.label}</p>
-                    <p className="text-2xl font-black text-surface-950 dark:text-white">{stat.value}</p>
+                    <p className="text-surface-400 text-xs font-bold uppercase tracking-wider">{stat.label}</p>
+                    <p className="text-2xl font-black text-white">{stat.value}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Controls Bar */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-2 bg-surface-100 dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-white/5">
+            <div className="premium-card p-2 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <div className="relative flex-1 md:w-80">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-primary" />
                   <input
                     type="text"
                     placeholder="Search sources..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all font-medium"
+                    className="input-field pl-12"
                   />
                 </div>
-                <div className="h-8 w-[1px] bg-surface-200 dark:bg-white/10 mx-2 hidden md:block" />
+                <div className="h-8 w-[1px] bg-surface-700 mx-2 hidden md:block" />
                 <div className="flex items-center gap-2">
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
-                    className="bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                    className="bg-surface-800 border border-surface-700 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-white"
                   >
                     <option value="all">All Types</option>
                     <option value="website">Websites</option>
@@ -307,7 +307,7 @@ const HarvestSources: React.FC = () => {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value as any)}
-                    className="bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                    className="bg-surface-800 border border-surface-700 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-white"
                   >
                     <option value="all">All Status</option>
                     <option value="enabled">Enabled</option>
@@ -316,28 +316,28 @@ const HarvestSources: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 bg-white dark:bg-surface-950 rounded-xl p-1 border border-surface-200 dark:border-white/10">
+              <div className="flex items-center gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={cn(
                     "p-2 rounded-lg transition-all",
                     viewMode === 'grid'
-                      ? "bg-surface-100 dark:bg-surface-800 text-brand-500"
-                      : "text-surface-400 hover:text-surface-600 dark:hover:text-surface-300"
+                      ? "bg-surface-700 text-brand-primary"
+                      : "text-surface-400 hover:text-surface-300"
                   )}
                 >
-                  <LayoutGrid className="w-4 h-4" />
+                  <LayoutGrid className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
                   className={cn(
                     "p-2 rounded-lg transition-all",
                     viewMode === 'list'
-                      ? "bg-surface-100 dark:bg-surface-800 text-brand-500"
-                      : "text-surface-400 hover:text-surface-600 dark:hover:text-surface-300"
+                      ? "bg-surface-700 text-brand-primary"
+                      : "text-surface-400 hover:text-surface-300"
                   )}
                 >
-                  <List className="w-4 h-4" />
+                  <List className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -350,23 +350,23 @@ const HarvestSources: React.FC = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="relative">
-              <div className="w-16 h-16 border-4 border-surface-200 dark:border-surface-800 rounded-full"></div>
-              <div className="absolute top-0 left-0 w-16 h-16 border-4 border-brand-500 rounded-full border-t-transparent animate-spin"></div>
+              <div className="w-20 h-20 border-4 border-surface-800 rounded-full"></div>
+              <div className="absolute top-0 left-0 w-20 h-20 border-4 border-brand-primary rounded-full border-t-transparent animate-spin"></div>
             </div>
-            <p className="mt-4 text-surface-500 font-medium">Loading sources...</p>
+            <p className="mt-6 text-surface-400 font-medium animate-pulse">Loading sources...</p>
           </div>
         ) : sources.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-24 h-24 bg-surface-100 dark:bg-surface-900 rounded-3xl flex items-center justify-center mb-6">
-              <Globe className="w-10 h-10 text-surface-400" />
+          <div className="flex flex-col items-center justify-center py-20 text-center premium-card">
+            <div className="w-24 h-24 bg-brand-primary/10 rounded-3xl flex items-center justify-center mb-6">
+              <Globe className="w-12 h-12 text-brand-primary" />
             </div>
-            <h3 className="text-xl font-bold text-surface-950 dark:text-white mb-2">No Harvest Sources Found</h3>
-            <p className="text-surface-500 dark:text-surface-400 max-w-md mx-auto mb-8">
+            <h3 className="text-2xl font-bold text-white mb-2">No Harvest Sources Found</h3>
+            <p className="text-surface-400 max-w-md mx-auto mb-8 text-lg">
               Get started by adding websites, repositories, or databases to your intelligence pipeline.
             </p>
             <button
               onClick={handleCreate}
-              className="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/25 flex items-center gap-2"
+              className="btn-primary flex items-center gap-2"
             >
               <Plus className="w-5 h-5" />
               <span>Add Your First Source</span>
@@ -385,23 +385,23 @@ const HarvestSources: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="group relative bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/5 rounded-3xl p-6 hover:shadow-2xl hover:shadow-brand-500/10 transition-all duration-300"
+                  className="group relative p-4 rounded-xl border transition-all cursor-pointer hover:bg-surface-800/60 hover:border-brand-primary/30 bg-surface-900/40 border-surface-800"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-surface-50 dark:bg-white/5 flex items-center justify-center text-brand-500 border border-surface-100 dark:border-white/5 group-hover:scale-110 transition-transform duration-300">
+                      <div className="w-14 h-14 rounded-2xl bg-surface-800 border border-surface-700 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform duration-300">
                         {getSourceIcon(source.type)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-surface-950 dark:text-white group-hover:text-brand-500 transition-colors line-clamp-1">
+                        <h3 className="font-bold text-lg text-white group-hover:text-brand-primary transition-colors line-clamp-1">
                           {source.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={cn(
                             "w-2 h-2 rounded-full",
-                            source.enabled ? "bg-emerald-500" : "bg-surface-400"
+                            source.enabled ? "bg-emerald-500" : "bg-surface-500"
                           )} />
-                          <span className="text-xs font-bold uppercase tracking-wider text-surface-500">
+                          <span className="text-xs font-bold uppercase tracking-wider text-surface-400">
                             {source.enabled ? 'Active' : 'Disabled'}
                           </span>
                         </div>
@@ -411,21 +411,21 @@ const HarvestSources: React.FC = () => {
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                       <button
                         onClick={() => handleRunHarvest(source.id)}
-                        className="p-2 bg-surface-100 dark:bg-white/10 hover:bg-blue-500 hover:text-white rounded-xl transition-all"
+                        className="p-2 bg-surface-700 hover:bg-blue-500 hover:text-white rounded-xl transition-all"
                         title="Run Harvest Now"
                       >
                         <Play className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(source)}
-                        className="p-2 bg-surface-100 dark:bg-white/10 hover:bg-brand-500 hover:text-white rounded-xl transition-all"
+                        className="p-2 bg-surface-700 hover:bg-brand-primary hover:text-white rounded-xl transition-all"
                         title="Edit Source"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteClick(source)}
-                        className="p-2 bg-surface-100 dark:bg-white/10 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                        className="p-2 bg-surface-700 hover:bg-red-500 hover:text-white rounded-xl transition-all"
                         title="Delete Source"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -433,38 +433,38 @@ const HarvestSources: React.FC = () => {
                     </div>
                   </div>
 
-                  <p className="text-sm text-surface-500 dark:text-surface-400 mb-6 line-clamp-2 h-10">
+                  <p className="text-sm text-surface-400 dark:text-surface-400 mb-6 line-clamp-2 h-10">
                     {source.description || 'No description provided.'}
                   </p>
 
                   <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-surface-50 dark:bg-white/5 rounded-xl p-3 border border-surface-100 dark:border-white/5">
+                    <div className="bg-surface-900/30 rounded-xl p-3 border border-surface-800">
                       <p className="text-[10px] font-bold uppercase text-surface-400 mb-1">Last Harvest</p>
-                      <p className="text-xs font-bold text-surface-950 dark:text-white flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
+                      <p className="text-xs font-bold text-white flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-blue-400" />
                         {source.last_harvested_at ? new Date(source.last_harvested_at).toLocaleDateString() : 'Never'}
                       </p>
                     </div>
-                    <div className="bg-surface-50 dark:bg-white/5 rounded-xl p-3 border border-surface-100 dark:border-white/5">
+                    <div className="bg-surface-900/30 rounded-xl p-3 border border-surface-800">
                       <p className="text-[10px] font-bold uppercase text-surface-400 mb-1">Success Rate</p>
-                      <p className="text-xs font-bold text-emerald-500 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
+                      <p className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
                         98.5%
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-surface-100 dark:border-white/5">
-                    <span className="px-2 py-1 rounded bg-surface-100 dark:bg-white/10 text-[10px] font-bold uppercase text-surface-600 dark:text-surface-300">
+                  <div className="flex items-center justify-between pt-4 border-t border-surface-800">
+                    <span className="px-2.5 py-1 rounded-lg bg-surface-800/50 border border-surface-700 text-[10px] font-bold uppercase text-surface-400">
                       {source.category || 'General'}
                     </span>
-                    <div className="text-xs font-medium text-surface-400">
+                    <div className="text-xs font-medium text-surface-500">
                       ID: {source.id}
                     </div>
                   </div>
 
                   {/* Glass gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-3xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-xl pointer-events-none" />
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -479,44 +479,44 @@ const HarvestSources: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-surface-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-3xl p-8 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="premium-card rounded-3xl p-8 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-black text-surface-950 dark:text-white">
+                <h2 className="text-2xl font-bold text-white">
                   {editingSource ? 'Edit Source' : 'Add Harvest Source'}
                 </h2>
-                <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-surface-200 dark:hover:bg-white/10 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-surface-500" />
+                <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-surface-700 rounded-xl transition-colors">
+                  <X className="w-5 h-5 text-surface-400" />
                 </button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Source Name</label>
+                    <label className="block text-xs font-bold uppercase text-surface-400 mb-2">Source Name</label>
                     <input
                       type="text"
                       required
                       value={formData.name}
                       onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all"
+                      className="w-full px-4 py-3 bg-surface-900 border border-surface-700 rounded-xl focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all text-white"
                       placeholder="e.g., TechCrunch News"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Type</label>
+                      <label className="block text-xs font-bold uppercase text-surface-400 mb-2">Type</label>
                       <select
                         value={formData.type}
                         onChange={e => setFormData({ ...formData, type: e.target.value })}
-                        className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all appearance-none"
+                        className="w-full px-4 py-3 bg-surface-900 border border-surface-700 rounded-xl focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all appearance-none text-white"
                       >
                         <option value="website">Website</option>
                         <option value="api">API Endpoint</option>
@@ -525,48 +525,48 @@ const HarvestSources: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Category</label>
+                      <label className="block text-xs font-bold uppercase text-surface-400 mb-2">Category</label>
                       <input
                         type="text"
                         value={formData.category}
                         onChange={e => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-surface-900 border border-surface-700 rounded-xl focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all text-white"
                         placeholder="e.g., News"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-surface-500 mb-2">URL</label>
+                    <label className="block text-xs font-bold uppercase text-surface-400 mb-2">URL</label>
                     <input
                       type="url"
                       required
                       value={formData.url}
                       onChange={e => setFormData({ ...formData, url: e.target.value })}
-                      className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all font-mono text-sm"
+                      className="w-full px-4 py-3 bg-surface-900 border border-surface-700 rounded-xl focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all text-white font-mono text-sm"
                       placeholder="https://..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-surface-500 mb-2">Description</label>
+                    <label className="block text-xs font-bold uppercase text-surface-400 mb-2">Description</label>
                     <textarea
                       value={formData.description}
                       onChange={e => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full px-4 py-3 bg-white dark:bg-surface-950 border border-surface-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500/50 outline-none transition-all h-24 resize-none"
+                      className="w-full px-4 py-3 bg-surface-900 border border-surface-700 rounded-xl focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all h-24 resize-none text-white"
                       placeholder="Describe this source..."
                     />
                   </div>
 
-                  <div className="flex items-center gap-4 p-4 bg-surface-50 dark:bg-white/5 rounded-xl border border-surface-200 dark:border-white/10">
+                  <div className="flex items-center gap-4 p-4 bg-surface-900/50 rounded-xl border border-surface-700">
                     <input
                       type="checkbox"
                       id="enabled"
                       checked={formData.enabled}
                       onChange={e => setFormData({ ...formData, enabled: e.target.checked })}
-                      className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                      className="w-5 h-5 rounded border-surface-600 text-brand-primary focus:ring-brand-primary bg-surface-800"
                     />
-                    <label htmlFor="enabled" className="text-sm font-medium text-surface-900 dark:text-white cursor-pointer select-none">
+                    <label htmlFor="enabled" className="text-sm font-medium text-white cursor-pointer select-none">
                       Enable automatic harvesting for this source
                     </label>
                   </div>
@@ -576,14 +576,14 @@ const HarvestSources: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="flex-1 py-3 bg-surface-200 dark:bg-white/5 hover:bg-surface-300 dark:hover:bg-white/10 text-surface-900 dark:text-white rounded-xl font-bold transition-all"
+                    className="flex-1 py-3 bg-surface-700 hover:bg-surface-600 text-white rounded-xl font-bold transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl font-bold shadow-lg shadow-brand-primary/25 transition-all flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
                       <>
@@ -611,25 +611,25 @@ const HarvestSources: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-surface-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+              className="premium-card rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
             >
               <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
-                <Trash2 className="w-8 h-8 text-red-500" />
+                <Trash2 className="w-8 h-8 text-red-400" />
               </div>
-              <h2 className="text-xl font-black text-surface-950 dark:text-white mb-2">Delete Source?</h2>
-              <p className="text-surface-500 dark:text-surface-400 mb-8">
+              <h2 className="text-xl font-bold text-white mb-2">Delete Source?</h2>
+              <p className="text-surface-400 mb-8">
                 This will permanently remove "{sourceToDelete?.name}" and all associated history.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 py-3 bg-surface-200 dark:bg-white/5 hover:bg-surface-300 dark:hover:bg-white/10 text-surface-900 dark:text-white rounded-xl font-bold transition-all"
+                  className="flex-1 py-3 bg-surface-700 hover:bg-surface-600 text-white rounded-xl font-bold transition-all"
                 >
                   Cancel
                 </button>

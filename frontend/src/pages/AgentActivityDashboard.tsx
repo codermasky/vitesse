@@ -81,23 +81,38 @@ const AgentActivityDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       // Parallel data fetching from REAL endpoints
-      const [agentsRes, sharedRes] = await Promise.all([
-        apiService.listAgents(),
-        apiService.getAgentActivitySharedState()
-      ]);
+      // Use try-catch for individual requests to prevent one failure from blocking everything
+      let agentsRes, sharedRes, activityRes;
 
-      setActiveAgents(agentsRes.data || []);
+      try {
+        agentsRes = await apiService.listAgents();
+      } catch (e) {
+        console.warn('Failed to list agents', e);
+        agentsRes = { data: [] };
+      }
+
+      try {
+        sharedRes = await apiService.getAgentActivitySharedState();
+      } catch (e) {
+        console.warn('Failed to get shared state', e);
+        sharedRes = { data: null };
+      }
+
+      setActiveAgents(Array.isArray(agentsRes?.data) ? agentsRes.data : []);
 
       // Update shared state
-      setSharedState(sharedRes.data || null);
+      setSharedState(sharedRes?.data || null);
 
       // Construct workflow steps from workflow status if available
-      // or from a dedicated endpoint if it existed. 
-      // For now, let's assume workflowRes.data gives us the current workflow status
-      // We might need to fetch activity history to build the timeline
-      const activityRes = await apiService.getAgentActivity(24);
-      const activities = activityRes.data.activities || [];
-      if (activities.length > 0) {
+      try {
+        activityRes = await apiService.getAgentActivity(24);
+      } catch (e) {
+        console.warn('Failed to get agent activity', e);
+        activityRes = { data: { activities: [] } };
+      }
+
+      const activities = activityRes?.data?.activities || [];
+      if (Array.isArray(activities) && activities.length > 0) {
         const steps: WorkflowStep[] = activities.map((act: any, idx: number) => ({
           id: act.id || `act_${idx}`,
           name: act.activity_type || 'Agent Action',
@@ -134,10 +149,10 @@ const AgentActivityDashboard: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      idle: 'bg-surface-100 text-surface-600 dark:bg-white/5 dark:text-surface-400',
-      running: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-      completed: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-      error: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+      idle: 'bg-surface-800 text-surface-300 border-surface-700',
+      running: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      error: 'bg-red-500/10 text-red-400 border-red-500/20'
     };
     return colors[status] || colors.idle;
   };
@@ -159,19 +174,19 @@ const AgentActivityDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 transition-colors duration-300">
+    <div className="min-h-screen bg-surface-950 transition-colors duration-300 p-6">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-xl border-b border-surface-200 dark:border-white/5">
+      <div className="sticky top-0 z-30 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800 mb-8">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-brand-500/10 flex items-center justify-center text-brand-500 border border-brand-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary border border-brand-primary/20">
               <Bot className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-surface-950 dark:text-white tracking-tight">
+              <h1 className="text-3xl font-bold text-white tracking-tight">
                 Agent Activity
               </h1>
-              <p className="text-surface-500 dark:text-surface-400 font-medium">
+              <p className="text-surface-400 font-medium">
                 Real-time orchestration and shared state monitoring
               </p>
             </div>
@@ -185,20 +200,20 @@ const AgentActivityDashboard: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/5 rounded-3xl p-8 shadow-xl"
+            className="relative overflow-hidden bg-surface-900/40 border border-surface-800 rounded-3xl p-8 shadow-xl"
           >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">
+                <div className="w-14 h-14 rounded-2xl bg-brand-primary text-white flex items-center justify-center shadow-lg shadow-brand-primary/30">
                   <Activity className="w-7 h-7" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-surface-950 dark:text-white mb-1">
+                  <h3 className="text-2xl font-bold text-white mb-1">
                     {sharedState.current_workflow.name}
                   </h3>
-                  <p className="text-surface-500 font-mono text-sm">
+                  <p className="text-surface-400 font-mono text-sm">
                     ID: {sharedState.current_workflow.id}
                   </p>
                 </div>
@@ -219,13 +234,13 @@ const AgentActivityDashboard: React.FC = () => {
 
             <div className="space-y-6">
               <div>
-                <div className="flex justify-between text-sm font-bold text-surface-600 dark:text-surface-300 mb-2 uppercase tracking-wider">
+                <div className="flex justify-between text-sm font-bold text-surface-300 mb-2 uppercase tracking-wider">
                   <span>Workflow Progress</span>
                   <span>{sharedState.current_workflow.progress}%</span>
                 </div>
-                <div className="w-full bg-surface-100 dark:bg-surface-800 rounded-full h-4 overflow-hidden">
+                <div className="w-full bg-surface-800 rounded-full h-4 overflow-hidden">
                   <motion.div
-                    className="bg-gradient-to-r from-brand-500 to-blue-500 h-full rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                    className="bg-gradient-to-r from-brand-primary to-blue-500 h-full rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"
                     initial={{ width: 0 }}
                     animate={{ width: `${sharedState.current_workflow.progress}%` }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
@@ -234,17 +249,17 @@ const AgentActivityDashboard: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-surface-50 dark:bg-surface-950/50 rounded-2xl p-4 border border-surface-100 dark:border-white/5">
+                <div className="bg-surface-900/30 rounded-2xl p-4 border border-surface-800">
                   <p className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-1">Current Step</p>
-                  <p className="text-lg font-bold text-surface-950 dark:text-white flex items-center gap-2">
-                    <Cpu className="w-5 h-5 text-brand-500" />
+                  <p className="text-lg font-bold text-white flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-brand-primary" />
                     {sharedState.current_workflow.current_step}
                   </p>
                 </div>
-                <div className="bg-surface-50 dark:bg-surface-950/50 rounded-2xl p-4 border border-surface-100 dark:border-white/5">
+                <div className="bg-surface-900/30 rounded-2xl p-4 border border-surface-800">
                   <p className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-1">Started At</p>
-                  <p className="text-lg font-bold text-surface-950 dark:text-white flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-blue-500" />
+                  <p className="text-lg font-bold text-white flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-blue-400" />
                     {new Date(sharedState.current_workflow.started_at).toLocaleTimeString()}
                   </p>
                 </div>
@@ -263,21 +278,21 @@ const AgentActivityDashboard: React.FC = () => {
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
               className={cn(
-                "group bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/5 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 cursor-pointer",
-                selectedAgent === agent.id ? "ring-2 ring-brand-500 border-brand-500" : ""
+                "group bg-surface-900/40 border border-surface-800 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-brand-primary/10 transition-all duration-300 cursor-pointer",
+                selectedAgent === agent.id ? "ring-2 ring-brand-primary border-brand-primary" : ""
               )}
               onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
             >
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-surface-50 dark:bg-surface-800 flex items-center justify-center text-surface-600 dark:text-surface-300 group-hover:bg-brand-500 group-hover:text-white transition-colors duration-300">
+                  <div className="w-12 h-12 rounded-2xl bg-surface-800 flex items-center justify-center text-surface-300 group-hover:bg-brand-primary group-hover:text-white transition-colors duration-300">
                     {getAgentIcon(agent.id)}
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg text-surface-950 dark:text-white group-hover:text-brand-500 transition-colors">
+                    <h4 className="font-bold text-lg text-white group-hover:text-brand-primary transition-colors">
                       {agent.name}
                     </h4>
-                    <p className="text-xs font-medium uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                    <p className="text-xs font-medium uppercase tracking-wider text-surface-400">
                       {agent.role}
                     </p>
                   </div>
@@ -288,38 +303,38 @@ const AgentActivityDashboard: React.FC = () => {
               </div>
 
               {agent.current_task ? (
-                <div className="mb-6 bg-surface-50 dark:bg-surface-950/50 rounded-2xl p-4 border border-surface-100 dark:border-white/5">
+                <div className="mb-6 bg-surface-900/30 rounded-2xl p-4 border border-surface-800">
                   <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider mb-1">Current Task</p>
-                  <p className="text-sm font-medium text-surface-900 dark:text-surface-100 line-clamp-2">
+                  <p className="text-sm font-medium text-white line-clamp-2">
                     {agent.current_task}
                   </p>
                 </div>
               ) : (
-                <div className="mb-6 h-[74px] flex items-center justify-center bg-surface-50 dark:bg-surface-950/30 rounded-2xl border border-surface-100 dark:border-white/5 border-dashed">
-                  <p className="text-xs font-medium text-surface-400 italic">No active task</p>
+                <div className="mb-6 h-[74px] flex items-center justify-center bg-surface-900/20 rounded-2xl border border-surface-800 border-dashed">
+                  <p className="text-xs font-medium text-surface-500 italic">No active task</p>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-surface-100 dark:border-white/5">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-surface-800">
                 <div>
                   <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider">Success Rate</p>
-                  <p className="text-lg font-black text-emerald-500">{(agent.success_rate * 100).toFixed(0)}%</p>
+                  <p className="text-lg font-black text-emerald-400">{(agent.success_rate * 100).toFixed(0)}%</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider">Avg Response</p>
-                  <p className="text-lg font-black text-surface-900 dark:text-white">{agent.avg_response_time}ms</p>
+                  <p className="text-lg font-black text-white">{agent.avg_response_time}ms</p>
                 </div>
               </div>
 
               {agent.progress !== undefined && (
-                <div className="mt-4 pt-4 border-t border-surface-100 dark:border-white/5">
+                <div className="mt-4 pt-4 border-t border-surface-800">
                   <div className="flex justify-between text-xs font-bold text-surface-500 mb-2">
                     <span>Task Progress</span>
                     <span>{agent.progress}%</span>
                   </div>
-                  <div className="w-full bg-surface-100 dark:bg-surface-800 rounded-full h-1.5 overflow-hidden">
+                  <div className="w-full bg-surface-800 rounded-full h-1.5 overflow-hidden">
                     <div
-                      className="bg-brand-500 h-full rounded-full transition-all duration-300"
+                      className="bg-brand-primary h-full rounded-full transition-all duration-300"
                       style={{ width: `${agent.progress}%` }}
                     />
                   </div>
@@ -331,10 +346,10 @@ const AgentActivityDashboard: React.FC = () => {
 
         {/* Workflow Steps Timeline */}
         {workflowSteps.length > 0 && (
-          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-lg">
-            <div className="px-8 py-6 border-b border-surface-100 dark:border-white/5 bg-surface-50/50 dark:bg-white/[0.02]">
-              <h3 className="text-xl font-black text-surface-950 dark:text-white flex items-center gap-3">
-                <LayoutDashboard className="w-5 h-5 text-brand-500" />
+          <div className="bg-surface-900/40 border border-surface-800 rounded-3xl overflow-hidden shadow-lg">
+            <div className="px-8 py-6 border-b border-surface-800 bg-surface-900/20">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <LayoutDashboard className="w-5 h-5 text-brand-primary" />
                 Workflow Execution Timeline
               </h3>
             </div>
@@ -342,7 +357,7 @@ const AgentActivityDashboard: React.FC = () => {
             <div className="p-8">
               <div className="relative">
                 {/* Vertical Line */}
-                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-surface-200 dark:bg-white/10" />
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-surface-700" />
 
                 <div className="space-y-8">
                   {workflowSteps.map((step, index) => (
@@ -355,7 +370,7 @@ const AgentActivityDashboard: React.FC = () => {
                     >
                       <div className="relative z-10 flex-shrink-0">
                         <div className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center border-4 border-white dark:border-surface-900 shadow-sm",
+                          "w-12 h-12 rounded-full flex items-center justify-center border-4 border-surface-900 shadow-sm",
                           getWorkflowStatusColor(step.status)
                         )}>
                           {step.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> :
@@ -365,14 +380,14 @@ const AgentActivityDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex-1 bg-surface-50 dark:bg-surface-950/50 rounded-2xl p-6 border border-surface-100 dark:border-white/5">
+                      <div className="flex-1 bg-surface-900/30 rounded-2xl p-6 border border-surface-800">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                           <div>
-                            <h4 className="text-lg font-bold text-surface-950 dark:text-white mb-1">
+                            <h4 className="text-lg font-bold text-white mb-1">
                               {step.name}
                             </h4>
-                            <div className="flex items-center gap-2 text-sm text-surface-500">
-                              <span className="font-medium bg-surface-200 dark:bg-white/10 px-2 py-0.5 rounded text-surface-900 dark:text-white text-xs">
+                            <div className="flex items-center gap-2 text-sm text-surface-400">
+                              <span className="font-medium bg-surface-800 px-2 py-0.5 rounded text-white text-xs">
                                 {step.agent}
                               </span>
                               {step.duration_ms && (
@@ -384,14 +399,14 @@ const AgentActivityDashboard: React.FC = () => {
                             </div>
                           </div>
                           {step.started_at && (
-                            <div className="text-xs font-mono text-surface-400 bg-surface-100 dark:bg-surface-900 px-3 py-1.5 rounded-lg border border-surface-200 dark:border-white/5">
+                            <div className="text-xs font-mono text-surface-500 bg-surface-800 px-3 py-1.5 rounded-lg border border-surface-700">
                               {new Date(step.started_at).toLocaleTimeString()}
                             </div>
                           )}
                         </div>
 
                         {step.output && (
-                          <div className="bg-surface-950 dark:bg-black/50 rounded-xl p-4 overflow-x-auto border border-surface-900/10 dark:border-white/10">
+                          <div className="bg-surface-950 rounded-xl p-4 overflow-x-auto border border-surface-800/50">
                             <pre className="text-xs font-mono text-surface-300">
                               {JSON.stringify(step.output, null, 2)}
                             </pre>
@@ -407,18 +422,18 @@ const AgentActivityDashboard: React.FC = () => {
         )}
 
         {/* Shared State Viewer */}
-        <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-lg">
+        <div className="bg-surface-900/40 border border-surface-800 rounded-3xl overflow-hidden shadow-lg">
           <button
             onClick={() => setShowSharedState(!showSharedState)}
-            className="w-full px-8 py-6 border-b border-surface-100 dark:border-white/5 bg-surface-50/50 dark:bg-white/[0.02] flex items-center justify-between hover:bg-surface-100 dark:hover:bg-white/5 transition-colors"
+            className="w-full px-8 py-6 border-b border-surface-800 bg-surface-900/20 flex items-center justify-between hover:bg-surface-800/40 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <Eye className="w-5 h-5 text-brand-500" />
-              <h3 className="text-xl font-black text-surface-950 dark:text-white uppercase tracking-wider">
+              <Eye className="w-5 h-5 text-brand-primary" />
+              <h3 className="text-xl font-bold text-white uppercase tracking-wider">
                 Shared Whiteboard State
               </h3>
             </div>
-            {showSharedState ? <ChevronUp className="w-6 h-6 text-surface-500" /> : <ChevronDown className="w-6 h-6 text-surface-500" />}
+            {showSharedState ? <ChevronUp className="w-6 h-6 text-surface-400" /> : <ChevronDown className="w-6 h-6 text-surface-400" />}
           </button>
 
           <AnimatePresence>
@@ -432,23 +447,23 @@ const AgentActivityDashboard: React.FC = () => {
                   {sharedState ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                       <div className="space-y-6">
-                        <div className="bg-surface-50 dark:bg-surface-950/50 rounded-2xl p-6 border border-surface-100 dark:border-white/5">
-                          <h4 className="text-sm font-bold text-surface-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-brand-500" />
+                        <div className="bg-surface-900/30 rounded-2xl p-6 border border-surface-800">
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-brand-primary" />
                             Session Context
                           </h4>
                           <div className="space-y-4">
                             <div>
                               <p className="text-xs font-bold text-surface-400 mb-1">Session ID</p>
-                              <p className="font-mono text-sm text-surface-700 dark:text-surface-300">{sharedState.session_id}</p>
+                              <p className="font-mono text-sm text-surface-300">{sharedState.session_id}</p>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-surface-400 mb-1">Last Updated</p>
-                              <p className="font-mono text-sm text-surface-700 dark:text-surface-300">{new Date(sharedState.last_updated).toLocaleString()}</p>
+                              <p className="font-mono text-sm text-surface-300">{new Date(sharedState.last_updated).toLocaleString()}</p>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-surface-400 mb-1">User Intent</p>
-                              <p className="text-sm text-surface-900 dark:text-white font-medium bg-white dark:bg-surface-900 p-3 rounded-xl border border-surface-200 dark:border-white/10">
+                              <p className="text-sm text-white font-medium bg-surface-800 p-3 rounded-xl border border-surface-700">
                                 {sharedState.user_intent}
                               </p>
                             </div>
@@ -456,23 +471,23 @@ const AgentActivityDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="bg-surface-50 dark:bg-surface-950/50 rounded-2xl p-6 border border-surface-100 dark:border-white/5">
-                        <h4 className="text-sm font-bold text-surface-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                          <Database className="w-4 h-4 text-brand-500" />
+                      <div className="bg-surface-900/30 rounded-2xl p-6 border border-surface-800">
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Database className="w-4 h-4 text-brand-primary" />
                           Knowledge Context ({sharedState.knowledge_context.length})
                         </h4>
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                           {sharedState.knowledge_context.map((item, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-surface-900 rounded-xl border border-surface-100 dark:border-white/5 shadow-sm hover:shadow-md transition-shadow">
+                            <div key={index} className="flex items-center justify-between p-3 bg-surface-800 rounded-xl border border-surface-700 shadow-sm hover:shadow-md transition-shadow">
                               <div>
-                                <p className="text-sm font-bold text-surface-900 dark:text-white">
+                                <p className="text-sm font-bold text-white">
                                   {item.name}
                                 </p>
-                                <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">
+                                <p className="text-xs text-surface-400 mt-1">
                                   {item.type}
                                 </p>
                               </div>
-                              <span className="text-xs font-bold bg-brand-500/10 text-brand-600 dark:text-brand-400 px-2.5 py-1 rounded-lg">
+                              <span className="text-xs font-bold bg-brand-primary/10 text-brand-primary px-2.5 py-1 rounded-lg">
                                 {(item.relevance * 100).toFixed(0)}% Match
                               </span>
                             </div>
@@ -481,11 +496,11 @@ const AgentActivityDashboard: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-surface-400">
-                      <div className="w-16 h-16 rounded-full bg-surface-100 dark:bg-surface-800 flex items-center justify-center mb-4">
+                    <div className="flex flex-col items-center justify-center py-12 text-surface-500">
+                      <div className="w-16 h-16 rounded-full bg-surface-800 flex items-center justify-center mb-4">
                         <Eye className="w-8 h-8 opacity-50" />
                       </div>
-                      <p className="font-medium">No shared state available</p>
+                      <p className="font-medium text-white">No shared state available</p>
                     </div>
                   )}
                 </div>
@@ -502,11 +517,11 @@ const AgentActivityDashboard: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-surface-50/50 dark:bg-surface-950/50 backdrop-blur-sm z-50 flex items-center justify-center"
+            className="fixed inset-0 bg-surface-950/50 backdrop-blur-sm z-50 flex items-center justify-center"
           >
-            <div className="bg-white dark:bg-surface-900 p-6 rounded-2xl shadow-2xl flex items-center gap-4 border border-surface-200 dark:border-white/10">
+            <div className="bg-surface-900 p-6 rounded-2xl shadow-2xl flex items-center gap-4 border border-surface-800">
               <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-              <span className="font-medium text-surface-900 dark:text-white">Syncing Agent State...</span>
+              <span className="font-medium text-white">Syncing Agent State...</span>
             </div>
           </motion.div>
         )}
