@@ -2,253 +2,269 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Activity,
-    CheckCircle,
     AlertTriangle,
     RefreshCw,
     Shield,
-    Zap
+    Zap,
+    Server
 } from 'lucide-react';
+import apiService from '../services/api';
 
-interface HealthMetric {
-    integration_id: string;
-    name: string;
-    status: 'healthy' | 'degraded' | 'critical';
-    health_score: number;
-    success_rate: number;
-    last_check: string;
-    active_incidents: number;
+interface DashboardMetrics {
+    total_integrations: number;
+    active_count: number;
+    failed_count: number;
+    avg_health_score: number;
+    system_status: string;
 }
 
-interface SelfHealingEvent {
+interface IntegrationHealth {
+    id: string;
+    name: string;
+    status: string;
+    health_score: number;
+    last_check: string;
+    source: string;
+    destination: string;
+}
+
+interface MonitorEvent {
     id: string;
     integration_id: string;
-    integration_name: string;
+    action: string;
+    status: string;
+    details: any;
     timestamp: string;
-    reason: string;
-    action_taken: string;
-    outcome: 'success' | 'failed' | 'pending';
+    actor: string;
 }
 
 const MonitoringDashboard: React.FC = () => {
-    const [metrics, setMetrics] = useState<HealthMetric[]>([]);
-    const [events, setEvents] = useState<SelfHealingEvent[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [metrics, setMetrics] = useState<DashboardMetrics>({
+        total_integrations: 0,
+        active_count: 0,
+        failed_count: 0,
+        avg_health_score: 100,
+        system_status: 'healthy'
+    });
+    const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
+    const [events, setEvents] = useState<MonitorEvent[]>([]);
 
-    useEffect(() => {
-        // Mock data for now until backend endpoints are fully connected to a real DB
-        const mockMetrics: HealthMetric[] = [
-            {
-                integration_id: '1',
-                name: 'CoinGecko API',
-                status: 'healthy',
-                health_score: 98,
-                success_rate: 99.5,
-                last_check: new Date().toISOString(),
-                active_incidents: 0
-            },
-            {
-                integration_id: '2',
-                name: 'OpenWeatherMap',
-                status: 'degraded',
-                health_score: 75,
-                success_rate: 82.3,
-                last_check: new Date().toISOString(),
-                active_incidents: 1
-            },
-            {
-                integration_id: '3',
-                name: 'Stripe Payments',
-                status: 'healthy',
-                health_score: 100,
-                success_rate: 100,
-                last_check: new Date().toISOString(),
-                active_incidents: 0
+    const fetchData = async () => {
+        try {
+            const response = await apiService.getMonitoringDashboard(20);
+            if (response.data.status === 'success') {
+                setMetrics(response.data.metrics);
+                setIntegrations(response.data.integrations);
+                setEvents(response.data.recent_events);
             }
-        ];
-
-        const mockEvents: SelfHealingEvent[] = [
-            {
-                id: 'evt-1',
-                integration_id: '2',
-                integration_name: 'OpenWeatherMap',
-                timestamp: new Date(Date.now() - 3600000).toISOString(),
-                reason: 'Schema Validation Failed',
-                action_taken: 'Remap Fields',
-                outcome: 'success'
-            }
-        ];
-
-        setMetrics(mockMetrics);
-        setEvents(mockEvents);
-    }, []);
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'healthy': return 'text-green-500 bg-green-500/10 border-green-500/20';
-            case 'degraded': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
-            case 'critical': return 'text-red-500 bg-red-500/10 border-red-500/20';
-            default: return 'text-brand-400 bg-brand-500/10 border-brand-500/20';
+        } catch (error) {
+            console.error('Failed to fetch monitoring dashboard data:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
+    useEffect(() => {
+        fetchData();
+        // Poll every 30 seconds
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const getStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'active':
+            case 'healthy':
+                return 'text-green-400 bg-green-500/10 border-green-500/20';
+            case 'degraded':
+            case 'warning':
+                return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+            case 'critical':
+            case 'failed':
+            case 'error':
+                return 'text-red-400 bg-red-500/10 border-red-500/20';
+            default:
+                return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+        }
+    };
+
+    const formatTime = (isoString: string) => {
+        if (!isoString) return 'Never';
+        return new Date(isoString).toLocaleString();
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500"></div>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-12">
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
-            >
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-                        <Activity className="w-7 h-7 text-brand-500" />
-                    </div>
-                    <div>
-                        <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Integration Monitor</h1>
-                        <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Real-time health tracking and autonomous self-healing status.</p>
-                    </div>
+        <div className="space-y-8 p-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-white tracking-tight">System Monitor</h1>
+                    <p className="text-surface-400 mt-1">Real-time health status and observability</p>
                 </div>
-            </motion.div>
-
-            {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass p-6 rounded-3xl border border-white/5"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-2xl bg-green-500/10 text-green-500">
-                            <CheckCircle className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-bold text-surface-950 dark:text-white">
-                                {metrics.filter(m => m.status === 'healthy').length}
-                            </h3>
-                            <p className="text-sm text-surface-500 dark:text-surface-400">Healthy Integrations</p>
-                        </div>
-                    </div>
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="glass p-6 rounded-3xl border border-white/5"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-2xl bg-yellow-500/10 text-yellow-500">
-                            <AlertTriangle className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-bold text-surface-950 dark:text-white">
-                                {metrics.filter(m => m.status === 'degraded').length}
-                            </h3>
-                            <p className="text-sm text-surface-500 dark:text-surface-400">Degraded / Warnings</p>
-                        </div>
-                    </div>
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="glass p-6 rounded-3xl border border-white/5"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-2xl bg-brand-500/10 text-brand-500">
-                            <Shield className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-bold text-surface-950 dark:text-white">
-                                {events.length}
-                            </h3>
-                            <p className="text-sm text-surface-500 dark:text-surface-400">Self-Healing Actions</p>
-                        </div>
-                    </div>
-                </motion.div>
+                <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${metrics.system_status === 'healthy' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                        'bg-red-500/10 text-red-400 border-red-500/20'
+                        }`}>
+                        System Status: {metrics.system_status.toUpperCase()}
+                    </span>
+                    <button
+                        onClick={fetchData}
+                        className="p-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-surface-400 hover:text-white transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Integration List */}
-                <div className="lg:col-span-2 space-y-6">
-                    <h2 className="text-3xl font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-brand-500" />
-                        Active Integrations
-                    </h2>
-                    <div className="space-y-4">
-                        {metrics.map((metric, idx) => (
-                            <motion.div
-                                key={metric.integration_id}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.1 }}
-                                className="glass p-6 rounded-2xl border border-white/5 hover:border-brand-500/30 transition-all group"
-                            >
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 className="font-bold text-lg text-surface-950 dark:text-white">{metric.name}</h3>
-                                        <p className="text-sm text-surface-500 dark:text-surface-400">ID: {metric.integration_id}</p>
-                                    </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${getStatusColor(metric.status)}`}>
-                                        {metric.status}
-                                    </span>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <p className="text-xs text-surface-500 mb-1">Health Score</p>
-                                        <div className="h-2 bg-surface-200 dark:bg-surface-800 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${metric.health_score > 90 ? 'bg-green-500' : metric.health_score > 70 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                                style={{ width: `${metric.health_score}%` }}
-                                            />
-                                        </div>
-                                        <p className="text-right text-xs mt-1 font-mono">{metric.health_score}%</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-surface-500 mb-1">Success Rate</p>
-                                        <p className="font-mono text-sm">{metric.success_rate}%</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-surface-500 mb-1">Incidents</p>
-                                        <p className="font-mono text-sm">{metric.active_incidents}</p>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="premium-card p-5">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-surface-400 text-sm font-medium">Active Integrations</p>
+                            <h3 className="text-3xl font-bold text-white mt-2">{metrics.active_count}</h3>
+                            <p className="text-xs text-surface-500 mt-1">/ {metrics.total_integrations} Total</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-brand-500/10">
+                            <Activity className="w-6 h-6 text-brand-500" />
+                        </div>
                     </div>
                 </div>
 
-                {/* Right Column: Recent Activity / Self Healing */}
-                <div className="space-y-6">
-                    <h2 className="text-3xl font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2">
-                        <RefreshCw className="w-5 h-5 text-brand-500" />
-                        Healing Events
-                    </h2>
-                    <div className="glass rounded-2xl p-4 border border-white/5 h-full max-h-[600px] overflow-y-auto custom-scrollbar">
-                        {events.length === 0 ? (
-                            <p className="text-center text-surface-500 py-10">No recent healing events.</p>
-                        ) : (
-                            <div className="space-y-4">
-                                {events.map((event) => (
-                                    <motion.div
-                                        key={event.id}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="p-4 rounded-xl bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-white/5"
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="text-xs font-bold text-brand-500">{event.integration_name}</span>
-                                            <span className="text-[10px] text-surface-400">{new Date(event.timestamp).toLocaleTimeString()}</span>
-                                        </div>
-                                        <p className="text-sm font-medium text-surface-900 dark:text-white mb-1">{event.action_taken}</p>
-                                        <p className="text-xs text-surface-500 mb-3">Reason: {event.reason}</p>
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${event.outcome === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                                            {event.outcome}
-                                        </span>
-                                    </motion.div>
-                                ))}
+                <div className="premium-card p-5">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-surface-400 text-sm font-medium">Avg. Health Score</p>
+                            <h3 className="text-3xl font-bold text-white mt-2">{metrics.avg_health_score.toFixed(1)}%</h3>
+                            <div className="w-full bg-surface-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full ${metrics.avg_health_score > 80 ? 'bg-green-500' : 'bg-yellow-500'}`}
+                                    style={{ width: `${metrics.avg_health_score}%` }}
+                                />
                             </div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-green-500/10">
+                            <Shield className="w-6 h-6 text-green-500" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="premium-card p-5">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-surface-400 text-sm font-medium">Failed Integrations</p>
+                            <h3 className="text-3xl font-bold text-white mt-2">{metrics.failed_count}</h3>
+                            <p className="text-xs text-red-400 mt-1">Requires Attention</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-red-500/10">
+                            <AlertTriangle className="w-6 h-6 text-red-500" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="premium-card p-5">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-surface-400 text-sm font-medium">Self-Healing Events</p>
+                            <h3 className="text-3xl font-bold text-white mt-2">{events.filter(e => e.action === 'self_healing_triggered').length}</h3>
+                            <p className="text-xs text-surface-500 mt-1">Last 24 hours</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-purple-500/10">
+                            <Zap className="w-6 h-6 text-purple-500" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Integration Health List */}
+                <div className="lg:col-span-2 space-y-6">
+                    <h2 className="text-xl font-semibold text-white">Integration Health</h2>
+                    <div className="grid gap-4">
+                        {integrations.length === 0 ? (
+                            <div className="premium-card p-8 text-center text-surface-400">
+                                No active integrations found.
+                            </div>
+                        ) : (
+                            integrations.map((integration) => (
+                                <motion.div
+                                    key={integration.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="premium-card p-5 flex items-center justify-between group hover:border-brand-500/30 transition-colors"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-3 rounded-xl border ${getStatusColor(integration.status)}`}>
+                                            <Server className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-white">{integration.name}</h3>
+                                            <p className="text-sm text-surface-400">
+                                                {integration.source} → {integration.destination}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-right">
+                                            <p className="text-xs text-surface-500 mb-1">Health Score</p>
+                                            <span className={`text-lg font-bold ${integration.health_score > 90 ? 'text-green-400' :
+                                                integration.health_score > 70 ? 'text-yellow-400' : 'text-red-400'
+                                                }`}>
+                                                {integration.health_score}%
+                                            </span>
+                                        </div>
+                                        <div className="text-right hidden sm:block">
+                                            <p className="text-xs text-surface-500 mb-1">Last Check</p>
+                                            <span className="text-sm text-surface-300 font-mono">
+                                                {formatTime(integration.last_check)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Event Log */}
+                <div className="space-y-6">
+                    <h2 className="text-xl font-semibold text-white">Activity Log</h2>
+                    <div className="premium-card p-4 h-[600px] overflow-y-auto custom-scrollbar space-y-4">
+                        {events.length === 0 ? (
+                            <p className="text-surface-500 text-center py-4">No recent activity.</p>
+                        ) : (
+                            events.map((event) => (
+                                <div key={event.id} className="relative pl-6 pb-2 border-l border-surface-700 last:border-0">
+                                    <div className={`absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full ${event.status === 'failed' ? 'bg-red-500' : 'bg-brand-500'
+                                        }`} />
+                                    <div className="mb-1 flex justify-between items-start">
+                                        <span className="text-sm font-semibold text-white capitalize">
+                                            {event.action.replace(/_/g, ' ')}
+                                        </span>
+                                        <span className="text-xs text-surface-500">
+                                            {new Date(event.timestamp).toLocaleTimeString()}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-surface-400 mb-1">
+                                        ID: {event.integration_id.substring(0, 8)}...
+                                    </p>
+                                    {event.details && (
+                                        <div className="text-xs bg-surface-900/50 p-2 rounded border border-surface-700/50 text-surface-300 font-mono overflow-x-auto">
+                                            {JSON.stringify(event.details, null, 2)}
+                                        </div>
+                                    )}
+                                </div>
+                            ))
                         )}
                     </div>
                 </div>

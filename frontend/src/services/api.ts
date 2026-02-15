@@ -63,6 +63,12 @@ class ApiService {
     return this.axiosInstance.delete(url, config);
   }
 
+  public getMonitoringDashboard(limitEvents: number = 20): Promise<AxiosResponse> {
+    return this.axiosInstance.get("/monitoring/dashboard", {
+      params: { limit_events: limitEvents }
+    });
+  }
+
   getBaseUrl(): string {
     return API_BASE_URL;
   }

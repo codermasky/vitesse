@@ -593,8 +593,10 @@ class VitesseOrchestrator:
     async def report_metrics(
         self, integration_id: str, success: bool, error: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Report metrics to Integration Monitor."""
-        return await self.monitor.execute(
+        """Report metrics to Integration Monitor and persist to DB."""
+
+        # 1. Update Monitor Agent (in-memory state & Aether metrics)
+        monitor_result = await self.monitor.execute(
             context={"orchestrator_id": self.orchestrator_id},
             input_data={
                 "action": "report_metrics",
@@ -603,6 +605,68 @@ class VitesseOrchestrator:
                 "error": error,
             },
         )
+
+        # 2. Persist to Database
+        try:
+            from app.db.session import async_session_factory
+            from app.models.integration import Integration, IntegrationAuditLog
+            from sqlalchemy import select, update
+
+            updated_health = monitor_result.get("updated_health", 0.0)
+
+            async with async_session_factory() as db:
+                # Update Integration health score
+                # Fetch first to ensure existence and update json field
+                stmt = select(Integration).where(Integration.id == integration_id)
+                res = await db.execute(stmt)
+                integration = res.scalars().first()
+
+                if integration:
+                    current_score = integration.health_score or {}
+                    # If it's a dict, update it. If not (or None), start fresh.
+                    if not isinstance(current_score, dict):
+                        current_score = {}
+
+                    current_score["overall_score"] = updated_health
+                    current_score["last_updated"] = datetime.utcnow().isoformat()
+
+                    integration.health_score = current_score
+                    integration.last_health_check = datetime.utcnow()
+
+                    # Create Audit Log for failures or significant events
+                    if not success:
+                        audit_log = IntegrationAuditLog(
+                            id=str(uuid.uuid4()),
+                            integration_id=integration_id,
+                            action="health_check_failed",
+                            actor="system_monitor",
+                            status="failed",
+                            details={"error": error, "current_health": updated_health},
+                        )
+                        db.add(audit_log)
+
+                    # If healing was triggered
+                    if monitor_result.get("healing_triggered"):
+                        audit_log_heal = IntegrationAuditLog(
+                            id=str(uuid.uuid4()),
+                            integration_id=integration_id,
+                            action="self_healing_triggered",
+                            actor="system_monitor",
+                            status="active",
+                            details=monitor_result.get("healing_triggered"),
+                        )
+                        db.add(audit_log_heal)
+
+                    await db.commit()
+
+        except Exception as e:
+            logger.error(
+                "Failed to persist metrics to DB",
+                error=str(e),
+                integration_id=integration_id,
+            )
+
+        return monitor_result
 
     async def discover_apis(self, query: str, limit: int = 5) -> Dict[str, Any]:
         """

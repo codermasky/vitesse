@@ -4,18 +4,16 @@ import {
   MessageSquare,
   Activity,
   TrendingUp,
-  Clock,
   Zap,
   Bot,
   ArrowRight,
   CheckCircle,
-  AlertCircle,
-  Info,
-  BarChart3,
   Radio,
+  RefreshCw
 } from 'lucide-react';
 import apiService from '../services/api';
 
+// --- Types ---
 interface AgentActivity {
   agent_id: string;
   agent_name: string;
@@ -62,7 +60,6 @@ const AgentCollaborationHub: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    // Set up polling for real-time updates
     const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -82,11 +79,12 @@ const AgentCollaborationHub: React.FC = () => {
   };
 
   const loadAgentActivity = async () => {
+    // Mocking response structure if needed, assuming API works
     try {
       const response = await apiService.getAgentActivity(24);
       setAgents(response.data || []);
     } catch (error) {
-      console.error('Failed to load agent activity:', error);
+      console.error('Failed to load activity:', error);
     }
   };
 
@@ -95,7 +93,7 @@ const AgentCollaborationHub: React.FC = () => {
       const response = await apiService.getCommunicationLog(2, 20);
       setCommunications(response.data || []);
     } catch (error) {
-      console.error('Failed to load communication log:', error);
+      console.error('Failed to load logs:', error);
     }
   };
 
@@ -104,355 +102,198 @@ const AgentCollaborationHub: React.FC = () => {
       const response = await apiService.getCollaborationStats();
       setStats(response.data);
     } catch (error) {
-      console.error('Failed to load collaboration stats:', error);
+      console.error('Failed to load stats:', error);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Activity className="w-4 h-4 text-green-500" />;
-      case 'idle':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Info className="w-4 h-4 text-brand-400" />;
-    }
-  };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'idle':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'error':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-brand-100 text-brand-800';
-    }
-  };
 
-  const getMessageTypeIcon = (type: string) => {
-    switch (type) {
-      case 'task_assignment':
-        return <Zap className="w-4 h-4 text-blue-500" />;
-      case 'task_update':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'content_review':
-        return <BarChart3 className="w-4 h-4 text-purple-500" />;
-      case 'review_feedback':
-        return <MessageSquare className="w-4 h-4 text-orange-500" />;
-      default:
-        return <MessageSquare className="w-4 h-4 text-brand-400" />;
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
+  const getPriorityBadge = (priority: string) => {
+    let colorClass = 'bg-surface-800 text-surface-400';
     switch (priority) {
-      case 'high':
-        return 'text-red-600 bg-red-50';
-      case 'normal':
-        return 'text-yellow-600 bg-yellow-50';
-      case 'low':
-        return 'text-green-600 bg-green-50';
-      default:
-        return 'text-brand-600 bg-brand-50';
+      case 'high': colorClass = 'bg-red-500/20 text-red-400 border-red-500/30'; break;
+      case 'normal': colorClass = 'bg-blue-500/20 text-blue-400 border-blue-500/30'; break;
+      case 'low': colorClass = 'bg-green-500/20 text-green-400 border-green-500/30'; break;
     }
+    return <span className={`text-[10px] px-2 py-0.5 rounded border ${colorClass} uppercase font-medium`}>{priority}</span>;
   };
 
-  const formatAgentName = (agentId: string) => {
-    const agent = agents.find(a => a.agent_id === agentId);
-    return agent ? agent.agent_name : agentId;
-  };
-
-  const filteredCommunications = communications.filter(comm => {
-    if (communicationFilter === 'all') return true;
-    return comm.message_type === communicationFilter;
-  });
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const filteredCommunications = communications.filter(comm =>
+    communicationFilter === 'all' || comm.message_type === communicationFilter
+  );
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 p-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-              <MessageSquare className="w-7 h-7 text-brand-500" />
-            </div>
-            <div>
-              <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Agent Collaboration</h1>
-              <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Monitor real-time agent collaboration and communication.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Agent Collaboration</h1>
+          <p className="text-surface-400 mt-1">Real-time oversight of multi-agent workflows.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium animate-pulse">
+            <Radio className="w-3 h-3" /> Live
+          </div>
+          <button onClick={loadData} className="p-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-surface-400 hover:text-white transition-colors">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="premium-card p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">Active Agents</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{stats.active_agents}<span className="text-surface-500 text-base font-normal">/{stats.total_agents}</span></h3>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-500/10">
+                <Bot className="w-6 h-6 text-blue-500" />
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-green-400 border border-green-400/20 hover:bg-green-400/10 px-3 py-1.5 rounded-full transition-colors duration-200">
-            <Radio className="w-4 h-4" />
-            <span>Live</span>
+          <div className="premium-card p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">Collaboration Score</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{stats.average_collaboration_score.toFixed(1)}</h3>
+                <div className="w-full bg-surface-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500 rounded-full"
+                    style={{ width: `${stats.average_collaboration_score * 10}%` }}
+                  />
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-500/10">
+                <TrendingUp className="w-6 h-6 text-purple-500" />
+              </div>
+            </div>
+          </div>
+          <div className="premium-card p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">Tasks Today</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{stats.tasks_completed_today}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-orange-500/10">
+                <Activity className="w-6 h-6 text-orange-500" />
+              </div>
+            </div>
+          </div>
+          <div className="premium-card p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">Communications</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{stats.total_communications_today}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-green-500/10">
+                <MessageSquare className="w-6 h-6 text-green-500" />
+              </div>
+            </div>
           </div>
         </div>
-      </motion.div>
-
-      {/* Statistics Cards */}
-      {stats && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3, duration: 0.3 }}
-            className="glass rounded-3xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300"
-          >
-            <div className="flex items-center">
-              <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl border border-white/10">
-                <Bot className="w-8 h-8 text-blue-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/70">Active Agents</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  {stats.active_agents}/{stats.total_agents}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4, duration: 0.3 }}
-            className="glass rounded-3xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300"
-          >
-            <div className="flex items-center">
-              <div className="p-3 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-2xl border border-white/10">
-                <MessageSquare className="w-8 h-8 text-green-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/70">Communications</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                  {stats.total_communications_today}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5, duration: 0.3 }}
-            className="glass rounded-3xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300"
-          >
-            <div className="flex items-center">
-              <div className="p-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl border border-white/10">
-                <TrendingUp className="w-8 h-8 text-purple-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/70">Collaboration Score</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  {stats.average_collaboration_score.toFixed(1)}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.6, duration: 0.3 }}
-            className="glass rounded-3xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300"
-          >
-            <div className="flex items-center">
-              <div className="p-3 bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-2xl border border-white/10">
-                <Activity className="w-8 h-8 text-orange-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/70">Tasks Today</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
-                  {stats.tasks_completed_today}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Agent Activity */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.7, duration: 0.5 }}
-          className="glass rounded-3xl border border-white/20 shadow-xl"
-        >
-          <div className="p-6 border-b border-white/10">
-            <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-              Agent Activity
-            </h2>
-          </div>
-          <div className="divide-y divide-white/10 max-h-96 overflow-y-auto">
-            {agents.map((agent, index) => (
+
+        {/* Agent List */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Bot className="w-5 h-5 text-brand-500" /> Agent Status
+          </h2>
+          <div className="grid gap-3">
+            {loading ? (
+              [...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-surface-800/50 animate-pulse" />)
+            ) : agents.map(agent => (
               <motion.div
                 key={agent.agent_id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 + index * 0.1, duration: 0.3 }}
-                className="p-6 hover:bg-white/5 transition-colors duration-200"
+                className="premium-card p-4 flex items-center justify-between group hover:border-brand-500/30 transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl border border-white/10">
-                      <Bot className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">{agent.agent_name}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(agent.status)}`}>
-                          {getStatusIcon(agent.status)}
-                          <span className="ml-1 capitalize">{agent.status}</span>
-                        </span>
-                        <span className="text-xs text-white/60">
-                          {agent.tasks_completed} tasks
-                        </span>
-                      </div>
-                    </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-surface-800 border border-surface-700 flex items-center justify-center text-lg font-bold text-brand-500">
+                    {agent.agent_name.charAt(0)}
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-white">{agent.success_rate.toFixed(1)}% success</p>
-                    <p className="text-xs text-white/50">{agent.average_response_time}s avg</p>
+                  <div>
+                    <h4 className="text-white font-medium">{agent.agent_name}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`w-2 h-2 rounded-full ${agent.status === 'active' ? 'bg-green-500' : 'bg-surface-500'}`} />
+                      <span className="text-xs text-surface-400 capitalize">{agent.status}</span>
+                      {agent.current_task && (
+                        <span className="text-xs text-surface-500 border-l border-surface-700 pl-2 ml-1 truncate max-w-[150px]">
+                          {agent.current_task}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {agent.current_task && (
-                  <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                    <p className="text-sm text-white/80 truncate">{agent.current_task}</p>
+                <div className="text-right">
+                  <div className="text-xs text-surface-500 mb-1">Success Rate</div>
+                  <div className={`font-mono font-medium ${agent.success_rate > 90 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    {agent.success_rate.toFixed(1)}%
                   </div>
-                )}
+                </div>
               </motion.div>
             ))}
           </div>
-        </motion.div>
+        </div>
 
         {/* Communication Log */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.7, duration: 0.5 }}
-          className="glass rounded-3xl border border-white/20 shadow-xl"
-        >
-          <div className="p-6 border-b border-white/10">
-            <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-                Communication Log
-              </h2>
-              <motion.select
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                value={communicationFilter}
-                onChange={(e) => setCommunicationFilter(e.target.value)}
-                className="text-sm bg-white/10 text-white border border-white/20 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-transparent"
-              >
-                <option value="all" className="bg-brand-900">All Types</option>
-                <option value="task_assignment" className="bg-brand-900">Task Assignment</option>
-                <option value="task_update" className="bg-brand-900">Task Update</option>
-                <option value="content_review" className="bg-brand-900">Content Review</option>
-                <option value="review_feedback" className="bg-brand-900">Review Feedback</option>
-              </motion.select>
-            </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-brand-500" /> Live Feed
+            </h2>
+            <select
+              value={communicationFilter}
+              onChange={(e) => setCommunicationFilter(e.target.value)}
+              className="bg-surface-800 text-xs text-surface-300 border-none rounded-lg focus:ring-1 focus:ring-brand-500/50"
+            >
+              <option value="all">All Events</option>
+              <option value="task_assignment">Assignments</option>
+              <option value="task_update">Updates</option>
+              <option value="content_review">Reviews</option>
+            </select>
           </div>
-          <div className="divide-y divide-white/10 max-h-96 overflow-y-auto">
-            {filteredCommunications.map((comm, index) => (
-              <motion.div
-                key={comm.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 + index * 0.05, duration: 0.3 }}
-                className="p-6 hover:bg-white/5 transition-colors duration-200"
-              >
-                <div className="flex items-start space-x-4">
-                  <div className="p-2 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl border border-white/10">
-                    {getMessageTypeIcon(comm.message_type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-semibold text-white">
-                        {formatAgentName(comm.from_agent)}
-                      </span>
-                      <ArrowRight className="w-3 h-3 text-white/60" />
-                      <span className="text-sm font-semibold text-white">
-                        {formatAgentName(comm.to_agent)}
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(comm.priority)}`}>
-                        {comm.priority}
-                      </span>
+
+          <div className="premium-card p-0 overflow-hidden h-[500px] flex flex-col">
+            <div className="overflow-y-auto custom-scrollbar p-4 space-y-4 flex-1">
+              {filteredCommunications.map((comm) => (
+                <div key={comm.id} className="flex gap-3 relative">
+                  <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-surface-800 border border-surface-700 flex items-center justify-center z-10">
+                      {comm.message_type === 'task_assignment' ? <Zap className="w-4 h-4 text-yellow-400" /> :
+                        comm.message_type === 'task_update' ? <CheckCircle className="w-4 h-4 text-green-400" /> :
+                          <MessageSquare className="w-4 h-4 text-blue-400" />}
                     </div>
-                    <p className="text-sm text-white/80 mt-2">{comm.content}</p>
-                    <p className="text-xs text-white/50 mt-2">
-                      {new Date(comm.timestamp).toLocaleTimeString()}
-                    </p>
+                    <div className="w-0.5 h-full bg-surface-800 -mt-2 opacity-50 absolute top-8 bottom-0 left-4" />
+                  </div>
+                  <div className="flex-1 pb-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-surface-500 font-mono">
+                        {new Date(comm.timestamp).toLocaleTimeString()}
+                      </p>
+                      {getPriorityBadge(comm.priority)}
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/40 border border-surface-700/40">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-surface-300 mb-2">
+                        <span>{comm.from_agent}</span>
+                        <ArrowRight className="w-3 h-3 text-surface-600" />
+                        <span>{comm.to_agent}</span>
+                      </div>
+                      <p className="text-sm text-surface-200">{comm.content}</p>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            ))}
+              ))}
+            </div>
           </div>
-        </motion.div>
-      </div>
+        </div>
 
-      {/* Workflow Visualization */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9, duration: 0.5 }}
-        className="glass rounded-3xl border border-white/20 shadow-xl p-8"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-            Active Workflows
-          </h2>
-          <div className="px-3 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full border border-white/10">
-            <span className="text-sm font-medium text-white">{stats?.active_workflows || 0} active</span>
-          </div>
-        </div>
-        <div className="text-center py-12">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 1.0, duration: 0.5 }}
-            className="p-4 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl border border-white/10 w-fit mx-auto mb-6"
-          >
-            <Bot className="w-12 h-12 text-blue-400 mx-auto" />
-          </motion.div>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.1, duration: 0.5 }}
-            className="text-white/80 font-medium mb-2"
-          >
-            Workflow visualization coming soon
-          </motion.p>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2, duration: 0.5 }}
-            className="text-sm text-white/60"
-          >
-            Real-time workflow diagrams and agent coordination tracking
-          </motion.p>
-        </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

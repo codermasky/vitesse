@@ -110,15 +110,34 @@ class IntegrationMonitorAgent(VitesseAgent):
 
         stats = self.monitored_integrations[integration_id]
         stats["total_calls"] += 1
+
+        # Aether Observability: Valid metric types are counter, gauge, histogram
+        metrics.increment(
+            "integration.calls.total", tags={"integration_id": integration_id}
+        )
+
         if not success:
             stats["failed_calls"] += 1
             stats["last_failure"] = datetime.utcnow()
             stats["errors"].append(error)
+
+            # Aether Observability
+            metrics.increment(
+                "integration.calls.failed",
+                tags={"integration_id": integration_id, "error": str(error)},
+            )
+
             # Keep error log manageable
             if len(stats["errors"]) > 10:
                 stats["errors"].pop(0)
         else:
             stats["last_success"] = datetime.utcnow()
+            # Aether Observability
+            metrics.histogram(
+                "integration.duration",
+                duration,
+                tags={"integration_id": integration_id},
+            )
 
         # Recalculate health info
         failure_rate = (
@@ -127,6 +146,13 @@ class IntegrationMonitorAgent(VitesseAgent):
             else 0
         )
         stats["health_score"] = max(0, 100 - (failure_rate * 100))
+
+        # Aether Observability: Gauge for health score
+        metrics.gauge(
+            "integration.health_score",
+            stats["health_score"],
+            tags={"integration_id": integration_id},
+        )
 
         # Check if we need to trigger self-healing
         healing_trigger = None
@@ -177,19 +203,31 @@ class IntegrationMonitorAgent(VitesseAgent):
     async def _trigger_self_healing(
         self, integration_id: str, reason: str
     ) -> Dict[str, Any]:
-        """Request self-healing from Orchestrator."""
+        """Request self-healing from Orchestrator via Aether Intelligence."""
         logger.warning(
             "Triggering self-healing", integration_id=integration_id, reason=reason
         )
 
-        # in a real implementation, this would call the Orchestrator
-        # accessing orchestrator via context if available, or just returning the recommendation
+        metrics.increment(
+            "integration.self_healing.triggered",
+            tags={"integration_id": integration_id, "reason": reason},
+        )
 
-        # Ideally, we emit an event or call a specialized service
-        # For this implementation, we'll return the instruction
+        # Ask Intelligence Provider for analysis if available
+        analysis = "Automatic trigger due to failure threshold breach."
+        if self.intelligence:
+            try:
+                analysis_result = await self.intelligence.get_insights(
+                    f"Analyze failure pattern for integration {integration_id} given reason: {reason}"
+                )
+                analysis = analysis_result.get("insights", [analysis])[0]
+            except Exception as e:
+                logger.warning("Intelligence analysis failed", error=str(e))
+
         return {
             "action": "heal",
             "integration_id": integration_id,
             "reason": reason,
+            "analysis": analysis,
             "timestamp": datetime.utcnow().isoformat(),
         }

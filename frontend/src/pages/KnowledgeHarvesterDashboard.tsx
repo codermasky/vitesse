@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
   Pause,
-  BarChart3,
   Clock,
   CheckCircle,
   XCircle,
@@ -11,11 +10,16 @@ import {
   TrendingUp,
   Activity,
   Database,
-  Plus,
-  Trash2
+  Trash2,
+  Search,
+  RefreshCw,
+  Globe,
+  BookOpen,
+  Code2
 } from 'lucide-react';
 import apiService from '../services/api';
 
+// --- Types ---
 interface HarvestJob {
   id: string;
   harvest_type: string;
@@ -55,10 +59,10 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [newJobType, setNewJobType] = useState('full');
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadData();
-    // Set up polling for real-time updates
     const interval = setInterval(loadJobs, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -104,7 +108,8 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
     }
   };
 
-  const cancelJob = async (jobId: string) => {
+  const cancelJob = async (jobId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       await apiService.cancelHarvestJob(jobId);
       await loadJobs();
@@ -113,30 +118,22 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
     }
   };
 
-
-  const deleteJob = async (jobId: string) => {
-    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
-      return;
-    }
-
+  const deleteJob = async (jobId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) return;
     try {
       await apiService.deleteHarvestJob(jobId);
-      // Remove job from local state immediately for better UX
       setJobs(jobs.filter(j => j.id !== jobId));
-      loadStats(); // Reload stats to reflect the change
+      loadStats();
+      if (selectedJob?.id === jobId) setSelectedJob(null);
     } catch (error) {
       console.error('Failed to delete job:', error);
-      alert('Failed to delete job. Please try again.');
     }
   };
 
   const bulkDeleteJobs = async () => {
     if (selectedJobIds.size === 0) return;
-
-    if (!window.confirm(`Are you sure you want to delete ${selectedJobIds.size} jobs? This action cannot be undone.`)) {
-      return;
-    }
-
+    if (!window.confirm(`Are you sure you want to delete ${selectedJobIds.size} jobs?`)) return;
     try {
       await apiService.bulkDeleteHarvestJobs(Array.from(selectedJobIds));
       setJobs(jobs.filter(j => !selectedJobIds.has(j.id)));
@@ -144,89 +141,55 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
       loadStats();
     } catch (error) {
       console.error('Failed to bulk delete jobs:', error);
-      alert('Failed to delete some jobs. Please try again.');
     }
   };
 
   const toggleJobSelection = (jobId: string) => {
     const newSelected = new Set(selectedJobIds);
-    if (newSelected.has(jobId)) {
-      newSelected.delete(jobId);
-    } else {
-      newSelected.add(jobId);
-    }
+    if (newSelected.has(jobId)) newSelected.delete(jobId);
+    else newSelected.add(jobId);
     setSelectedJobIds(newSelected);
-  };
-
-  const toggleAllSelection = () => {
-    if (selectedJobIds.size === jobs.length && jobs.length > 0) {
-      setSelectedJobIds(new Set());
-    } else {
-      setSelectedJobIds(new Set(jobs.map(j => j.id)));
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'running':
-        return <Activity className="w-4 h-4 text-blue-500 animate-pulse" />;
-      case 'failed':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'queued':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <AlertCircle className="w-4 h-4 text-brand-400" />;
-    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'running':
-        return 'bg-blue-100 text-blue-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'queued':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-brand-100 text-brand-800';
+      case 'completed': return 'text-green-400 bg-green-500/10 border-green-500/20';
+      case 'running': return 'text-blue-400 bg-blue-500/10 border-blue-500/20 animate-pulse';
+      case 'failed': return 'text-red-400 bg-red-500/10 border-red-500/20';
+      case 'queued': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+      default: return 'text-surface-400 bg-surface-500/10 border-surface-500/20';
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const getJobTypeIcon = (type: string) => {
+    switch (type) {
+      case 'financial': return <TrendingUp className="w-4 h-4" />;
+      case 'api_directory': return <Globe className="w-4 h-4" />;
+      case 'documentation': return <BookOpen className="w-4 h-4" />;
+      case 'code_repositories': return <Code2 className="w-4 h-4" />;
+      default: return <Database className="w-4 h-4" />;
+    }
+  };
+
+  const filteredJobs = jobs.filter(job =>
+    job.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    job.harvest_type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 p-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-[2.5rem] p-12 border border-brand-500/10 space-y-6"
-      >
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-              <Database className="w-7 h-7 text-brand-500" />
-            </div>
-            <div>
-              <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-surface-950 dark:text-white leading-[1.1]">Knowledge Harvester Dashboard</h1>
-              <p className="text-lg text-surface-600 dark:text-surface-400 font-medium">Monitor and manage knowledge harvesting operations with real-time insights and automated workflows.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Knowledge Harvester</h1>
+          <p className="text-surface-400 mt-1">Monitor and manage knowledge ingestion pipelines.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="bg-surface-800/50 rounded-lg p-1 border border-surface-700/50 flex">
             <select
               value={newJobType}
               onChange={(e) => setNewJobType(e.target.value)}
-              className="px-4 py-2.5 bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+              className="bg-transparent text-sm text-surface-300 border-none focus:ring-0 cursor-pointer pr-8"
             >
               <option value="full">Full Harvest</option>
               <option value="financial">Financial APIs</option>
@@ -234,365 +197,291 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
               <option value="documentation">Documentation</option>
               <option value="code_repositories">Code Repositories</option>
             </select>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={createJob}
-              disabled={isCreatingJob}
-              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-brand-500/20 transition-all duration-300 disabled:opacity-50"
-            >
-              <Play className="w-4 h-4" />
-              {isCreatingJob ? 'Starting...' : 'Start Harvest'}
-            </motion.button>
           </div>
+          <button
+            onClick={createJob}
+            disabled={isCreatingJob}
+            className="btn-primary flex items-center gap-2"
+          >
+            {isCreatingJob ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            <span>Start Harvest</span>
+          </button>
         </div>
-      </motion.div>
-
-      <div className="flex justify-end -mt-6 mb-6">
-        <a href="/knowledge-base" className="text-sm text-brand-500 hover:text-brand-400 font-medium flex items-center gap-1">
-          Browse Knowledge Base <Database className="w-3 h-3" />
-        </a>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Stats Grid */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass p-8 rounded-3xl border border-white/5 flex items-center justify-between group"
-          >
-            <div>
-              <p className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1">Total Jobs</p>
-              <h3 className="text-3xl font-black text-surface-950 dark:text-white tracking-tighter">{stats.total_jobs}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="premium-card p-5 group hover:border-brand-500/30 transition-colors">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">Running Jobs</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{stats.running_jobs}</h3>
+                <p className="text-xs text-brand-400 mt-1 animate-pulse">Active Now</p>
+              </div>
+              <div className="p-3 rounded-xl bg-brand-500/10 group-hover:bg-brand-500/20 transition-colors">
+                <Activity className="w-6 h-6 text-brand-500" />
+              </div>
             </div>
-            <div className="w-14 h-14 bg-brand-500/10 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110">
-              <BarChart3 className="w-7 h-7 text-brand-500" />
-            </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass p-8 rounded-3xl border border-white/5 flex items-center justify-between group"
-          >
-            <div>
-              <p className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1">Running Jobs</p>
-              <h3 className="text-3xl font-black text-surface-950 dark:text-white tracking-tighter">{stats.running_jobs}</h3>
+          <div className="premium-card p-5 group hover:border-green-500/30 transition-colors">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">Success Rate</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{Math.round(stats.success_rate * 100)}%</h3>
+                <div className="w-full bg-surface-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full"
+                    style={{ width: `${stats.success_rate * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+                <CheckCircle className="w-6 h-6 text-green-500" />
+              </div>
             </div>
-            <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110">
-              <Activity className="w-7 h-7 text-emerald-500" />
-            </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass p-8 rounded-3xl border border-white/5 flex items-center justify-between group"
-          >
-            <div>
-              <p className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1">Success Rate</p>
-              <h3 className="text-3xl font-black text-surface-950 dark:text-white tracking-tighter">{Math.round(stats.success_rate * 100)}%</h3>
+          <div className="premium-card p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">APIs Harvested</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{stats.total_apis_harvested}</h3>
+                <p className="text-xs text-surface-500 mt-1">Total count</p>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-500/10">
+                <Database className="w-6 h-6 text-purple-500" />
+              </div>
             </div>
-            <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110">
-              <TrendingUp className="w-7 h-7 text-blue-500" />
-            </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass p-8 rounded-3xl border border-white/5 flex items-center justify-between group"
-          >
-            <div>
-              <p className="text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1">APIs Harvested</p>
-              <h3 className="text-3xl font-black text-surface-950 dark:text-white tracking-tighter">{stats.total_apis_harvested}</h3>
+          <div className="premium-card p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-surface-400 text-sm font-medium">Avg Duration</p>
+                <h3 className="text-3xl font-bold text-white mt-2">{Math.round(stats.average_job_duration)}s</h3>
+                <p className="text-xs text-surface-500 mt-1">Per job</p>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-500/10">
+                <Clock className="w-6 h-6 text-blue-500" />
+              </div>
             </div>
-            <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110">
-              <Database className="w-7 h-7 text-purple-500" />
-            </div>
-          </motion.div>
+          </div>
         </div>
       )}
 
-      {/* Jobs Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6, duration: 0.5 }}
-        className="glass rounded-3xl p-6 border border-white/20 shadow-xl"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-            Recent Harvest Jobs
-          </h2>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg"
-          >
-            <Plus className="w-4 h-4 inline mr-2" />
-            New Harvest
-          </motion.button>
-          {selectedJobIds.size > 0 && (
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={bulkDeleteJobs}
-              className="px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-medium hover:bg-red-500 hover:text-white transition-all duration-200 shadow-lg"
-            >
-              <Trash2 className="w-4 h-4 inline mr-2" />
-              Delete Selected ({selectedJobIds.size})
-            </motion.button>
-          )}
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/10">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-4 py-4 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedJobIds.size === jobs.length && jobs.length > 0}
-                    onChange={toggleAllSelection}
-                    className="rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-500"
-                  />
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
-                  Job ID
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
-                  Progress
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
-                  APIs Found
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
-                  Success/Fail
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {jobs.map((job, index) => (
-                <motion.tr
-                  key={job.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7 + index * 0.1, duration: 0.3 }}
-                  className={`hover:bg-white/5 transition-colors duration-200 ${selectedJobIds.has(job.id) ? 'bg-brand-500/10' : ''}`}
-                >
-                  <td className="px-4 py-4 whitespace-nowrap">
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        {/* Job List */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex justify-between items-center bg-surface-900/40 p-2 rounded-xl backdrop-blur-sm border border-surface-800/50">
+            <div className="flex items-center gap-2 px-3 flex-1">
+              <Search className="w-4 h-4 text-surface-400" />
+              <input
+                type="text"
+                placeholder="Search jobs..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="bg-transparent border-none focus:outline-none text-white w-full text-sm placeholder-surface-500"
+              />
+            </div>
+            {selectedJobIds.size > 0 && (
+              <button
+                onClick={bulkDeleteJobs}
+                className="px-3 py-1.5 text-xs bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors flex items-center gap-2 mx-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete ({selectedJobIds.size})
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {loading ? (
+              [...Array(3)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-surface-800/50 animate-pulse" />)
+            ) : filteredJobs.length === 0 ? (
+              <div className="text-center py-12 text-surface-500">
+                <Database className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p>No jobs found.</p>
+              </div>
+            ) : filteredJobs.map((job) => (
+              <motion.div
+                key={job.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => setSelectedJob(job)}
+                className={`premium-card p-4 cursor-pointer group transition-all hover:translate-x-1 ${selectedJob?.id === job.id
+                  ? 'border-brand-500/50 bg-brand-500/5'
+                  : 'hover:border-surface-600'
+                  }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center h-full">
                     <input
                       type="checkbox"
                       checked={selectedJobIds.has(job.id)}
-                      onChange={() => toggleJobSelection(job.id)}
-                      className="rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-500"
+                      onChange={(e) => { e.stopPropagation(); toggleJobSelection(job.id); }}
+                      className="rounded border-surface-600 bg-surface-800 text-brand-500 focus:ring-brand-500/20"
                     />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                    {job.id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70 capitalize">
-                    {job.harvest_type.replace('_', ' ')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
-                      {getStatusIcon(job.status)}
-                      <span className="ml-1 capitalize">{job.status}</span>
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
-                    <div className="flex items-center">
-                      <div className="w-16 bg-white/20 rounded-full h-2 mr-2">
-                        <motion.div
-                          className="bg-gradient-to-r from-purple-400 to-pink-400 h-2 rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${job.progress}%` }}
-                          transition={{ delay: 0.8 + index * 0.1, duration: 0.8 }}
-                        ></motion.div>
+                  </div>
+                  <div className={`p-3 rounded-xl border ${getStatusColor(job.status)} bg-opacity-10`}>
+                    {getJobTypeIcon(job.harvest_type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-white font-medium truncate pr-2">
+                        {job.harvest_type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Harvest
+                      </h4>
+                      <span className="text-xs text-surface-500 font-mono">{new Date(job.created_at).toLocaleTimeString()}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex-1 h-1.5 bg-surface-700/50 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${job.status === 'failed' ? 'bg-red-500' :
+                            job.status === 'completed' ? 'bg-green-500' : 'bg-brand-500'
+                            }`}
+                          style={{ width: `${job.progress}%` }}
+                        />
                       </div>
-                      {job.progress}%
+                      <span className="text-xs text-surface-400 w-8 text-right">{job.progress}%</span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
-                    {job.apis_harvested}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
-                    <span className="text-green-400">{job.successful_harvests}</span>
-                    {' / '}
-                    <span className="text-red-400">{job.failed_harvests}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      {job.status === 'running' && (
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => cancelJob(job.id)}
-                          className="text-red-400 hover:text-red-300 transition-colors duration-200"
-                        >
-                          <Pause className="w-4 h-4" />
-                        </motion.button>
-                      )}
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => deleteJob(job.id)}
-                        className="text-surface-400 hover:text-red-500 transition-colors duration-200"
-                        title="Delete Job"
+                  </div>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {job.status === 'running' && (
+                      <button
+                        onClick={(e) => cancelJob(job.id, e)}
+                        className="p-2 hover:bg-surface-700 rounded-lg text-surface-400 hover:text-white"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </motion.button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+                        <Pause className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => deleteJob(job.id, e)}
+                      className="p-2 hover:bg-red-500/10 rounded-lg text-surface-400 hover:text-red-400"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      </motion.div>
 
-      {/* Job Details Modal */}
-      {selectedJob && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center"
-          onClick={() => setSelectedJob(null)}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative mx-auto p-6 border border-white/20 shadow-2xl rounded-3xl glass max-w-2xl w-full m-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-                Job Details: {selectedJob.id}
-              </h3>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setSelectedJob(null)}
-                className="text-white/60 hover:text-white transition-colors duration-200"
+        {/* Details Panel */}
+        <div className="lg:col-span-1">
+          <AnimatePresence mode="wait">
+            {selectedJob ? (
+              <motion.div
+                key={selectedJob.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="premium-card p-6 sticky top-6"
               >
-                <XCircle className="w-6 h-6" />
-              </motion.button>
-            </div>
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Job Details</h3>
+                    <p className="text-xs text-surface-400 font-mono mt-1">{selectedJob.id}</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedJob(null)}
+                    className="text-surface-500 hover:text-white"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white/5 rounded-xl p-4 border border-white/10"
-              >
-                <p className="text-sm font-medium text-white/80 mb-1">Harvest Type</p>
-                <p className="text-sm text-white capitalize">{selectedJob.harvest_type.replace('_', ' ')}</p>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="bg-white/5 rounded-xl p-4 border border-white/10"
-              >
-                <p className="text-sm font-medium text-white/80 mb-1">Status</p>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedJob.status)}`}>
-                  {getStatusIcon(selectedJob.status)}
-                  <span className="ml-1 capitalize">{selectedJob.status}</span>
-                </span>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white/5 rounded-xl p-4 border border-white/10"
-              >
-                <p className="text-sm font-medium text-white/80 mb-1">Progress</p>
-                <p className="text-sm text-white">{selectedJob.progress}%</p>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="bg-white/5 rounded-xl p-4 border border-white/10"
-              >
-                <p className="text-sm font-medium text-white/80 mb-1">APIs Harvested</p>
-                <p className="text-sm text-white">{selectedJob.apis_harvested}</p>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white/5 rounded-xl p-4 border border-white/10"
-              >
-                <p className="text-sm font-medium text-white/80 mb-1">Sources Processed</p>
-                <p className="text-sm text-white">{selectedJob.processed_sources} / {selectedJob.total_sources}</p>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="bg-white/5 rounded-xl p-4 border border-white/10"
-              >
-                <p className="text-sm font-medium text-white/80 mb-1">Success Rate</p>
-                <p className="text-sm text-white">
-                  {selectedJob.total_sources > 0
-                    ? ((selectedJob.successful_harvests / selectedJob.total_sources) * 100).toFixed(1)
-                    : 0
-                  }%
-                </p>
-              </motion.div>
-            </div>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 rounded-lg bg-surface-800/50 border border-surface-700/50">
+                      <p className="text-xs text-surface-500 uppercase">Status</p>
+                      <p className={`text-sm font-medium mt-1 inline-block px-2 py-0.5 rounded ${getStatusColor(selectedJob.status)}`}>
+                        {selectedJob.status}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/50 border border-surface-700/50">
+                      <p className="text-xs text-surface-500 uppercase">Type</p>
+                      <p className="text-sm font-medium text-white mt-1 capitalize">
+                        {selectedJob.harvest_type.replace('_', ' ')}
+                      </p>
+                    </div>
+                  </div>
 
-            {selectedJob.error_message && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="mt-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4"
-              >
-                <p className="text-sm font-medium text-red-400 mb-2">Error Message</p>
-                <p className="text-sm text-red-300">{selectedJob.error_message}</p>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-xs text-surface-400 mb-1">
+                        <span>Progress</span>
+                        <span>{selectedJob.progress}%</span>
+                      </div>
+                      <div className="h-2 bg-surface-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-brand-500 rounded-full transition-all"
+                          style={{ width: `${selectedJob.progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2 border-b border-surface-700/50">
+                      <span className="text-sm text-surface-400">APIs Harvested</span>
+                      <span className="text-sm font-medium text-white">{selectedJob.apis_harvested}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-surface-700/50">
+                      <span className="text-sm text-surface-400">Total Sources</span>
+                      <span className="text-sm font-medium text-white">{selectedJob.total_sources}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-surface-700/50">
+                      <span className="text-sm text-surface-400">Success / Fail</span>
+                      <span className="text-sm font-medium">
+                        <span className="text-green-400">{selectedJob.successful_harvests}</span>
+                        <span className="text-surface-600 mx-1">/</span>
+                        <span className="text-red-400">{selectedJob.failed_harvests}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedJob.error_message && (
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <div className="flex gap-2 items-start text-red-400 mb-1">
+                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs font-medium">Error Details</p>
+                      </div>
+                      <p className="text-xs text-red-300/80 leading-relaxed">
+                        {selectedJob.error_message}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="pt-4 flex gap-2">
+                    {selectedJob.status === 'running' && (
+                      <button
+                        onClick={(e) => cancelJob(selectedJob.id, e)}
+                        className="btn-secondary w-full"
+                      >
+                        Cancel Job
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => deleteJob(selectedJob.id, e)}
+                      className="px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors w-full"
+                    >
+                      Delete Job
+                    </button>
+                  </div>
+                </div>
               </motion.div>
+            ) : (
+              <div className="h-64 rounded-xl border-2 border-dashed border-surface-800 flex flex-col items-center justify-center text-surface-500">
+                <Activity className="w-8 h-8 opacity-20 mb-2" />
+                <p className="text-sm">Select a job to view details</p>
+              </div>
             )}
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.45 }}
-              className="mt-6 flex justify-end"
-            >
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedJob(null)}
-                className="px-6 py-2 bg-white/10 text-white rounded-xl font-medium hover:bg-white/20 transition-all duration-200 border border-white/20"
-              >
-                Close
-              </motion.button>
-            </motion.div>
-          </motion.div>
-        </motion.div>
-      )}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 };

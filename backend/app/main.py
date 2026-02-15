@@ -14,6 +14,7 @@ from slowapi.middleware import SlowAPIMiddleware
 import structlog
 
 from app.api.api import api_router
+from app.api.endpoints import monitoring
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.telemetry import init_telemetry
@@ -181,6 +182,7 @@ def create_application() -> FastAPI:
 
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)
+    app.include_router(monitoring.router, prefix=settings.API_V1_STR)
 
     @app.get("/health")
     async def health_check():

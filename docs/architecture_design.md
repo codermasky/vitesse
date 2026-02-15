@@ -474,6 +474,7 @@ A closed-loop system that continuously monitors active integrations and attempts
     *   Calculates health scores based on success rate and latency.
     *   Detects anomalies (e.g., sudden spike in 500 errors).
     *   Triggers `SelfHealingAgent` if health score drops below threshold.
+    *   **Persistence**: Metrics and health scores are persisted to the `Integration` database table by the Orchestrator for historical tracking and dashboard visualization.
 
 2.  **SelfHealingAgent**: Reacts to triggers from the Monitor.
     *   **Diagnosis**: Analyzes error logs to determine root cause (e.g., Auth failure vs. Schema change).
