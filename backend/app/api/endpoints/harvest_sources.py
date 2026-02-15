@@ -219,3 +219,15 @@ async def initialize_default_sources(db: AsyncSession = Depends(get_db)):
     service = HarvestSourceService(db)
     await service.initialize_default_sources()
     return {"message": "Default harvest sources initialized successfully"}
+
+
+@router.post("/search")
+async def search_harvest_sources(
+    query: str = Query(..., min_length=2),
+    source_type: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search for harvest sources on the web and return suggestions."""
+    service = HarvestSourceService(db)
+    results = await service.search_web_sources(query, source_type)
+    return {"query": query, "results": results}

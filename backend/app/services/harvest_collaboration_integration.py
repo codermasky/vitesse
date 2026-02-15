@@ -57,6 +57,15 @@ class HarvestJobService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def is_any_job_running(db: AsyncSession) -> bool:
+        """Check if any harvest job is currently running."""
+        result = await db.execute(
+            select(func.count(HarvestJob.id)).filter(HarvestJob.status == "running")
+        )
+        count = result.scalar() or 0
+        return count > 0
+
+    @staticmethod
     async def create_harvest_job(
         db: AsyncSession,
         job_id: str,

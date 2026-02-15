@@ -155,10 +155,19 @@ class KnowledgeHarvesterScheduler:
                 harvest_type=harvest_type,
             )
 
+            # Progress callback
+            async def on_progress(p: float):
+                logger.info("Reporting harvest progress", job_id=job_id, progress=p)
+                async with async_session_factory() as db_prog:
+                    await HarvestJobService.update_harvest_job_status(
+                        db_prog, job_id, "running", progress=p
+                    )
+
             # Execute harvest
             result = await self.harvester.execute(
                 context={},
                 input_data={"harvest_type": harvest_type},
+                on_progress=on_progress,
             )
 
             # Update job in database with results

@@ -18,7 +18,8 @@ import {
   FileText,
   Settings,
   BarChart3,
-  Pause
+  Pause,
+  Sparkles
 } from 'lucide-react';
 import apiService from '../services/api';
 import { cn } from '../services/utils';
@@ -62,6 +63,16 @@ interface HarvestStats {
   sources_by_category: Record<string, number>;
 }
 
+interface SearchResult {
+  name: string;
+  type: string;
+  url: string;
+  description: string;
+  category: string;
+  source: string;
+  confidence: number;
+}
+
 const HarvestSources: React.FC = () => {
   const [sources, setSources] = useState<HarvestSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +85,13 @@ const HarvestSources: React.FC = () => {
   const [editingSource, setEditingSource] = useState<HarvestSource | null>(null);
   const [testingSource, setTestingSource] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, HarvestTestResult>>({});
+  
+  // Search for sources state
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchQueryWeb, setSearchQueryWeb] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTypeFilter, setSearchTypeFilter] = useState<string>('all');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -189,6 +207,48 @@ const HarvestSources: React.FC = () => {
       loadStats();
     } catch (error) {
       console.error('Failed to initialize default sources:', error);
+    }
+  };
+
+  // Web search for sources
+  const handleSearchSources = async () => {
+    if (!searchQueryWeb.trim()) return;
+    
+    setIsSearching(true);
+    try {
+      const response = await apiService.searchHarvestSources(
+        searchQueryWeb, 
+        searchTypeFilter !== 'all' ? searchTypeFilter : undefined
+      );
+      setSearchResults(response.data.results || []);
+    } catch (error) {
+      console.error('Failed to search sources:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Add a searched source
+  const handleAddSearchedSource = async (result: SearchResult) => {
+    try {
+      await apiService.createHarvestSource({
+        name: result.name,
+        type: result.type,
+        url: result.url,
+        description: result.description,
+        enabled: true,
+        priority: Math.round(result.confidence * 10),
+        auth_type: 'none',
+        category: result.category,
+        tags: [result.source]
+      });
+      loadSources();
+      loadStats();
+      // Remove from search results
+      setSearchResults(prev => prev.filter(r => r.url !== result.url));
+    } catch (error) {
+      console.error('Failed to add searched source:', error);
     }
   };
 
@@ -403,6 +463,14 @@ const HarvestSources: React.FC = () => {
           >
             <Settings className="w-4 h-4" />
             Initialize Defaults
+          </button>
+
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Search Sources
           </button>
 
           <button
@@ -747,6 +815,163 @@ const HarvestSources: React.FC = () => {
                   <Save className="w-4 h-4" />
                   {editingSource ? 'Update' : 'Create'} Source
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Search Sources Modal */}
+      <AnimatePresence>
+        {showSearchModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="premium-card w-full max-w-3xl max-h-[90vh] overflow-y-auto !p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-brand-500" />
+                    Search for Sources
+                  </h2>
+                  <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
+                    Search the web for API sources to add to your harvest sources
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowSearchModal(false);
+                    setSearchQueryWeb('');
+                    setSearchResults([]);
+                  }}
+                  className="p-1 hover:bg-surface-100 dark:hover:bg-surface-700 rounded"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Search Input */}
+              <div className="flex gap-3 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-surface-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search for APIs (e.g., payment, CRM, accounting)..."
+                    value={searchQueryWeb}
+                    onChange={(e) => setSearchQueryWeb(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchSources()}
+                    className="w-full pl-10 pr-4 py-3 border border-surface-300 dark:border-surface-600 rounded-xl bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                  />
+                </div>
+                <select
+                  value={searchTypeFilter}
+                  onChange={(e) => setSearchTypeFilter(e.target.value)}
+                  className="px-4 py-2 border border-surface-300 dark:border-surface-600 rounded-xl bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                >
+                  <option value="all">All Types</option>
+                  <option value="api_directory">API Directory</option>
+                  <option value="marketplace">Marketplace</option>
+                  <option value="github">GitHub</option>
+                </select>
+                <button
+                  onClick={handleSearchSources}
+                  disabled={isSearching || !searchQueryWeb.trim()}
+                  className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSearching ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  Search
+                </button>
+              </div>
+
+              {/* Search Results */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {searchResults.length > 0 ? (
+                  searchResults.map((result, index) => (
+                    <div
+                      key={index}
+                      className="p-4 border border-surface-200 dark:border-surface-700 rounded-xl hover:border-brand-500/30 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-surface-900 dark:text-surface-100 truncate">
+                              {result.name}
+                            </h4>
+                            <span className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                              getTypeColor(result.type)
+                            )}>
+                              {getTypeIcon(result.type)}
+                              {result.type.replace('_', ' ')}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
+                              {result.source}
+                            </span>
+                          </div>
+                          <p className="text-sm text-surface-500 dark:text-surface-400 truncate mt-1">
+                            {result.url}
+                          </p>
+                          {result.description && (
+                            <p className="text-xs text-surface-500 dark:text-surface-400 mt-1 line-clamp-2">
+                              {result.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs text-surface-500 dark:text-surface-400">
+                              Category: {result.category}
+                            </span>
+                            <span className="text-xs text-surface-500 dark:text-surface-400">
+                              Confidence: {Math.round(result.confidence * 100)}%
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleAddSearchedSource(result)}
+                          className="ml-4 px-3 py-1.5 bg-brand-500 text-white text-sm rounded-lg hover:bg-brand-600 transition-colors flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    {searchQueryWeb && !isSearching ? (
+                      <>
+                        <Search className="w-10 h-10 text-surface-300 dark:text-surface-600 mx-auto mb-3" />
+                        <p className="text-surface-500 dark:text-surface-400">
+                          No sources found for "{searchQueryWeb}"
+                        </p>
+                        <p className="text-sm text-surface-400 dark:text-surface-500 mt-1">
+                          Try different keywords or browse curated suggestions
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-10 h-10 text-surface-300 dark:text-surface-600 mx-auto mb-3" />
+                        <p className="text-surface-500 dark:text-surface-400">
+                          Search for API sources to add to your harvest list
+                        </p>
+                        <p className="text-sm text-surface-400 dark:text-surface-500 mt-1">
+                          Try searching for "payment", "CRM", "accounting", etc.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

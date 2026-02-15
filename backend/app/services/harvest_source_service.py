@@ -290,3 +290,119 @@ class HarvestSourceService:
 
         await self.db.commit()
         logger.info("Initialized default harvest sources", count=len(default_sources))
+
+    async def search_web_sources(
+        self, query: str, source_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for harvest sources on the web based on a query.
+        This searches existing knowledge base and returns suggestions.
+        """
+        import httpx
+        
+        results = []
+        query_lower = query.lower()
+        
+        # Search the knowledge base for matching APIs
+        try:
+            knowledge_db = await get_knowledge_db()
+            if knowledge_db:
+                # Search for APIs matching the query
+                search_results = await knowledge_db.search(
+                    collection="financial_apis" if source_type == "financial" else "api_specifications",
+                    query=query,
+                    top_k=10
+                )
+                
+                for result in search_results:
+                    results.append({
+                        "name": result.get("api_name", result.get("name", "Unknown API")),
+                        "type": "api_directory",
+                        "url": result.get("documentation_url", result.get("url", "")),
+                        "description": result.get("description", ""),
+                        "category": result.get("category", "general"),
+                        "source": "knowledge_base",
+                        "confidence": result.get("score", 0.8),
+                    })
+        except Exception as e:
+            logger.warning("Failed to search knowledge base", error=str(e))
+        
+        # If no results from knowledge base, return curated suggestions based on query
+        if not results:
+            # Provide curated suggestions based on common API categories
+            curated_sources = self._get_curated_sources_for_query(query_lower, source_type)
+            results.extend(curated_sources)
+        
+        return results
+    
+    def _get_curated_sources_for_query(self, query: str, source_type: Optional[str]) -> List[Dict[str, Any]]:
+        """Get curated source suggestions based on query keywords."""
+        suggestions = []
+        
+        # Define curated source templates based on common categories
+        curated = [
+            {
+                "keywords": ["payment", "stripe", "paypal", "billing", "transaction"],
+                "sources": [
+                    {"name": "Stripe API", "type": "api_directory", "url": "https://stripe.com/docs/api", "description": "Stripe payment processing API", "category": "payments"},
+                    {"name": "PayPal API", "type": "api_directory", "url": "https://developer.paypal.com/docs/api/overview/", "description": "PayPal payment APIs", "category": "payments"},
+                ]
+            },
+            {
+                "keywords": ["crm", "salesforce", "hubspot", "contact", "customer"],
+                "sources": [
+                    {"name": "Salesforce API", "type": "api_directory", "url": "https://developer.salesforce.com/docs/api", "description": "Salesforce CRM API", "category": "crm"},
+                    {"name": "HubSpot API", "type": "api_directory", "url": "https://developers.hubspot.com/docs/api/overview", "description": "HubSpot CRM API", "category": "crm"},
+                ]
+            },
+            {
+                "keywords": ["ecommerce", "shopify", "commerce", "store", "product"],
+                "sources": [
+                    {"name": "Shopify Admin API", "type": "api_directory", "url": "https://shopify.dev/docs/api/admin-rest", "description": "Shopify e-commerce API", "category": "ecommerce"},
+                    {"name": "WooCommerce API", "type": "api_directory", "url": "https://woocommerce.github.io/woocommerce-rest-api-docs/", "description": "WooCommerce REST API", "category": "ecommerce"},
+                ]
+            },
+            {
+                "keywords": ["accounting", "invoice", "quickbooks", "xero"],
+                "sources": [
+                    {"name": "QuickBooks API", "type": "api_directory", "url": "https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities", "description": "QuickBooks Online API", "category": "accounting"},
+                    {"name": "Xero API", "type": "api_directory", "url": "https://developer.xero.com/documentation/api/accounting/overview", "description": "Xero Accounting API", "category": "accounting"},
+                ]
+            },
+            {
+                "keywords": ["shipping", "logistics", "fedex", "ups", "tracking"],
+                "sources": [
+                    {"name": "FedEx API", "type": "api_directory", "url": "https://developer.fedex.com/us/en/apis.html", "description": "FedEx shipping API", "category": "shipping"},
+                    {"name": "UPS API", "type": "api_directory", "url": "https://developer.ups.com/", "description": "UPS shipping API", "category": "shipping"},
+                ]
+            },
+            {
+                "keywords": ["communication", "email", "sms", "twilio", "message"],
+                "sources": [
+                    {"name": "Twilio API", "type": "api_directory", "url": "https://www.twilio.com/docs/usage/api", "description": "Twilio communication API", "category": "communication"},
+                    {"name": "SendGrid API", "type": "api_directory", "url": "https://sendgrid.com/docs/api-reference/", "description": "SendGrid email API", "category": "communication"},
+                ]
+            },
+        ]
+        
+        for category in curated:
+            if any(kw in query for kw in category["keywords"]):
+                for source in category["sources"]:
+                    source_copy = source.copy()
+                    source_copy["source"] = "curated"
+                    source_copy["confidence"] = 0.95
+                    suggestions.append(source_copy)
+        
+        # If no matches, provide general API directories
+        if not suggestions:
+            suggestions.extend([
+                {"name": "APIs.guru Directory", "type": "api_directory", "url": "https://apis.guru/openapis.json", "description": "Comprehensive OpenAPI specification directory (~3000 APIs)", "category": "general", "source": "curated", "confidence": 0.7},
+                {"name": "RapidAPI Marketplace", "type": "marketplace", "url": "https://rapidapi.com/discovery", "description": "Discover APIs on RapidAPI", "category": "general", "source": "curated", "confidence": 0.6},
+                {"name": "Public APIs Directory", "type": "api_directory", "url": "https://github.com/public-apis/public-apis", "description": "Curated list of free APIs", "category": "general", "source": "curated", "confidence": 0.5},
+            ])
+        
+        # Filter by source type if specified
+        if source_type:
+            suggestions = [s for s in suggestions if s.get("type") == source_type]
+        
+        return suggestions[:10]

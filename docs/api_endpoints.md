@@ -4,6 +4,46 @@ This document describes the REST API endpoints for Vitesse AI's UI features, inc
 
 ## Knowledge Harvester Dashboard
 
+### Harvest Sources
+
+#### Search for Harvest Sources
+```http
+POST /api/v1/harvest-sources/search
+```
+
+**Query Parameters:**
+- `query` (str, required): Search term for finding API sources (e.g., "payment", "CRM", "accounting")
+- `source_type` (str, optional): Filter by source type (api_directory, marketplace, github, documentation)
+
+**Response:**
+```json
+{
+  "query": "payment",
+  "results": [
+    {
+      "name": "Stripe API",
+      "type": "api_directory",
+      "url": "https://stripe.com/docs/api",
+      "description": "Stripe payment processing API",
+      "category": "payments",
+      "source": "curated",
+      "confidence": 0.95
+    },
+    {
+      "name": "PayPal API",
+      "type": "api_directory",
+      "url": "https://developer.paypal.com/docs/api/overview/",
+      "description": "PayPal payment APIs",
+      "category": "payments",
+      "source": "curated",
+      "confidence": 0.95
+    }
+  ]
+}
+```
+
+The search endpoint searches the knowledge base for matching APIs and returns curated suggestions based on common API categories. Users can then add any of the discovered sources to their harvest sources list directly from the UI.
+
 ### Harvest Jobs
 
 #### List Harvest Jobs

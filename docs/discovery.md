@@ -314,6 +314,29 @@ pytest tests/agents/test_discovery.py -v
 
 The Knowledge Harvester is an autonomous agent that proactively discovers and harvests API knowledge from various sources to power the Discovery Agent.
 
+### Web Search for Sources (UI Feature)
+
+The Harvest Sources UI now includes a **Search Sources** button that allows users to search for API sources and add them directly to their harvest sources list:
+
+**How to Use:**
+1. Navigate to the Harvest Sources page
+2. Click the "Search Sources" button
+3. Enter a search query (e.g., "payment", "CRM", "accounting")
+4. Browse the discovered sources with confidence scores
+5. Click "Add" to add any source to your harvest list
+
+**Search Sources:**
+- Searches the knowledge base for matching APIs
+- Returns curated suggestions based on common API categories (Payments, CRM, E-commerce, Accounting, Shipping, Communication)
+- Each result shows: name, type, URL, description, category, and confidence score
+- Results come from either the knowledge base or curated suggestions
+
+**Benefits:**
+- Discover new API sources without manual configuration
+- Pre-populated source details save setup time
+- Confidence scores help prioritize high-quality sources
+- Direct integration with harvest workflow
+
 ### Smart Deduplication
 
 The Knowledge Harvester now includes intelligent source tracking to avoid reprocessing unchanged sources:

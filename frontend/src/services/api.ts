@@ -677,6 +677,16 @@ class ApiService {
     return this.axiosInstance.post("/harvest-sources/initialize-defaults");
   }
 
+  // Search for harvest sources on the web
+  async searchHarvestSources(
+    query: string,
+    sourceType?: string
+  ): Promise<AxiosResponse> {
+    return this.axiosInstance.post("/harvest-sources/search", null, {
+      params: { query, source_type: sourceType },
+    });
+  }
+
   // Harvest Jobs endpoints
   async getHarvestJobs(params?: {
     skip?: number;

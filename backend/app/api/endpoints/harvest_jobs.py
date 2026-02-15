@@ -98,6 +98,13 @@ async def create_harvest_job(
             f"job-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{str(uuid.uuid4())[:8]}"
         )
 
+        # Check if any job is already running
+        if await HarvestJobService.is_any_job_running(db):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A harvest job is already in progress. Please wait for it to complete.",
+            )
+
         # Create job in database
         job = await HarvestJobService.create_harvest_job(
             db, job_id, job_data.harvest_type, job_data.source_ids
@@ -126,11 +133,12 @@ async def create_harvest_job(
             job_id,
             job_data.harvest_type,
             job_data.source_ids,
-            db,
         )
 
         return job_response
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to create harvest job", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to create harvest job")
@@ -439,6 +447,14 @@ async def trigger_harvest(
             f"manual-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{str(uuid.uuid4())[:8]}"
         )
 
+        # Check if any job is already running
+        async with async_session_factory() as db_check:
+            if await HarvestJobService.is_any_job_running(db_check):
+                return {
+                    "status": "conflict",
+                    "message": "A harvest job is already in progress.",
+                }
+
         # Create job in database
         async with async_session_factory() as db:
             job = await HarvestJobService.create_harvest_job(
@@ -498,9 +514,18 @@ async def run_harvest_job(
             harvest_type=harvest_type,
         )
 
+        # Progress callback
+        async def on_progress(p: float):
+            logger.info("Reporting harvest progress", job_id=job_id, progress=p)
+            async with async_session_factory() as db_prog:
+                await HarvestJobService.update_harvest_job_status(
+                    db_prog, job_id, "running", progress=p
+                )
+
         result = await harvester.execute(
             context={},
             input_data={"harvest_type": harvest_type},
+            on_progress=on_progress,
         )
 
         # Extract results

@@ -31,6 +31,7 @@ class VitesseAgent(ABC):
         self,
         context: Dict[str, Any],
         input_data: Dict[str, Any],
+        on_progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Main execution method for the agent.
@@ -38,44 +39,50 @@ class VitesseAgent(ABC):
         """
         self.execution_count += 1
         self.last_execution = datetime.utcnow()
-        
+
         try:
             logger.info(
                 f"{self.agent_type} executing",
                 agent_id=self.agent_id,
                 execution_count=self.execution_count,
             )
-            
-            result = await self._execute(context, input_data)
-            
+
+            result = await self._execute(context, input_data, on_progress)
+
             # Store state history
-            self.state_history.append({
-                "timestamp": datetime.utcnow(),
-                "status": "success",
-                "execution_count": self.execution_count,
-                "result_keys": list(result.keys()) if isinstance(result, dict) else None,
-            })
-            
+            self.state_history.append(
+                {
+                    "timestamp": datetime.utcnow(),
+                    "status": "success",
+                    "execution_count": self.execution_count,
+                    "result_keys": list(result.keys())
+                    if isinstance(result, dict)
+                    else None,
+                }
+            )
+
             return result
-            
+
         except Exception as e:
             self.error_count += 1
             error_msg = str(e)
-            
+
             logger.error(
                 f"{self.agent_type} execution failed",
                 agent_id=self.agent_id,
                 error=error_msg,
                 error_count=self.error_count,
             )
-            
-            self.state_history.append({
-                "timestamp": datetime.utcnow(),
-                "status": "error",
-                "error": error_msg,
-                "execution_count": self.execution_count,
-            })
-            
+
+            self.state_history.append(
+                {
+                    "timestamp": datetime.utcnow(),
+                    "status": "error",
+                    "error": error_msg,
+                    "execution_count": self.execution_count,
+                }
+            )
+
             raise
 
     @abstractmethod
@@ -83,6 +90,7 @@ class VitesseAgent(ABC):
         self,
         context: Dict[str, Any],
         input_data: Dict[str, Any],
+        on_progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Actual execution logic. To be implemented by subclasses.
@@ -96,16 +104,20 @@ class VitesseAgent(ABC):
             "agent_type": self.agent_type,
             "created_at": self.created_at.isoformat(),
             "execution_count": self.execution_count,
-            "last_execution": self.last_execution.isoformat() if self.last_execution else None,
+            "last_execution": self.last_execution.isoformat()
+            if self.last_execution
+            else None,
             "error_count": self.error_count,
-            "error_rate": self.error_count / self.execution_count if self.execution_count > 0 else 0,
+            "error_rate": self.error_count / self.execution_count
+            if self.execution_count > 0
+            else 0,
         }
 
 
 class IngestorAgent(VitesseAgent):
     """
     Ingestor Agent: Discovers and parses API specifications.
-    
+
     Responsibilities:
     - Fetch and parse API documentation (Swagger/OpenAPI)
     - Extract endpoints, authentication, parameters
@@ -120,10 +132,11 @@ class IngestorAgent(VitesseAgent):
         self,
         context: Dict[str, Any],
         input_data: Dict[str, Any],
+        on_progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Execute Ingestor: Parse API and return specification.
-        
+
         Input:
             - api_url: URL to API documentation or Swagger spec
             - api_name: Human-readable API name
@@ -135,10 +148,10 @@ class IngestorAgent(VitesseAgent):
 class SemanticMapperAgent(VitesseAgent):
     """
     Semantic Mapper Agent: Maps data across API schemas.
-    
+
     Responsibilities:
     - Analyze source and destination API schemas
-    - Generate semantic mappings (source field → dest field)
+    - Generate semantic mappings (source field \u2192 dest field)
     - Create transformation logic (date formats, type conversions, etc)
     - Handle complex nested object transformations
     - Generate pre/post sync hooks if needed
@@ -151,10 +164,11 @@ class SemanticMapperAgent(VitesseAgent):
         self,
         context: Dict[str, Any],
         input_data: Dict[str, Any],
+        on_progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Execute Mapper: Generate transformation logic.
-        
+
         Input:
             - source_api_spec: APISpecification for source
             - dest_api_spec: APISpecification for destination
@@ -168,7 +182,7 @@ class SemanticMapperAgent(VitesseAgent):
 class GuardianAgent(VitesseAgent):
     """
     Guardian Agent: Tests, validates, and self-heals integrations.
-    
+
     Responsibilities:
     - Generate synthetic test data
     - Execute shadow calls to both APIs
@@ -185,10 +199,11 @@ class GuardianAgent(VitesseAgent):
         self,
         context: Dict[str, Any],
         input_data: Dict[str, Any],
+        on_progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Execute Guardian: Run tests and generate health score.
-        
+
         Input:
             - integration_instance: Full IntegrationInstance object
             - test_count: Number of shadow calls to perform (default 100)
@@ -201,7 +216,7 @@ class GuardianAgent(VitesseAgent):
 class DeployerAgent(VitesseAgent):
     """
     Deployer Agent: Manages deployment lifecycle.
-    
+
     Responsibilities:
     - Containerize integration logic
     - Deploy to local VPS (Docker/Traefik)
@@ -217,10 +232,11 @@ class DeployerAgent(VitesseAgent):
         self,
         context: Dict[str, Any],
         input_data: Dict[str, Any],
+        on_progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Execute Deployer: Deploy integration.
-        
+
         Input:
             - integration_instance: Full IntegrationInstance
             - deployment_config: DeploymentConfig with target
