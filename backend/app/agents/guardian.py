@@ -9,21 +9,29 @@ import random
 from typing import Any, Dict, Optional, List
 from datetime import datetime
 import structlog
-from app.agents.base import GuardianAgent, AgentContext
+from app.agents.base import VitesseAgent, AgentContext
+from aether.protocols.intelligence import IntelligenceProvider
 from app.schemas.integration import HealthScore, TestResult
 from app.services.drift.detector import SchemaDriftDetector, SchemaDriftReport
 
 logger = structlog.get_logger(__name__)
 
 
-class VitesseGuardian(GuardianAgent):
+class VitesseGuardian(VitesseAgent):
     """
     Concrete implementation of Guardian agent.
     Handles testing, validation, and self-healing of integrations.
     """
 
-    def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id)
+    def __init__(
+        self,
+        context: AgentContext,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="guardian"
+        )
         self.context = context
         self.test_results: List[TestResult] = []
 

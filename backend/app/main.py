@@ -2,17 +2,7 @@ import sys
 import os
 from pathlib import Path
 
-# Add Aether platform to path
-# Inside Docker, we mount it to /aether_src. On host, we use the absolute path.
-AETHER_PATH_DOCKER = Path("/aether_src")
-AETHER_PATH_HOST = Path("/Users/sujitm/Sandbox/Aether/src")
-
-if AETHER_PATH_DOCKER.exists():
-    sys.path.append(str(AETHER_PATH_DOCKER))
-elif AETHER_PATH_HOST.exists():
-    sys.path.append(str(AETHER_PATH_HOST))
-else:
-    print("WARNING: Aether platform source not found. Agentic features may fail.")
+# Aether platform is integrated as a pip dependency via uv
 
 
 from contextlib import asynccontextmanager

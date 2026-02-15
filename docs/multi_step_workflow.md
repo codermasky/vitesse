@@ -175,9 +175,9 @@ curl -X POST http://localhost:9001/api/v1/vitesse/integrations \
 6. Returns discovered endpoints to user
 
 **Behind the scenes**:
-- Uses `VitesseIngestor.execute()` agent
-- Performs semantic analysis on API structure
-- Validates schema compatibility
+- Uses `VitesseIngestor.execute()` agent (Aether BaseAgent compliant)
+- Performs semantic analysis on API structure via Aether Intelligence
+- Validates schema compatibility using Pydantic models
 - Flags missing or unusual patterns
 
 **Database state after Step 2**:

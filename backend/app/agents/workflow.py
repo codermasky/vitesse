@@ -28,6 +28,12 @@ async def create_agentstack_workflow(
     # Initialize Flux
     flux = Flux(BaseState)
 
+    # Initialize Agents
+    analyst = AnalystAgent(intelligence=intelligence)
+    reviewer = ReviewerAgent(intelligence=intelligence)
+    writer = WriterAgent(intelligence=intelligence)
+    sentinel = SentinelAgent(intelligence=intelligence)
+
     async def _update_status(config: Dict, node_id: str, stage: str, percentage: int):
         """Helper to update QueueRequest status in database."""
         # Log config to debug matching
@@ -97,22 +103,22 @@ async def create_agentstack_workflow(
     # Define wrapper functions to match Flux node signature (State, Config -> State)
     async def run_analyst(state: BaseState, config: RunnableConfig) -> BaseState:
         await _update_status(dict(config), "analyst", "Data Analysis", 15)
-        result = await analyst.execute(state.model_dump())
+        result = await analyst.execute(context={}, input_data=state.model_dump())
         return result
 
     async def run_reviewer(state: BaseState, config: RunnableConfig) -> BaseState:
         await _update_status(dict(config), "reviewer", "Validation", 40)
-        result = await reviewer.execute(state.model_dump())
+        result = await reviewer.execute(context={}, input_data=state.model_dump())
         return result
 
     async def run_writer(state: BaseState, config: RunnableConfig) -> BaseState:
         await _update_status(dict(config), "writer", "Output Generation", 80)
-        result = await writer.execute(state.model_dump())
+        result = await writer.execute(context={}, input_data=state.model_dump())
         return result
 
     async def run_sentinel(state: BaseState, config: RunnableConfig) -> BaseState:
         await _update_status(dict(config), "sentinel", "Final Review", 95)
-        result = await sentinel.execute(state.model_dump())
+        result = await sentinel.execute(context={}, input_data=state.model_dump())
         return result
 
     async def run_human_review(state: BaseState, config: RunnableConfig) -> BaseState:

@@ -52,8 +52,17 @@ class KnowledgeHarvester(VitesseAgent):
     - Update discovery agent with new sources
     """
 
-    def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="knowledge_harvester")
+    def __init__(
+        self,
+        context: AgentContext,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id,
+            intelligence=intelligence,
+            agent_type="knowledge_harvester",
+        )
         self.context = context
         self.knowledge_db = None
 

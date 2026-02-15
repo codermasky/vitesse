@@ -16,6 +16,7 @@ from app.agents.mapper import VitesseMapper
 from app.agents.guardian import VitesseGuardian
 from app.agents.integration_monitor import IntegrationMonitorAgent
 from app.agents.self_healing import SelfHealingAgent
+from app.services.aether_intel import AetherIntelligenceProvider
 from app.deployer.container_deployer import LocalContainerDeployer
 from app.schemas.integration import (
     IntegrationInstance,
@@ -43,13 +44,16 @@ class VitesseOrchestrator:
         self.orchestrator_id = str(uuid.uuid4())
         self.created_at = datetime.utcnow()
 
-        # Initialize agents
-        self.discovery = VitesseDiscoveryAgent(context)
-        self.ingestor = VitesseIngestor(context)
-        self.mapper = VitesseMapper(context)
-        self.guardian = VitesseGuardian(context)
-        self.monitor = IntegrationMonitorAgent(context)
-        self.healer = SelfHealingAgent(context)
+        # Initialize intelligence provider
+        self.intelligence = AetherIntelligenceProvider()
+
+        # Initialize agents with shared intelligence
+        self.discovery = VitesseDiscoveryAgent(context, intelligence=self.intelligence)
+        self.ingestor = VitesseIngestor(context, intelligence=self.intelligence)
+        self.mapper = VitesseMapper(context, intelligence=self.intelligence)
+        self.guardian = VitesseGuardian(context, intelligence=self.intelligence)
+        self.monitor = IntegrationMonitorAgent(context, intelligence=self.intelligence)
+        self.healer = SelfHealingAgent(context, intelligence=self.intelligence)
 
         # Initialize deployer
         self.deployer = LocalContainerDeployer(config={})

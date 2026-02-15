@@ -16,9 +16,11 @@ The Ingestor autonomously discovers and documents API specifications:
 ```python
 from app.agents.ingestor import VitesseIngestor
 from app.agents.base import AgentContext
+from app.services.aether_intel import AetherIntelligenceProvider
 
 context = AgentContext()
-ingestor = VitesseIngestor(context)
+intel = AetherIntelligenceProvider()
+ingestor = VitesseIngestor(context, intelligence=intel)
 
 result = await ingestor.execute(
     context={...},
@@ -86,8 +88,10 @@ Generates intelligent field mappings between two APIs:
 
 ```python
 from app.agents.mapper import VitesseMapper
+from app.services.aether_intel import AetherIntelligenceProvider
 
-mapper = VitesseMapper(context)
+intel = AetherIntelligenceProvider()
+mapper = VitesseMapper(context, intelligence=intel)
 
 result = await mapper.execute(
     context={...},
@@ -129,8 +133,10 @@ Tests integrations exhaustively with synthetic data:
 
 ```python
 from app.agents.guardian import VitesseGuardian
+from app.services.aether_intel import AetherIntelligenceProvider
 
-guardian = VitesseGuardian(context)
+intel = AetherIntelligenceProvider()
+guardian = VitesseGuardian(context, intelligence=intel)
 
 result = await guardian.execute(
     context={...},
@@ -184,6 +190,7 @@ from app.schemas.integration import DeploymentConfig, DeploymentTarget
 
 context = AgentContext()
 orchestrator = VitesseOrchestrator(context)
+# (Orchestrator automatically injects shared AetherIntelligenceProvider to all agents)
 
 result = await orchestrator.create_integration(
     source_api_url="https://api.shopify.com/swagger.json",

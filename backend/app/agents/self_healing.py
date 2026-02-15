@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, List
 from datetime import datetime
 
 from app.agents.base import VitesseAgent, AgentContext
+from aether.protocols.intelligence import IntelligenceProvider
 
 logger = structlog.get_logger(__name__)
 
@@ -22,8 +23,15 @@ class SelfHealingAgent(VitesseAgent):
     4. Credential Rotation (if supported)
     """
 
-    def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="self_healing")
+    def __init__(
+        self,
+        context: AgentContext,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="self_healing"
+        )
         self.context = context
 
     async def _execute(

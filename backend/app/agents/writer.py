@@ -1,16 +1,22 @@
-import structlog
-from typing import Any, Dict
-from app.services.aether_intel import AetherIntelligenceProvider
+from app.agents.base import VitesseAgent
+from aether.protocols.intelligence import IntelligenceProvider
 
 logger = structlog.get_logger(__name__)
 
 
-class WriterAgent:
-    def __init__(self, name: str, intelligence: AetherIntelligenceProvider):
-        self.name = name
-        self.intelligence = intelligence
+class WriterAgent(VitesseAgent):
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="writer"
+        )
 
-    async def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute(
+        self, context: Dict[str, Any], input_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         logger.info(
             f"Agent {self.name} generating output", workflow_id=state.get("workflow_id")
         )

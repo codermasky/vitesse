@@ -8,22 +8,30 @@ import json
 from typing import Any, Dict, Optional, List
 from datetime import datetime
 import structlog
-from app.agents.base import IngestorAgent, AgentContext
+from app.agents.base import VitesseAgent, AgentContext
+from aether.protocols.intelligence import IntelligenceProvider
 from app.schemas.integration import APISpecification, APIEndpoint, APIAuthType
 from app.services.llm_provider import LLMProviderService
 
 logger = structlog.get_logger(__name__)
 
 
-class VitesseIngestor(IngestorAgent):
+class VitesseIngestor(VitesseAgent):
     """
     Concrete implementation of Ingestor agent.
     Parses API documentation and Swagger/OpenAPI specs.
     Authonomously synthesizes specs from HTML documentation if Swagger/OpenAPI is missing.
     """
 
-    def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id)
+    def __init__(
+        self,
+        context: AgentContext,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="ingestor"
+        )
         self.context = context
         self.http_client = None
 

@@ -6,7 +6,8 @@ Generates transformation logic using LLM-powered semantic analysis.
 from typing import Any, Dict, Optional, List, Tuple
 from datetime import datetime
 import structlog
-from app.agents.base import SemanticMapperAgent, AgentContext
+from app.agents.base import VitesseAgent, AgentContext
+from aether.protocols.intelligence import IntelligenceProvider
 from app.schemas.integration import (
     MappingLogic,
     DataTransformation,
@@ -19,14 +20,21 @@ from app.services.semantic.layer import SemanticLayer
 from app.db.session import async_session_factory
 
 
-class VitesseMapper(SemanticMapperAgent):
+class VitesseMapper(VitesseAgent):
     """
     Concrete implementation of Semantic Mapper agent.
     Uses LLM to understand and map schemas between APIs.
     """
 
-    def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id)
+    def __init__(
+        self,
+        context: AgentContext,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="mapper"
+        )
         self.context = context
 
     async def _execute(

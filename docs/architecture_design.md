@@ -7,7 +7,8 @@ A comprehensive guide to the newly extended Vitesse AI system with:
 2. Collaborative Intelligence (Shared Whiteboard)
 3. Persistent Memory & Context Preservation (Vector DB)
 4. Knowledge Harvesting (Financial Services)
-5. Enhanced Agentic Workflow
+510. Aether Platform Integration
+11. Flux Engine Orchestration (LangGraph-powered)
 """
 
 # ===== 0. MULTI-STEP INTEGRATION WORKFLOW =====
@@ -56,9 +57,10 @@ DISCOVERING → MAPPING → TESTING → DEPLOYING → ACTIVE
 **Orchestrator**: `VitesseOrchestrator` manages step progression
 
 **Agents Used**:
-- Step 2: `VitesseIngestor` - Parses API specs
-- Step 3: `VitesseMapper` - Generates field mappings
-- Step 4: `VitesseGuardian` - Runs integration tests
+- Step 2: `VitesseIngestor` - Parses API specs (Aether BaseAgent)
+- Step 3: `VitesseMapper` - Generates field mappings (Aether BaseAgent)
+- Step 4: `VitesseGuardian` - Runs integration tests (Aether BaseAgent)
+- Step 5: `Deployer` - Deploys to target environment
 - Step 5: `Deployer` - Deploys to target environment
 
 **Persistence**: All state stored in PostgreSQL Integration table
@@ -72,7 +74,7 @@ See [Multi-Step Workflow Guide](./multi_step_workflow.md) for detailed step-by-s
 # ===== 1. SHARED WHITEBOARD (COLLABORATIVE INTELLIGENCE) =====
 
 ## Overview
-The "Shared Whiteboard" is a collaborative intelligence mechanism using LangGraph's State Management.
+The "Shared Whiteboard" is a collaborative intelligence mechanism powered by Aether's `FluxEngine` (utilizing LangGraph's State Management).
 It enables agents to read from and write to a centralized shared state that serves as the source of truth.
 
 ## Implementation Files
@@ -359,11 +361,13 @@ if status["status"] in ["partial", "error"]:
 # ===== 4. ENHANCED AGENTIC WORKFLOW =====
 
 ## Overview
-Improved agent orchestration that leverages shared state and harvested knowledge.
+Improved agent orchestration leveraging Aether's `FluxEngine` and protocol-compliant agents.
 
-## Implementation Files
-- `app/agents/enhanced_discovery.py` - Discovery agent enhancements
-- `app/agents/vitesse_orchestrator.py` - Already coordinates agents
+## Aether BaseAgent Integration
+All Vitesse agents now inherit from Aether's `BaseAgent`, providing:
+- **Standardized IO**: Pydantic models for all agent inputs and outputs.
+- **Protocol Compliance**: Seamless integration with Aether's intelligence providers.
+- **Unified Telemetry**: Automated pre/post hooks for logging and tracing.
 
 ## Enhanced Discovery Agent
 
@@ -498,8 +502,8 @@ if failure_rate > self.critical_failure_threshold:
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│              SHARED WHITEBOARD STATE                     │
-│  (Persistent, Agent-Readable, LangGraph Checkpointed)   │
+│              AETHER FLUX ENGINE (LANGGRAPH)              │
+│  (Persistent, Protocol-Compliant, Agent-Coordination)    │
 ├─────────────────────────────────────────────────────────┤
 │ • discovered_apis    ← Discovery Agent                  │
 │ • source/dest_specs  ← Ingestor Agent                   │

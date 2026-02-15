@@ -3,29 +3,75 @@ Base classes and interfaces for Vitesse agents.
 All specialized agents (Ingestor, Mapper, Guardian) inherit from these.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, List
+from abc import abstractmethod
+from typing import Any, Dict, Optional, List, TypeVar, Type
 from datetime import datetime
 import uuid
 import structlog
+from pydantic import BaseModel, Field
+
+# Aether imports
+from aether.agents.base import BaseAgent
+from aether.protocols.intelligence import IntelligenceProvider
 
 logger = structlog.get_logger(__name__)
 
+# Generic types for input and output schemas
+InputSchema = TypeVar("InputSchema", bound=BaseModel)
+OutputSchema = TypeVar("OutputSchema", bound=BaseModel)
 
-class VitesseAgent(ABC):
+
+class GenericAgentInput(BaseModel):
+    context: Dict[str, Any] = Field(default_factory=dict)
+    input_data: Dict[str, Any] = Field(default_factory=dict)
+    on_progress: Optional[Any] = None
+
+
+class GenericAgentOutput(BaseModel):
+    result: Dict[str, Any] = Field(default_factory=dict)
+    success: bool = True
+
+
+class VitesseAgent(BaseAgent[GenericAgentInput, GenericAgentOutput]):
     """
     Base class for all Vitesse agents.
-    Provides common infrastructure: logging, state management, error handling.
+    Inherits from Aether BaseAgent to provide structured execution.
     """
 
-    def __init__(self, agent_id: Optional[str] = None, agent_type: str = "base"):
-        self.agent_id = agent_id or str(uuid.uuid4())
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+        agent_type: str = "base",
+    ):
+        # We need an intelligence provider. If none provided, we'll need to handle it.
+        # For compatibility with existing code that passes AgentContext, we might need adjustments.
+        from app.services.aether_intel import AetherIntelligenceProvider
+
+        intel = intelligence or AetherIntelligenceProvider()
+
+        super().__init__(agent_id=agent_id or str(uuid.uuid4()), intelligence=intel)
         self.agent_type = agent_type
         self.created_at = datetime.utcnow()
         self.execution_count = 0
         self.last_execution = None
         self.error_count = 0
         self.state_history: List[Dict[str, Any]] = []
+
+    def get_input_schema(self) -> Type[GenericAgentInput]:
+        return GenericAgentInput
+
+    def get_output_schema(self) -> Type[GenericAgentOutput]:
+        return GenericAgentOutput
+
+    async def run(self, input_data: GenericAgentInput, **kwargs) -> GenericAgentOutput:
+        """
+        Core logic for Aether BaseAgent. Wraps Vitesse-style execution.
+        """
+        res = await self._execute(
+            input_data.context, input_data.input_data, input_data.on_progress
+        )
+        return GenericAgentOutput(result=res)
 
     async def execute(
         self,
@@ -34,20 +80,22 @@ class VitesseAgent(ABC):
         on_progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
-        Main execution method for the agent.
-        Must be implemented by subclasses.
+        Vitesse-compatible execution method.
+        Wraps Aether's structured execution flow.
         """
         self.execution_count += 1
         self.last_execution = datetime.utcnow()
 
-        try:
-            logger.info(
-                f"{self.agent_type} executing",
-                agent_id=self.agent_id,
-                execution_count=self.execution_count,
-            )
+        # Prepare Aether-compatible input
+        aether_input = {
+            "context": context,
+            "input_data": input_data,
+            "on_progress": on_progress,
+        }
 
-            result = await self._execute(context, input_data, on_progress)
+        try:
+            # Call Aether's structured execution (validates input -> hooks -> run -> validates output)
+            output: GenericAgentOutput = await super().execute(aether_input)
 
             # Store state history
             self.state_history.append(
@@ -55,24 +103,17 @@ class VitesseAgent(ABC):
                     "timestamp": datetime.utcnow(),
                     "status": "success",
                     "execution_count": self.execution_count,
-                    "result_keys": list(result.keys())
-                    if isinstance(result, dict)
+                    "result_keys": list(output.result.keys())
+                    if isinstance(output.result, dict)
                     else None,
                 }
             )
 
-            return result
+            return output.result
 
         except Exception as e:
             self.error_count += 1
             error_msg = str(e)
-
-            logger.error(
-                f"{self.agent_type} execution failed",
-                agent_id=self.agent_id,
-                error=error_msg,
-                error_count=self.error_count,
-            )
 
             self.state_history.append(
                 {
@@ -82,7 +123,6 @@ class VitesseAgent(ABC):
                     "execution_count": self.execution_count,
                 }
             )
-
             raise
 
     @abstractmethod
@@ -125,8 +165,14 @@ class IngestorAgent(VitesseAgent):
     - Detect pagination, rate limits, auth patterns
     """
 
-    def __init__(self, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="ingestor")
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="ingestor"
+        )
 
     async def _execute(
         self,
@@ -157,8 +203,14 @@ class SemanticMapperAgent(VitesseAgent):
     - Generate pre/post sync hooks if needed
     """
 
-    def __init__(self, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="mapper")
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="mapper"
+        )
 
     async def _execute(
         self,
@@ -192,8 +244,14 @@ class GuardianAgent(VitesseAgent):
     - Generate comprehensive test reports
     """
 
-    def __init__(self, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="guardian")
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="guardian"
+        )
 
     async def _execute(
         self,
@@ -225,8 +283,14 @@ class DeployerAgent(VitesseAgent):
     - Handle scaling and updates
     """
 
-    def __init__(self, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="deployer")
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="deployer"
+        )
 
     async def _execute(
         self,

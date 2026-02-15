@@ -18,6 +18,9 @@ from app.core.knowledge_db import (
 logger = structlog.get_logger(__name__)
 
 
+from aether.protocols.intelligence import IntelligenceProvider
+
+
 class VitesseDiscoveryAgent(VitesseAgent):
     """
     Discovery Agent: Finds API specifications based on natural language queries.
@@ -29,8 +32,15 @@ class VitesseDiscoveryAgent(VitesseAgent):
     - Return ranked results with confidence scores
     """
 
-    def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="discovery")
+    def __init__(
+        self,
+        context: AgentContext,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id, intelligence=intelligence, agent_type="discovery"
+        )
         self.context = context
         self.knowledge_db = None
 

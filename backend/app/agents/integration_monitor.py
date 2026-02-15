@@ -8,6 +8,7 @@ from datetime import datetime
 import asyncio
 
 from app.agents.base import VitesseAgent, AgentContext
+from aether.protocols.intelligence import IntelligenceProvider
 from app.models.mapping_feedback import MappingFeedback
 from aether.observability import metrics
 
@@ -26,8 +27,17 @@ class IntegrationMonitorAgent(VitesseAgent):
     - Trigger Self-Healing Agent when thresholds are breached
     """
 
-    def __init__(self, context: AgentContext, agent_id: Optional[str] = None):
-        super().__init__(agent_id=agent_id, agent_type="integration_monitor")
+    def __init__(
+        self,
+        context: AgentContext,
+        agent_id: Optional[str] = None,
+        intelligence: Optional[IntelligenceProvider] = None,
+    ):
+        super().__init__(
+            agent_id=agent_id,
+            intelligence=intelligence,
+            agent_type="integration_monitor",
+        )
         self.context = context
         # Thresholds for triggering self-healing
         self.failure_threshold = 0.2  # 20% failure rate triggers warning/investigation

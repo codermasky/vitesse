@@ -204,7 +204,13 @@ All documented sources are supported:
 
 ---
 
-## Architecture Highlights
+### Aether Platform Integration
+- **Foundation**: Aether `BaseAgent` and `FluxEngine` (LangGraph-powered)
+- **Standardization**: All agents migrated to unified protocol-compliant hierarchy
+- **Intelligence**: Shared `IntelligenceProvider` for consistent model interactions
+- **Telemetry**: Automated pre/post hooks active across all agents
+
+### Architecture Highlights
 
 ### Agent Collaboration
 The framework implements a sophisticated multi-agent system:
