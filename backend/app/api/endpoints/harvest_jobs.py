@@ -51,21 +51,27 @@ async def list_harvest_jobs(
         # Convert datetime fields to strings for response
         jobs_with_strings = []
         for job in jobs:
-            jobs_with_strings.append({
-                "id": job.id,
-                "harvest_type": job.harvest_type,
-                "status": job.status,
-                "progress": job.progress,
-                "total_sources": job.total_sources,
-                "processed_sources": job.processed_sources,
-                "successful_harvests": job.successful_harvests,
-                "failed_harvests": job.failed_harvests,
-                "apis_harvested": job.apis_harvested,
-                "created_at": job.created_at.isoformat(),
-                "started_at": job.started_at.isoformat() if job.started_at else None,
-                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-                "error_message": job.error_message,
-            })
+            jobs_with_strings.append(
+                {
+                    "id": job.id,
+                    "harvest_type": job.harvest_type,
+                    "status": job.status,
+                    "progress": job.progress,
+                    "total_sources": job.total_sources,
+                    "processed_sources": job.processed_sources,
+                    "successful_harvests": job.successful_harvests,
+                    "failed_harvests": job.failed_harvests,
+                    "apis_harvested": job.apis_harvested,
+                    "created_at": job.created_at.isoformat(),
+                    "started_at": (
+                        job.started_at.isoformat() if job.started_at else None
+                    ),
+                    "completed_at": (
+                        job.completed_at.isoformat() if job.completed_at else None
+                    ),
+                    "error_message": job.error_message,
+                }
+            )
 
         return HarvestJobList(
             items=jobs_with_strings,
@@ -202,7 +208,9 @@ async def get_harvest_dashboard(db: AsyncSession = Depends(get_db)):
                     "progress": job.progress,
                     "apis_harvested": job.apis_harvested,
                     "created_at": job.created_at.isoformat(),
-                    "started_at": job.started_at.isoformat() if job.started_at else None,
+                    "started_at": (
+                        job.started_at.isoformat() if job.started_at else None
+                    ),
                     "completed_at": (
                         job.completed_at.isoformat() if job.completed_at else None
                     ),

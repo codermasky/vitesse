@@ -53,9 +53,7 @@ class HarvestJobService:
         db: AsyncSession, job_id: str
     ) -> Optional[HarvestJob]:
         """Get a harvest job by ID."""
-        result = await db.execute(
-            select(HarvestJob).filter(HarvestJob.id == job_id)
-        )
+        result = await db.execute(select(HarvestJob).filter(HarvestJob.id == job_id))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -126,9 +124,9 @@ class HarvestJobService:
         """Get harvest job statistics."""
         # Count jobs by status
         status_result = await db.execute(
-            select(HarvestJob.status, func.count(HarvestJob.id).label("count")).group_by(
-                HarvestJob.status
-            )
+            select(
+                HarvestJob.status, func.count(HarvestJob.id).label("count")
+            ).group_by(HarvestJob.status)
         )
         status_counts = status_result.all()
         total_jobs = sum(count for _, count in status_counts)
