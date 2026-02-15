@@ -9,21 +9,22 @@ import {
     Zap,
     Layout,
     Server,
-    Play,
-    Settings,
     ChevronRight,
     Search,
     TestTube,
     Box
 } from 'lucide-react';
 import { apiService } from '../services/api';
+import { MappingView } from '../components/integration/MappingView';
+import { TestingView } from '../components/integration/TestingView';
+import { DeploymentView } from '../components/integration/DeploymentView';
 
 // Types
 interface Integration {
     id: string;
     name: string;
     description: string;
-    status: 'discovering' | 'mapping' | 'testing' | 'deploying' | 'active' | 'failed';
+    status: string;
     source_discovery: any;
     dest_discovery: any;
     mapping_logic?: any;
@@ -38,6 +39,7 @@ interface Integration {
 
 const STEPS = [
     { id: 'discovering', label: 'Discovery', icon: Search },
+    { id: 'ingesting', label: 'Ingestion', icon: Loader2 },
     { id: 'mapping', label: 'Mapping', icon: Zap },
     { id: 'testing', label: 'Testing', icon: TestTube },
     { id: 'deploying', label: 'Deployment', icon: Server },
@@ -97,9 +99,12 @@ export const IntegrationWorkflow: React.FC = () => {
         );
     }
 
-    const currentStepIndex = STEPS.findIndex(s => s.id === integration.status) !== -1
-        ? STEPS.findIndex(s => s.id === integration.status)
-        : (integration.status === 'failed' ? -1 : 0);
+    // If status is 'draft', map it to 'discovering' for UI purposes
+    const effectiveStatus = integration.status === 'draft' ? 'discovering' : integration.status;
+
+    const currentStepIndex = STEPS.findIndex(s => s.id === effectiveStatus) !== -1
+        ? STEPS.findIndex(s => s.id === effectiveStatus)
+        : (effectiveStatus === 'failed' ? -1 : 0);
 
     return (
         <div className="min-h-screen bg-surface-50 dark:bg-surface-950 p-6 md:p-8">
@@ -126,8 +131,8 @@ export const IntegrationWorkflow: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${integration.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                integration.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            integration.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                             }`}>
                             {integration.status}
                         </span>
@@ -257,7 +262,7 @@ export const IntegrationWorkflow: React.FC = () => {
                             )}
 
                             {/* Fallback/Loading */}
-                            {integration.status === 'discovering' && (
+                            {(integration.status === 'discovering' || integration.status === 'draft' || integration.status === 'ingesting') && (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-12">
                                     <Loader2 className="w-12 h-12 text-brand-500 animate-spin mb-4" />
                                     <h3 className="text-xl font-semibold text-surface-900 dark:text-white mb-2">Ingesting API Specifications</h3>
@@ -273,77 +278,8 @@ export const IntegrationWorkflow: React.FC = () => {
 };
 
 // Sub-components (Placeholder for now, will implement full logic next)
-const MappingView = (_props: { integration?: any; onComplete: () => void }) => (
-    <div className="space-y-6">
-        <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
-                <Layout className="w-6 h-6 text-brand-500" />
-                Configure Field Mapping
-            </h2>
-            <button className="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 font-medium">
-                Auto-Generate with AI
-            </button>
-        </div>
-        <div className="p-8 border-2 border-dashed border-surface-200 dark:border-surface-700 rounded-xl text-center">
-            <p className="text-surface-500">Mapping interface will go here...</p>
-        </div>
-    </div>
-);
 
-const TestingView = (_props: { integration?: any; onComplete: () => void }) => (
-    <div className="space-y-6">
-        <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
-                <TestTube className="w-6 h-6 text-brand-500" />
-                Validate Integration
-            </h2>
-            <button className="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 font-medium flex items-center gap-2">
-                <Play className="w-4 h-4" />
-                Run Test Suite
-            </button>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/30 rounded-xl">
-                <div className="text-lg font-bold text-green-700 dark:text-green-400">98.5%</div>
-                <div className="text-sm text-green-600 dark:text-green-500">Success Rate</div>
-            </div>
-            <div className="p-4 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl">
-                <div className="text-lg font-bold text-surface-900 dark:text-white">142ms</div>
-                <div className="text-sm text-surface-500">Avg Latency</div>
-            </div>
-        </div>
-    </div>
-);
 
-const DeploymentView = ({ integration, onRedeploy }: any) => (
-    <div className="space-y-6">
-        <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
-                <Server className="w-6 h-6 text-brand-500" />
-                Deployment Status
-            </h2>
-            <button onClick={onRedeploy} className="px-4 py-2 border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 rounded-lg font-medium flex items-center gap-2 transition-colors">
-                <Settings className="w-4 h-4" />
-                Configure
-            </button>
-        </div>
 
-        {integration.status === 'deploying' ? (
-            <div className="p-12 text-center bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400">Deployment in Progress</h3>
-                <p className="text-blue-600 dark:text-blue-500">Provisioning containers and setting up routes...</p>
-            </div>
-        ) : (
-            <div className="p-6 bg-green-50 dark:bg-green-900/10 rounded-xl border border-green-200 dark:border-green-900/30 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                    <h3 className="text-lg font-bold text-green-700 dark:text-green-400">System Active</h3>
-                    <p className="text-green-600 dark:text-green-500">Integration is running healthy on {integration.deployment_target || 'Local'} environment.</p>
-                </div>
-            </div>
-        )}
-    </div>
-);
+
+

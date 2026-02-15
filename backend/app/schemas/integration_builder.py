@@ -72,8 +72,12 @@ class IntegrationResponse(BaseModel):
     description: str = Field(..., description="Integration description")
     source_api: str = Field(..., description="Source API name/endpoint")
     target_api: str = Field(..., description="Target API name/endpoint")
-    status: str = Field(
-        ..., description="Integration status (draft, testing, active, inactive)"
+    status: str = Field(..., description="Integration status")
+    source_discovery: Optional[Dict[str, Any]] = Field(
+        None, description="Source discovery data"
+    )
+    dest_discovery: Optional[Dict[str, Any]] = Field(
+        None, description="Destination discovery data"
     )
     field_mappings: List[FieldMapping] = Field(
         default_factory=list, description="Field mappings"
@@ -88,13 +92,6 @@ class IntegrationResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-    @validator("status")
-    def validate_status(cls, v):
-        valid_statuses = ["draft", "testing", "active", "inactive"]
-        if v not in valid_statuses:
-            raise ValueError(f"status must be one of: {', '.join(valid_statuses)}")
-        return v
 
 
 class IntegrationList(BaseModel):
