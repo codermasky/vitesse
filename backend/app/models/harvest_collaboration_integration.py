@@ -87,6 +87,13 @@ class AgentActivity(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    @property
+    def success_rate(self) -> float:
+        total = self.tasks_completed + self.tasks_failed
+        if total == 0:
+            return 0.0
+        return (self.tasks_completed / total) * 100.0
+
 
 class AgentCommunication(Base):
     """Database model for inter-agent communications."""
