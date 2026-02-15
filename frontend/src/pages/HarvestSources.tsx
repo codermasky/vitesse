@@ -272,14 +272,16 @@ const HarvestSources: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700"
+            className="premium-card"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400">Total Sources</p>
-                <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">{stats.total_sources}</p>
+                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Total Sources</p>
+                <p className="text-3xl font-black text-surface-900 dark:text-white">{stats.total_sources}</p>
               </div>
-              <Database className="w-8 h-8 text-blue-500" />
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                <Database className="w-6 h-6 text-blue-500" />
+              </div>
             </div>
           </motion.div>
 
@@ -287,14 +289,16 @@ const HarvestSources: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700"
+            className="premium-card"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400">Enabled Sources</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.enabled_sources}</p>
+                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Enabled Sources</p>
+                <p className="text-3xl font-black text-green-600 dark:text-green-400">{stats.enabled_sources}</p>
               </div>
-              <CheckCircle2 className="w-8 h-8 text-green-500" />
+              <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                <CheckCircle2 className="w-6 h-6 text-green-500" />
+              </div>
             </div>
           </motion.div>
 
@@ -302,14 +306,16 @@ const HarvestSources: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700"
+            className="premium-card"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400">Total Harvests</p>
-                <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">{stats.total_harvests}</p>
+                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Total Harvests</p>
+                <p className="text-3xl font-black text-surface-900 dark:text-white">{stats.total_harvests}</p>
               </div>
-              <BarChart3 className="w-8 h-8 text-purple-500" />
+              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                <BarChart3 className="w-6 h-6 text-purple-500" />
+              </div>
             </div>
           </motion.div>
 
@@ -317,16 +323,18 @@ const HarvestSources: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700"
+            className="premium-card"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-surface-600 dark:text-surface-400">Success Rate</p>
-                <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
+                <p className="text-sm text-surface-600 dark:text-surface-400 font-medium">Success Rate</p>
+                <p className="text-3xl font-black text-surface-900 dark:text-white">
                   {stats.total_harvests > 0 ? Math.round((stats.successful_harvests / stats.total_harvests) * 100) : 0}%
                 </p>
               </div>
-              <RefreshCw className="w-8 h-8 text-orange-500" />
+              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                <RefreshCw className="w-6 h-6 text-orange-500" />
+              </div>
             </div>
           </motion.div>
         </div>
@@ -343,7 +351,7 @@ const HarvestSources: React.FC = () => {
               placeholder="Search sources..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="input-field pl-10"
             />
           </div>
 
@@ -352,7 +360,7 @@ const HarvestSources: React.FC = () => {
             <select
               value={activeFilter}
               onChange={(e) => setActiveFilter(e.target.value as any)}
-              className="px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
+              className="px-4 py-2 border border-brand-500/20 rounded-xl bg-brand-500/5 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-brand-500 outline-none font-medium transition-all"
             >
               <option value="all">All Sources</option>
               <option value="enabled">Enabled Only</option>
@@ -362,7 +370,7 @@ const HarvestSources: React.FC = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
+              className="px-4 py-2 border border-brand-500/20 rounded-xl bg-brand-500/5 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-brand-500 outline-none font-medium transition-all"
             >
               <option value="all">All Types</option>
               <option value="api_directory">API Directory</option>
@@ -374,7 +382,7 @@ const HarvestSources: React.FC = () => {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
+              className="px-4 py-2 border border-brand-500/20 rounded-xl bg-brand-500/5 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-brand-500 outline-none font-medium transition-all"
             >
               <option value="all">All Categories</option>
               <option value="payments">Payments</option>
@@ -391,7 +399,7 @@ const HarvestSources: React.FC = () => {
         <div className="flex gap-2">
           <button
             onClick={handleInitializeDefaults}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="btn-secondary flex items-center gap-2"
           >
             <Settings className="w-4 h-4" />
             Initialize Defaults
@@ -399,7 +407,7 @@ const HarvestSources: React.FC = () => {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors flex items-center gap-2"
+            className="btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add Source
@@ -408,7 +416,7 @@ const HarvestSources: React.FC = () => {
       </div>
 
       {/* Sources List */}
-      <div className="bg-white dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
+      <div className="glass rounded-3xl overflow-hidden border-brand-500/10">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="w-8 h-8 animate-spin text-surface-400" />
@@ -416,31 +424,31 @@ const HarvestSources: React.FC = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-surface-50 dark:bg-surface-700">
+              <thead className="bg-brand-500/5 dark:bg-brand-500/10">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
                     Source
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
                     Type
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
                     Category
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
                     Last Harvest
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-200 dark:divide-surface-700">
                 {filteredSources.map((source) => (
-                  <tr key={source.id} className="hover:bg-surface-50 dark:hover:bg-surface-700">
+                  <tr key={source.id} className="border-b border-brand-500/5 hover:bg-brand-500/[0.02] dark:hover:bg-brand-500/[0.05] transition-colors">
                     <td className="px-6 py-4">
                       <div>
                         <div className="font-medium text-surface-900 dark:text-surface-100">
@@ -576,7 +584,7 @@ const HarvestSources: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-surface-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="premium-card w-full max-w-2xl max-h-[90vh] overflow-y-auto !p-8"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-100">
@@ -697,9 +705,9 @@ const HarvestSources: React.FC = () => {
                         type="checkbox"
                         checked={formData.enabled}
                         onChange={(e) => setFormData(prev => ({ ...prev, enabled: e.target.checked }))}
-                        className="rounded"
+                        className="w-5 h-5 rounded-lg border-brand-500/20 bg-brand-500/5 text-brand-600 focus:ring-brand-500 transition-all cursor-pointer"
                       />
-                      <span className="text-sm text-surface-700 dark:text-surface-300">Enabled</span>
+                      <span className="text-sm text-surface-700 dark:text-surface-300 font-medium">Enabled</span>
                     </div>
                   </div>
                 </div>
@@ -734,7 +742,7 @@ const HarvestSources: React.FC = () => {
                 </button>
                 <button
                   onClick={editingSource ? handleUpdate : handleCreate}
-                  className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors flex items-center gap-2"
+                  className="btn-primary flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   {editingSource ? 'Update' : 'Create'} Source

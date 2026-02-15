@@ -75,59 +75,45 @@ const AgentActivityDashboard: React.FC = () => {
 
   const loadAgentData = async () => {
     try {
+      setLoading(true);
+
       // Load agents list
       const agentsResponse = await apiService.listAgents();
       setAgents(agentsResponse.data.agents || []);
 
-      // Load shared state (mock for now - would need backend endpoint)
-      const mockSharedState: SharedState = {
-        session_id: 'session_123',
-        agents: agentsResponse.data.agents || [],
-        current_workflow: {
-          id: 'workflow_456',
-          name: 'API Integration Creation',
-          status: 'running',
-          progress: 65,
-          current_step: 'Field mapping analysis',
-          started_at: new Date(Date.now() - 120000).toISOString()
-        },
-        knowledge_context: [
-          { type: 'api_spec', name: 'Stripe API', relevance: 0.95 },
-          { type: 'pattern', name: 'Payment processing', relevance: 0.87 }
-        ],
-        user_intent: 'Create integration between Stripe and accounting system',
-        last_updated: new Date().toISOString()
-      };
-      setSharedState(mockSharedState);
+      // Load real shared state
+      try {
+        const sharedStateResponse = await apiService.getSharedState();
+        setSharedState(sharedStateResponse.data);
+      } catch (e) {
+        console.error('Failed to load shared state:', e);
+      }
 
-      // Generate workflow steps
-      const mockSteps: WorkflowStep[] = [
-        {
-          id: 'step_1',
-          name: 'API Discovery',
-          agent: 'ingestor',
-          status: 'completed',
-          started_at: new Date(Date.now() - 180000).toISOString(),
-          completed_at: new Date(Date.now() - 120000).toISOString(),
-          duration_ms: 60000,
-          output: { apis_found: 2, specs_generated: 1 }
-        },
-        {
-          id: 'step_2',
-          name: 'Field Mapping Analysis',
-          agent: 'mapper',
-          status: 'running',
-          started_at: new Date(Date.now() - 120000).toISOString(),
-          output: { fields_mapped: 15, conflicts_resolved: 3 }
-        },
-        {
-          id: 'step_3',
-          name: 'Integration Generation',
-          agent: 'writer',
-          status: 'pending'
+      // Load agent activity to populate workflow steps
+      try {
+        const activityResponse = await apiService.getAgentActivity(24); // Last 24 hours
+        // Process activities into workflow steps if possible, or use them as is
+        // For now, let's keep the mock structure if the backend doesn't provide exactly what's needed
+        // but try to use real data points if available.
+        // Assuming activityResponse.data.activities exists
+        const activities = activityResponse.data.activities || [];
+        if (activities.length > 0) {
+          const steps: WorkflowStep[] = activities.map((act: any, idx: number) => ({
+            id: act.id || `act_${idx}`,
+            name: act.activity_type || 'Agent Action',
+            agent: act.agent_id,
+            status: act.status || 'completed',
+            started_at: act.timestamp,
+            output: act.metadata
+          }));
+          setWorkflowSteps(steps);
+        } else {
+          // Fallback to a cleaner "No recent activity" state or minimal mock for demo if empty
+          setWorkflowSteps([]);
         }
-      ];
-      setWorkflowSteps(mockSteps);
+      } catch (e) {
+        console.error('Failed to load agent activity:', e);
+      }
 
     } catch (error) {
       console.error('Failed to load agent data:', error);
@@ -197,7 +183,7 @@ const AgentActivityDashboard: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-surface-800 rounded-lg p-6 border border-surface-200 dark:border-surface-700"
+          className="premium-card !p-8 border-brand-500/10"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -225,9 +211,9 @@ const AgentActivityDashboard: React.FC = () => {
                 <span>Progress</span>
                 <span>{sharedState.current_workflow.progress}%</span>
               </div>
-              <div className="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2">
+              <div className="w-full bg-surface-200 dark:bg-brand-500/10 rounded-full h-3">
                 <div
-                  className="bg-brand-600 h-2 rounded-full transition-all duration-500"
+                  className="bg-brand-600 h-3 rounded-full transition-all duration-500 shadow-[0_0_15px_rgba(221,0,49,0.3)]"
                   style={{ width: `${sharedState.current_workflow.progress}%` }}
                 />
               </div>
@@ -256,8 +242,8 @@ const AgentActivityDashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
             className={cn(
-              "bg-white dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700 cursor-pointer transition-all",
-              selectedAgent === agent.id ? "ring-2 ring-brand-500 border-brand-500" : "hover:border-surface-300 dark:hover:border-surface-600"
+              "premium-card cursor-pointer transition-all border-brand-500/10",
+              selectedAgent === agent.id ? "ring-2 ring-brand-500 border-brand-500 shadow-lg" : "hover:border-brand-500/30"
             )}
             onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
           >
@@ -314,20 +300,20 @@ const AgentActivityDashboard: React.FC = () => {
 
       {/* Workflow Steps */}
       {workflowSteps.length > 0 && (
-        <div className="bg-white dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
-            <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
+        <div className="glass rounded-[2rem] overflow-hidden border-brand-500/10">
+          <div className="px-8 py-6 border-b border-brand-500/10 bg-brand-500/[0.02]">
+            <h3 className="text-xl font-black text-surface-950 dark:text-white tracking-widest uppercase">
               Workflow Execution
             </h3>
           </div>
 
-          <div className="p-4">
+          <div className="p-8">
             <div className="space-y-4">
               {workflowSteps.map((step, index) => (
                 <div key={step.id} className="flex items-start gap-4">
                   <div className="flex flex-col items-center">
                     <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium",
+                      "w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg",
                       step.status === 'completed' ? 'bg-green-500' :
                         step.status === 'running' ? 'bg-blue-500' :
                           step.status === 'failed' ? 'bg-red-500' : 'bg-brand-500'
@@ -338,11 +324,11 @@ const AgentActivityDashboard: React.FC = () => {
                             index + 1}
                     </div>
                     {index < workflowSteps.length - 1 && (
-                      <div className="w-0.5 h-8 bg-surface-300 dark:bg-surface-600 mt-2" />
+                      <div className="w-0.5 h-12 bg-brand-500/10 mt-2" />
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 pb-12">
                     <div className="flex items-center justify-between">
                       <h4 className="font-medium text-surface-900 dark:text-surface-100">
                         {step.name}
@@ -377,19 +363,19 @@ const AgentActivityDashboard: React.FC = () => {
       )}
 
       {/* Shared State Viewer */}
-      <div className="bg-white dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-        <div className="p-4 border-b border-surface-200 dark:border-surface-700">
+      <div className="glass rounded-[2rem] overflow-hidden border-brand-500/10">
+        <div className="px-8 py-6 border-b border-brand-500/10 bg-brand-500/[0.02]">
           <button
             onClick={() => setShowSharedState(!showSharedState)}
             className="flex items-center justify-between w-full text-left"
           >
             <div className="flex items-center gap-3">
-              <Eye className="w-5 h-5 text-surface-600 dark:text-surface-400" />
-              <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
+              <Eye className="w-6 h-6 text-brand-500" />
+              <h3 className="text-xl font-black text-surface-950 dark:text-white tracking-widest uppercase">
                 Shared Whiteboard State
               </h3>
             </div>
-            {showSharedState ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            {showSharedState ? <ChevronUp className="w-6 h-6 text-brand-500" /> : <ChevronDown className="w-6 h-6 text-brand-500" />}
           </button>
         </div>
 
@@ -401,7 +387,7 @@ const AgentActivityDashboard: React.FC = () => {
               exit={{ height: 0, opacity: 0 }}
               className="border-t border-surface-200 dark:border-surface-700"
             >
-              <div className="p-4">
+              <div className="p-8">
                 {sharedState ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

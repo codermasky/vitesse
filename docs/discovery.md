@@ -309,3 +309,43 @@ pytest tests/agents/test_discovery.py -v
 - [Integration Lifecycle](./integration_lifecycle.md)
 - [Agent Architecture](./agents.md)
 - [API Reference](./api.md)
+
+## Knowledge Harvester
+
+The Knowledge Harvester is an autonomous agent that proactively discovers and harvests API knowledge from various sources to power the Discovery Agent.
+
+### Smart Deduplication
+
+The Knowledge Harvester now includes intelligent source tracking to avoid reprocessing unchanged sources:
+
+**How It Works**:
+1. **First Run**: All sources are processed and their content hashes are stored in Qdrant
+2. **Subsequent Runs**: Before processing each source, the harvester checks if the content has changed
+3. **Skip Unchanged**: Sources with matching hashes are skipped to save time and resources
+
+**Tracked Sources**:
+- GitHub API repositories (45 sources)
+- API marketplaces (10 sources)
+- Financial APIs (3 sources: Plaid, Stripe, Yodlee)
+- Regulatory standards (2 sources: PSD2, FDX)
+- Integration patterns (4 sources)
+- APIs.guru directory (~2000 APIs)
+
+**Source Key Format**:
+- Financial APIs: `financial_api:{api_name}`
+- Standards: `standard:{standard_name}`
+- GitHub: `github:{repo}`
+- Marketplaces: `marketplace:{api_name}`
+
+**Log Output**:
+```
+# First run
+Harvesting from GitHub API repositories...
+GitHub API harvest complete harvested=45 skipped_unchanged=0 total_sources=45
+
+# Subsequent run (unchanged)
+Harvesting from GitHub API repositories...
+Skipping unchanged GitHub source repo=stripe/stripe-go
+...
+GitHub API harvest complete harvested=0 skipped_unchanged=45 total_sources=45
+```

@@ -280,3 +280,69 @@ All documentation has been comprehensively updated to reflect the new multi-step
 ✅ Best practices and recommendations  
 
 **Status**: Ready for production use
+
+---
+
+# Documentation Updates - Smart Knowledge Harvester
+
+**Date**: February 15, 2026  
+**Update**: Smart deduplication for Knowledge Harvester - prevents reprocessing of unchanged API sources
+
+## Summary of Changes
+
+The Knowledge Harvester has been enhanced with intelligent source tracking and change detection to avoid reprocessing the same API sources on every harvest cycle.
+
+## Files Updated
+
+### 1. **backend/app/core/knowledge_db.py**
+**Status**: ✅ COMPLETE
+
+**Changes**:
+- Added `HARVEST_SOURCES_COLLECTION` constant for tracking processed sources
+- Added new methods to `KnowledgeDB` interface:
+  - `get_harvest_source_state()` - Retrieve stored state for a source
+  - `update_harvest_source_state()` - Update state after processing
+  - `list_harvest_sources()` - List all tracked sources
+- Implemented methods in `QdrantKnowledge` class with content hash storage
+
+### 2. **backend/app/agents/knowledge_harvester.py**
+**Status**: ✅ COMPLETE
+
+**Changes**:
+- Added helper methods: `_compute_content_hash()`, `_get_source_key()`, `_should_process_source()`, `_update_source_state()`
+- Updated all harvest methods with smart deduplication
+- GitHub repos (45), Marketplaces (10), Financial APIs (3), Standards (2), Patterns (4)
+
+## How It Works
+
+### First Run
+1. All sources are processed normally
+2. After each harvest, source key and content hash are stored
+
+### Subsequent Runs
+1. Compute content hash before processing
+2. Compare with stored hash in Qdrant
+3. If hash matches → skip (unchanged)
+4. If hash differs → process (changed)
+5. If error → process anyway (fail-safe)
+
+## API Sources Covered
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| GitHub Repos | 45 | stripe/stripe-go, plaid/plaid-node |
+| Marketplace APIs | 10 | Stripe Payments, Shopify Admin |
+| Financial APIs | 3 | Plaid, Stripe, Yodlee |
+| Standards | 2 | PSD2, FDX |
+| Patterns | 4 | Currency Conversion, Pagination |
+
+## Benefits
+
+1. **Reduced Processing Time**: Skip unchanged sources
+2. **Lower API Usage**: Don't re-fetch unchanged definitions
+3. **Faster Harvest Cycles**: Only process new/changed sources
+4. **Cost Savings**: Reduce Qdrant operations
+
+## Status
+
+✅ Ready for production use
