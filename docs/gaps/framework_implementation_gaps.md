@@ -22,7 +22,7 @@ The complete discovery flow is operational:
 #### 1.2 Instantaneous Discovery
 - ✅ **Implemented**: [`VitesseDiscoveryAgent`](file:///Users/sujitm/Sandbox/vitesse/backend/app/agents/discovery.py)
 - **Capabilities**:
-  - Queries persistent Knowledge Base (ChromaDB/Qdrant)
+  - Queries persistent Knowledge Base (Qdrant)
   - LLM-powered API discovery
   - Search through known API catalog
   - Vector database semantic search
@@ -60,7 +60,7 @@ The complete discovery flow is operational:
 #### 2.2 Knowledge Base Maintenance
 - ✅ **Implemented**: [`knowledge_db.py`](file:///Users/sujitm/Sandbox/vitesse/backend/app/core/knowledge_db.py)
 - **Features**:
-  - **Persistent storage**: ChromaDB (local) and Qdrant (cloud/enterprise)
+  - **Persistent storage**: Qdrant (production-grade vector database)
   - **Versioned**: Document versioning with metadata tracking
   - **Structured collections**:
     - `API_SPECS_COLLECTION`
@@ -69,9 +69,8 @@ The complete discovery flow is operational:
 
 **Vector Database Implementation**:
 ```python
-# Supports both ChromaDB and Qdrant
-class ChromaDBKnowledge(KnowledgeDB)  # Local/self-hosted
-class QdrantKnowledge(KnowledgeDB)    # Cloud/enterprise-grade
+# Production vector database backend
+class QdrantKnowledge(KnowledgeDB)    # Production-grade, recommended
 ```
 
 #### 2.3 Contextualization
@@ -192,7 +191,7 @@ All documented sources are supported:
 | **Interactive Discovery Flow** | ✅ Fully Implemented | 95% | Complete pipeline from query to deployment |
 | **Discovery Agent** | ✅ Fully Implemented | 100% | LLM + Vector DB search operational |
 | **Knowledge Harvesting Agent** | ✅ Fully Implemented | 90% | Multi-source harvesting active |
-| **Knowledge Base** | ✅ Fully Implemented | 100% | ChromaDB + Qdrant support |
+| **Knowledge Base** | ✅ Fully Implemented | 100% | Qdrant with quantization support |
 | **Ingestor Agent** | ✅ Fully Implemented | 95% | Parses OpenAPI/Swagger + HTML synthesis |
 | **Mapper Agent** | ✅ Fully Implemented | 90% | Semantic mapping via LLM + vector search |
 | **Guardian Agent** | ✅ Fully Implemented | 95% | Testing, drift detection, self-healing |
@@ -227,7 +226,7 @@ graph TD
 ```
 
 ### Knowledge Base Architecture
-- **Local Development**: ChromaDB (embedded, persistent)
+- **Production**: Qdrant (containerized, scalable)
 - **Production/Enterprise**: Qdrant (scalable, high-performance)
 - **Embedding Model**: all-MiniLM-L6-v2 (384-dimensional vectors)
 - **Collections**:

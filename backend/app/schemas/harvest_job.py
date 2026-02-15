@@ -59,6 +59,9 @@ class HarvestJobResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 
 class HarvestJobList(BaseModel):

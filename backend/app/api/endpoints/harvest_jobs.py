@@ -9,6 +9,7 @@ from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 import asyncio
 
@@ -35,17 +36,39 @@ async def list_harvest_jobs(
     limit: int = Query(50, ge=1, le=100),
     status: Optional[str] = Query(None),
     harvest_type: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """List harvest jobs with optional filtering."""
     try:
-        jobs = HarvestJobService.get_harvest_jobs(db, skip, limit, status, harvest_type)
-        total = len(
-            HarvestJobService.get_harvest_jobs(db, 0, 10000, status, harvest_type)
-        )  # Get total count
+        jobs = await HarvestJobService.get_harvest_jobs(
+            db, skip, limit, status, harvest_type
+        )
+        all_jobs = await HarvestJobService.get_harvest_jobs(
+            db, 0, 10000, status, harvest_type
+        )
+        total = len(all_jobs)
+
+        # Convert datetime fields to strings for response
+        jobs_with_strings = []
+        for job in jobs:
+            jobs_with_strings.append({
+                "id": job.id,
+                "harvest_type": job.harvest_type,
+                "status": job.status,
+                "progress": job.progress,
+                "total_sources": job.total_sources,
+                "processed_sources": job.processed_sources,
+                "successful_harvests": job.successful_harvests,
+                "failed_harvests": job.failed_harvests,
+                "apis_harvested": job.apis_harvested,
+                "created_at": job.created_at.isoformat(),
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "error_message": job.error_message,
+            })
 
         return HarvestJobList(
-            items=jobs,
+            items=jobs_with_strings,
             total=total,
             page=(skip // limit) + 1,
             page_size=limit,
@@ -60,7 +83,7 @@ async def list_harvest_jobs(
 async def create_harvest_job(
     job_data: HarvestJobCreate,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create and start a new harvest job."""
     try:
@@ -70,9 +93,26 @@ async def create_harvest_job(
         )
 
         # Create job in database
-        job = HarvestJobService.create_harvest_job(
+        job = await HarvestJobService.create_harvest_job(
             db, job_id, job_data.harvest_type, job_data.source_ids
         )
+
+        # Convert datetime fields to strings for response
+        job_response = {
+            "id": job.id,
+            "harvest_type": job.harvest_type,
+            "status": job.status,
+            "progress": job.progress,
+            "total_sources": job.total_sources,
+            "processed_sources": job.processed_sources,
+            "successful_harvests": job.successful_harvests,
+            "failed_harvests": job.failed_harvests,
+            "apis_harvested": job.apis_harvested,
+            "created_at": job.created_at.isoformat(),
+            "started_at": job.started_at.isoformat() if job.started_at else None,
+            "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+            "error_message": job.error_message,
+        }
 
         # Start harvest in background
         background_tasks.add_task(
@@ -83,7 +123,7 @@ async def create_harvest_job(
             db,
         )
 
-        return job
+        return job_response
 
     except Exception as e:
         logger.error("Failed to create harvest job", error=str(e))
@@ -91,14 +131,31 @@ async def create_harvest_job(
 
 
 @router.get("/{job_id}", response_model=HarvestJobResponse)
-async def get_harvest_job(job_id: str, db: Session = Depends(get_db)):
+async def get_harvest_job(job_id: str, db: AsyncSession = Depends(get_db)):
     """Get a specific harvest job by ID."""
     try:
-        job = HarvestJobService.get_harvest_job_by_id(db, job_id)
+        job = await HarvestJobService.get_harvest_job_by_id(db, job_id)
         if not job:
             raise HTTPException(status_code=404, detail="Harvest job not found")
 
-        return job
+        # Convert datetime fields to strings for response
+        job_response = {
+            "id": job.id,
+            "harvest_type": job.harvest_type,
+            "status": job.status,
+            "progress": job.progress,
+            "total_sources": job.total_sources,
+            "processed_sources": job.processed_sources,
+            "successful_harvests": job.successful_harvests,
+            "failed_harvests": job.failed_harvests,
+            "apis_harvested": job.apis_harvested,
+            "created_at": job.created_at.isoformat(),
+            "started_at": job.started_at.isoformat() if job.started_at else None,
+            "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+            "error_message": job.error_message,
+        }
+
+        return job_response
     except HTTPException:
         raise
     except Exception as e:
@@ -107,7 +164,7 @@ async def get_harvest_job(job_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/dashboard")
-async def get_harvest_dashboard(db: Session = Depends(get_db)):
+async def get_harvest_dashboard(db: AsyncSession = Depends(get_db)):
     """
     Get comprehensive harvest dashboard data for UI.
 
@@ -124,10 +181,10 @@ async def get_harvest_dashboard(db: Session = Depends(get_db)):
         scheduler_status = await knowledge_harvester_scheduler.get_status()
 
         # Get overall statistics
-        stats = HarvestJobService.get_harvest_job_stats(db)
+        stats = await HarvestJobService.get_harvest_job_stats(db)
 
         # Get recent jobs (last 10)
-        recent_jobs = HarvestJobService.get_harvest_jobs(db, skip=0, limit=10)
+        recent_jobs = await HarvestJobService.get_harvest_jobs(db, skip=0, limit=10)
 
         return {
             "status": "success",
@@ -145,6 +202,7 @@ async def get_harvest_dashboard(db: Session = Depends(get_db)):
                     "progress": job.progress,
                     "apis_harvested": job.apis_harvested,
                     "created_at": job.created_at.isoformat(),
+                    "started_at": job.started_at.isoformat() if job.started_at else None,
                     "completed_at": (
                         job.completed_at.isoformat() if job.completed_at else None
                     ),
@@ -157,19 +215,10 @@ async def get_harvest_dashboard(db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=500, detail="Failed to retrieve harvest dashboard"
         )
-    """Get harvest job statistics."""
-    try:
-        stats = HarvestJobService.get_harvest_job_stats(db)
-        return HarvestJobStats(**stats)
-    except Exception as e:
-        logger.error("Failed to get harvest job stats", error=str(e))
-        raise HTTPException(
-            status_code=500, detail="Failed to retrieve harvest job statistics"
-        )
 
 
 @router.post("/{job_id}/cancel")
-async def cancel_harvest_job(job_id: str, db: Session = Depends(get_db)):
+async def cancel_harvest_job(job_id: str, db: AsyncSession = Depends(get_db)):
     """Cancel a running harvest job."""
     # Mock implementation - in real app, signal job cancellation
     return {"message": f"Harvest job {job_id} cancelled successfully"}
@@ -181,6 +230,11 @@ async def get_scheduler_config():
     from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
 
     try:
+        # Convert datetime objects in schedule to strings
+        schedule_with_strings = {}
+        for key, value in knowledge_harvester_scheduler.harvest_schedule.items():
+            schedule_with_strings[key] = value
+
         return {
             "harvest_types": [
                 {
@@ -228,30 +282,16 @@ async def get_scheduler_config():
                     ),
                 },
             ],
-            "current_schedule": knowledge_harvester_scheduler.harvest_schedule,
+            "current_schedule": schedule_with_strings,
         }
     except Exception as e:
         logger.error("Failed to get scheduler config", error=str(e))
         raise HTTPException(
             status_code=500, detail="Failed to retrieve scheduler configuration"
         )
-    """Get the status of the knowledge harvester scheduler."""
-    from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
-
-    try:
-        status = await knowledge_harvester_scheduler.get_status()
-        return {
-            "status": "success",
-            "scheduler": status,
-        }
-    except Exception as e:
-        logger.error("Failed to get scheduler status", error=str(e))
-        raise HTTPException(
-            status_code=500, detail="Failed to retrieve scheduler status"
-        )
 
 
-@router.post("/scheduler/update-config")
+@router.get("/scheduler/status")
 async def update_scheduler_config(config: dict):
     """
     Update scheduler configuration from UI.
@@ -281,12 +321,17 @@ async def update_scheduler_config(config: dict):
             schedule=knowledge_harvester_scheduler.harvest_schedule,
         )
 
+        # Convert datetime objects in schedule to strings
+        schedule_with_strings = {}
+        for key, value in knowledge_harvester_scheduler.harvest_schedule.items():
+            schedule_with_strings[key] = value
+
         return {
             "status": "success",
             "message": "Scheduler configuration updated",
             "current_config": {
                 "harvest_interval_hours": knowledge_harvester_scheduler.harvest_interval_hours,
-                "schedule": knowledge_harvester_scheduler.harvest_schedule,
+                "schedule": schedule_with_strings,
             },
         }
     except Exception as e:
@@ -294,16 +339,14 @@ async def update_scheduler_config(config: dict):
         raise HTTPException(
             status_code=500, detail="Failed to update scheduler configuration"
         )
+
+
+@router.post("/scheduler/start")
+async def start_scheduler():
     """Start the knowledge harvester scheduler."""
     from app.services.knowledge_harvester_scheduler import knowledge_harvester_scheduler
 
     try:
-        if knowledge_harvester_scheduler.is_running:
-            return {
-                "status": "info",
-                "message": "Scheduler is already running",
-            }
-
         knowledge_harvester_scheduler.start()
         logger.info("Knowledge Harvester Scheduler started via API")
 
@@ -372,7 +415,7 @@ async def trigger_harvest(
 
         # Create job in database
         async with async_session_factory() as db:
-            job = HarvestJobService.create_harvest_job(
+            job = await HarvestJobService.create_harvest_job(
                 db, job_id, harvest_type, source_ids
             )
 
@@ -400,7 +443,6 @@ async def run_harvest_job(
     job_id: str,
     harvest_type: str,
     source_ids: Optional[List[int]] = None,
-    db: Session = None,
 ):
     """Background task to run a harvest job using the real KnowledgeHarvester."""
     try:
@@ -413,7 +455,7 @@ async def run_harvest_job(
 
         # Update job status to running
         async with async_session_factory() as db_async:
-            HarvestJobService.update_harvest_job_status(
+            await HarvestJobService.update_harvest_job_status(
                 db_async, job_id, "running", progress=0.0
             )
 
@@ -448,7 +490,7 @@ async def run_harvest_job(
 
         # Update job in database with success
         async with async_session_factory() as db_async:
-            HarvestJobService.update_harvest_job_status(
+            await HarvestJobService.update_harvest_job_status(
                 db_async,
                 job_id,
                 "completed",
@@ -479,7 +521,7 @@ async def run_harvest_job(
         # Update job status to failed
         try:
             async with async_session_factory() as db_async:
-                HarvestJobService.update_harvest_job_status(
+                await HarvestJobService.update_harvest_job_status(
                     db_async, job_id, "failed", error_message=error_msg
                 )
         except Exception as db_error:

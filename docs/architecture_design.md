@@ -178,22 +178,24 @@ SharedWhiteboardState(
 
 ## Overview
 Vector Database layer enables semantic search and storage of integration knowledge.
-Two implementations available: ChromaDB (local) and Pinecone (cloud).
+Two implementations available: Qdrant (recommended, production-grade).
 
 ## Implementation Files
 - `app/core/knowledge_db.py` - Vector DB abstraction layer
   - KnowledgeDB (abstract base)
-  - ChromaDBKnowledge: Local, open-source implementation
+  - QdrantKnowledge: Production-grade implementation
   - PineconeKnowledge: Cloud, managed implementation (template)
   - KnowledgeDBManager: Unified interface
 
 ## Features
 
-### 2.1 ChromaDB Setup (Default)
+### 2.1 Qdrant Setup (Default)
+- Production-grade vector database
+- High-performance similarity search with 40x speedup via quantization
+- Docker deployment ready
 - Automatic embedding using Sentence Transformers
-- Local persistence in `./chroma_data`
-- DuckDB + Parquet backend
-- Open-source, no API keys needed
+- Horizontal scaling support
+- Enterprise security and monitoring
 
 ### 2.2 Collections
 Six semantic collections store different types of knowledge:
@@ -535,7 +537,7 @@ if failure_rate > self.critical_failure_threshold:
     │                       │                            │
     │                       ▼                            │
     │  ┌─────────────────────────────────────────────┐  │
-    │  │    VECTOR DATABASE (ChromaDB / Pinecone)   │  │
+    │  │    VECTOR DATABASE (Qdrant)    │  │
     │  │  Collections:                               │  │
     │  │  • financial_apis                           │  │
     │  │  • financial_standards (PSD2, FDX)          │  │
@@ -561,23 +563,25 @@ if failure_rate > self.critical_failure_threshold:
 ## Environment Setup
 ```bash
 # Automatic at app startup:
-# 1. ChromaDB initialized with persist_directory="./chroma_data"
-# 2. Seed data loaded into all collections
-# 3. Shared state ready for agent coordination
-# 4. Knowledge Harvester ready for queries
+# 1. Qdrant initialized at QDRANT_URL (default: http://localhost:6333)
+# 2. All collections created with quantization for performance
+# 3. Seed data loaded into all collections
+# 4. Shared state ready for agent coordination
+# 5. Knowledge Harvester ready for queries
 
 # No additional configuration needed beyond standard Vitesse setup
 ```
 
-## Custom Configuration
+## Configuration
 ```python
 # In .env or settings:
-KNOWLEDGE_DB_BACKEND="chromadb"  # or "pinecone"
-CHROMA_PERSIST_DIR="./chroma_data"
+QDRANT_URL="http://localhost:6333"  # Qdrant instance URL
+QDRANT_API_KEY=""  # Optional, for cloud Qdrant
+KNOWLEDGE_DB_BACKEND="qdrant"  # Default backend
 
-# For Pinecone (optional):
-PINECONE_API_KEY="..."
-PINECONE_ENVIRONMENT="us-east-1-aws"
+# For Pinecone (optional alternative):
+# PINECONE_API_KEY="..."
+# PINECONE_ENVIRONMENT="us-east-1-aws"
 ```
 
 # ===== TESTING & VALIDATION =====

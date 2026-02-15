@@ -144,8 +144,8 @@ class KnowledgeHarvesterScheduler:
         try:
             # Create job in database
             async with async_session_factory() as db:
-                HarvestJobService.create_harvest_job(db, job_id, harvest_type)
-                HarvestJobService.update_harvest_job_status(
+                await HarvestJobService.create_harvest_job(db, job_id, harvest_type)
+                await HarvestJobService.update_harvest_job_status(
                     db, job_id, "running", progress=0.0
                 )
 
@@ -163,7 +163,7 @@ class KnowledgeHarvesterScheduler:
 
             # Update job in database with results
             async with async_session_factory() as db:
-                HarvestJobService.update_harvest_job_status(
+                await HarvestJobService.update_harvest_job_status(
                     db,
                     job_id,
                     "completed",
@@ -201,7 +201,7 @@ class KnowledgeHarvesterScheduler:
             # Update job status to failed
             try:
                 async with async_session_factory() as db:
-                    HarvestJobService.update_harvest_job_status(
+                    await HarvestJobService.update_harvest_job_status(
                         db,
                         job_id,
                         "failed",

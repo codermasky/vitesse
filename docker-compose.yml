@@ -80,7 +80,7 @@ services:
       # Telemetry (disable for privacy)
       QDRANT_TELEMETRY_DISABLED: "true"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD", "bash", "-c", "(echo > /dev/tcp/127.0.0.1/6333) && exit 0 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

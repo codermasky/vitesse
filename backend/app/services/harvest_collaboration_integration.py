@@ -5,7 +5,8 @@ Database services for harvest jobs, agent collaboration, and integrations.
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, and_, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, desc, and_, or_, select
 
 from app.models.harvest_collaboration_integration import (
     HarvestJob,
@@ -24,33 +25,42 @@ class HarvestJobService:
     """Service for harvest job operations."""
 
     @staticmethod
-    def get_harvest_jobs(
-        db: Session,
+    async def get_harvest_jobs(
+        db: AsyncSession,
         skip: int = 0,
         limit: int = 50,
         status: Optional[str] = None,
         harvest_type: Optional[str] = None,
     ) -> List[HarvestJob]:
         """Get harvest jobs with optional filtering."""
-        query = db.query(HarvestJob)
+        query = select(HarvestJob)
 
+        filters = []
         if status:
-            query = query.filter(HarvestJob.status == status)
+            filters.append(HarvestJob.status == status)
         if harvest_type:
-            query = query.filter(HarvestJob.harvest_type == harvest_type)
+            filters.append(HarvestJob.harvest_type == harvest_type)
 
-        return (
-            query.order_by(desc(HarvestJob.created_at)).offset(skip).limit(limit).all()
-        )
+        if filters:
+            query = query.where(and_(*filters))
+
+        query = query.order_by(desc(HarvestJob.created_at)).offset(skip).limit(limit)
+        result = await db.execute(query)
+        return result.scalars().all()
 
     @staticmethod
-    def get_harvest_job_by_id(db: Session, job_id: str) -> Optional[HarvestJob]:
+    async def get_harvest_job_by_id(
+        db: AsyncSession, job_id: str
+    ) -> Optional[HarvestJob]:
         """Get a harvest job by ID."""
-        return db.query(HarvestJob).filter(HarvestJob.id == job_id).first()
+        result = await db.execute(
+            select(HarvestJob).filter(HarvestJob.id == job_id)
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def create_harvest_job(
-        db: Session,
+    async def create_harvest_job(
+        db: AsyncSession,
         job_id: str,
         harvest_type: str,
         source_ids: Optional[List[int]] = None,
@@ -65,20 +75,25 @@ class HarvestJobService:
             source_ids=source_ids,
         )
         db.add(job)
-        db.commit()
-        db.refresh(job)
+        await db.commit()
+        await db.refresh(job)
         return job
 
     @staticmethod
-    def update_harvest_job_status(
-        db: Session,
+    async def update_harvest_job_status(
+        db: AsyncSession,
         job_id: str,
         status: str,
         progress: Optional[float] = None,
         error_message: Optional[str] = None,
+        processed_sources: Optional[int] = None,
+        successful_harvests: Optional[int] = None,
+        failed_harvests: Optional[int] = None,
+        apis_harvested: Optional[int] = None,
     ) -> Optional[HarvestJob]:
         """Update harvest job status."""
-        job = db.query(HarvestJob).filter(HarvestJob.id == job_id).first()
+        result = await db.execute(select(HarvestJob).filter(HarvestJob.id == job_id))
+        job = result.scalar_one_or_none()
         if not job:
             return None
 
@@ -87,77 +102,87 @@ class HarvestJobService:
             job.progress = progress
         if error_message:
             job.error_message = error_message
+        if processed_sources is not None:
+            job.processed_sources = processed_sources
+        if successful_harvests is not None:
+            job.successful_harvests = successful_harvests
+        if failed_harvests is not None:
+            job.failed_harvests = failed_harvests
+        if apis_harvested is not None:
+            job.apis_harvested = apis_harvested
 
         if status == "running" and not job.started_at:
             job.started_at = datetime.utcnow()
         elif status in ["completed", "failed"] and not job.completed_at:
             job.completed_at = datetime.utcnow()
 
-        db.commit()
-        db.refresh(job)
+        await db.commit()
+        await db.refresh(job)
         return job
 
     @staticmethod
-    def get_harvest_job_stats(db: Session) -> Dict[str, Any]:
+    @staticmethod
+    async def get_harvest_job_stats(db: AsyncSession) -> Dict[str, Any]:
         """Get harvest job statistics."""
         # Count jobs by status
-        status_counts = (
-            db.query(HarvestJob.status, func.count(HarvestJob.id).label("count"))
-            .group_by(HarvestJob.status)
-            .all()
+        status_result = await db.execute(
+            select(HarvestJob.status, func.count(HarvestJob.id).label("count")).group_by(
+                HarvestJob.status
+            )
         )
-
+        status_counts = status_result.all()
         total_jobs = sum(count for _, count in status_counts)
 
         # Calculate success rate
-        completed_jobs = (
-            db.query(HarvestJob).filter(HarvestJob.status == "completed").count()
+        completed_result = await db.execute(
+            select(func.count(HarvestJob.id)).filter(HarvestJob.status == "completed")
         )
-
+        completed_jobs = completed_result.scalar() or 0
         success_rate = (completed_jobs / total_jobs * 100) if total_jobs > 0 else 0
 
         # Get recent job counts
         now = datetime.utcnow()
-        jobs_last_24h = (
-            db.query(HarvestJob)
-            .filter(HarvestJob.created_at >= now - timedelta(hours=24))
-            .count()
+        jobs_24h_result = await db.execute(
+            select(func.count(HarvestJob.id)).filter(
+                HarvestJob.created_at >= now - timedelta(hours=24)
+            )
         )
+        jobs_last_24h = jobs_24h_result.scalar() or 0
 
-        jobs_last_7d = (
-            db.query(HarvestJob)
-            .filter(HarvestJob.created_at >= now - timedelta(days=7))
-            .count()
+        jobs_7d_result = await db.execute(
+            select(func.count(HarvestJob.id)).filter(
+                HarvestJob.created_at >= now - timedelta(days=7)
+            )
         )
+        jobs_last_7d = jobs_7d_result.scalar() or 0
 
-        jobs_last_30d = (
-            db.query(HarvestJob)
-            .filter(HarvestJob.created_at >= now - timedelta(days=30))
-            .count()
+        jobs_30d_result = await db.execute(
+            select(func.count(HarvestJob.id)).filter(
+                HarvestJob.created_at >= now - timedelta(days=30)
+            )
         )
+        jobs_last_30d = jobs_30d_result.scalar() or 0
 
         # Get most common harvest type
-        harvest_type_counts = (
-            db.query(HarvestJob.harvest_type, func.count(HarvestJob.id).label("count"))
+        harvest_type_result = await db.execute(
+            select(HarvestJob.harvest_type, func.count(HarvestJob.id).label("count"))
             .group_by(HarvestJob.harvest_type)
             .order_by(desc("count"))
-            .first()
         )
-
+        harvest_type_counts = harvest_type_result.first()
         most_common_type = harvest_type_counts[0] if harvest_type_counts else "full"
 
         # Calculate average duration
-        completed_jobs_with_duration = (
-            db.query(HarvestJob)
-            .filter(
+        completed_jobs_query = await db.execute(
+            select(HarvestJob).filter(
                 and_(
                     HarvestJob.status == "completed",
                     HarvestJob.started_at.isnot(None),
                     HarvestJob.completed_at.isnot(None),
                 )
             )
-            .all()
         )
+        completed_jobs_with_duration = completed_jobs_query.scalars().all()
 
         avg_duration = 0
         if completed_jobs_with_duration:
@@ -168,7 +193,10 @@ class HarvestJobService:
             avg_duration = total_duration / len(completed_jobs_with_duration)
 
         # Get total APIs harvested
-        total_apis = db.query(func.sum(HarvestJob.apis_harvested)).scalar() or 0
+        total_apis_result = await db.execute(
+            select(func.sum(HarvestJob.apis_harvested))
+        )
+        total_apis = total_apis_result.scalar() or 0
 
         return {
             "total_jobs": total_jobs,

@@ -58,8 +58,30 @@ async def list_harvest_sources(
     pages = (total + limit - 1) // limit if limit > 0 else 1
     page = (skip // limit) + 1 if limit > 0 else 1
 
+    # Convert datetime fields to strings for response
+    sources_with_strings = []
+    for source in sources:
+        sources_with_strings.append({
+            "id": source.id,
+            "name": source.name,
+            "type": source.type,
+            "url": source.url,
+            "description": source.description,
+            "enabled": source.enabled,
+            "priority": source.priority,
+            "auth_type": source.auth_type,
+            "auth_config": source.auth_config,
+            "category": source.category,
+            "tags": source.tags,
+            "last_harvested_at": source.last_harvested_at.isoformat() if source.last_harvested_at else None,
+            "harvest_count": source.harvest_count,
+            "last_error": source.last_error,
+            "created_at": source.created_at.isoformat(),
+            "updated_at": source.updated_at.isoformat(),
+        })
+
     return HarvestSourceList(
-        items=sources,
+        items=sources_with_strings,
         total=total,
         page=page,
         page_size=limit,
@@ -76,7 +98,25 @@ async def get_harvest_source(source_id: int, db: Session = Depends(get_db)):
     if not source:
         raise HTTPException(status_code=404, detail="Harvest source not found")
 
-    return source
+    # Convert datetime fields to strings for response
+    return {
+        "id": source.id,
+        "name": source.name,
+        "type": source.type,
+        "url": source.url,
+        "description": source.description,
+        "enabled": source.enabled,
+        "priority": source.priority,
+        "auth_type": source.auth_type,
+        "auth_config": source.auth_config,
+        "category": source.category,
+        "tags": source.tags,
+        "last_harvested_at": source.last_harvested_at.isoformat() if source.last_harvested_at else None,
+        "harvest_count": source.harvest_count,
+        "last_error": source.last_error,
+        "created_at": source.created_at.isoformat(),
+        "updated_at": source.updated_at.isoformat(),
+    }
 
 
 @router.post("/", response_model=HarvestSourceResponse, status_code=201)
@@ -87,7 +127,26 @@ async def create_harvest_source(
     """Create a new harvest source."""
     service = HarvestSourceService(db)
     source = service.create_harvest_source(source_data)
-    return source
+    
+    # Convert datetime fields to strings for response
+    return {
+        "id": source.id,
+        "name": source.name,
+        "type": source.type,
+        "url": source.url,
+        "description": source.description,
+        "enabled": source.enabled,
+        "priority": source.priority,
+        "auth_type": source.auth_type,
+        "auth_config": source.auth_config,
+        "category": source.category,
+        "tags": source.tags,
+        "last_harvested_at": source.last_harvested_at.isoformat() if source.last_harvested_at else None,
+        "harvest_count": source.harvest_count,
+        "last_error": source.last_error,
+        "created_at": source.created_at.isoformat(),
+        "updated_at": source.updated_at.isoformat(),
+    }
 
 
 @router.put("/{source_id}", response_model=HarvestSourceResponse)
@@ -103,7 +162,25 @@ async def update_harvest_source(
     if not source:
         raise HTTPException(status_code=404, detail="Harvest source not found")
 
-    return source
+    # Convert datetime fields to strings for response
+    return {
+        "id": source.id,
+        "name": source.name,
+        "type": source.type,
+        "url": source.url,
+        "description": source.description,
+        "enabled": source.enabled,
+        "priority": source.priority,
+        "auth_type": source.auth_type,
+        "auth_config": source.auth_config,
+        "category": source.category,
+        "tags": source.tags,
+        "last_harvested_at": source.last_harvested_at.isoformat() if source.last_harvested_at else None,
+        "harvest_count": source.harvest_count,
+        "last_error": source.last_error,
+        "created_at": source.created_at.isoformat(),
+        "updated_at": source.updated_at.isoformat(),
+    }
 
 
 @router.delete("/{source_id}")

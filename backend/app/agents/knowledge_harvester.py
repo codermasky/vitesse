@@ -57,8 +57,8 @@ class KnowledgeHarvester(VitesseAgent):
         # Knowledge sources to harvest - expanded beyond financial APIs
         self.harvest_sources = {
             "api_directories": [
-                "https://apis.guru/openapis.json",  # APIs.guru directory
-                "https://api.apis.guru/v2/list.json",  # Alternative APIs.guru endpoint
+                "https://api.apis.guru/v2/list.json",  # Current APIs.guru directory
+                "https://apis.guru/openapis.json",  # Alternative APIs.guru endpoint
             ],
             "api_marketplaces": [
                 "https://rapidapi.com/search/apis",  # RapidAPI marketplace
@@ -126,60 +126,27 @@ class KnowledgeHarvester(VitesseAgent):
             ],
         }
 
-    async def execute(
+    async def _execute(
         self,
         context: Dict[str, Any],
         input_data: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Execute knowledge harvesting."""
-        self.execution_count += 1
-        self.last_execution = datetime.utcnow()
+        logger.info(
+            "Knowledge Harvester executing",
+            agent_id=self.agent_id,
+            harvest_type=input_data.get("harvest_type", "full"),
+        )
 
-        try:
-            logger.info(
-                "Knowledge Harvester executing",
-                agent_id=self.agent_id,
-                harvest_type=input_data.get("harvest_type", "full"),
-            )
+        # Initialize knowledge DB
+        self.knowledge_db = await get_knowledge_db()
 
-            # Initialize knowledge DB
-            self.knowledge_db = await get_knowledge_db()
+        # Determine what to harvest
+        harvest_type = input_data.get("harvest_type", "full")
 
-            # Determine what to harvest
-            harvest_type = input_data.get("harvest_type", "full")
+        result = await self._harvest_knowledge(harvest_type)
 
-            result = await self._harvest_knowledge(harvest_type)
-
-            self.state_history.append(
-                {
-                    "timestamp": datetime.utcnow(),
-                    "status": "success",
-                    "execution_count": self.execution_count,
-                    "documents_harvested": result.get("total_harvested", 0),
-                }
-            )
-
-            return result
-
-        except Exception as e:
-            self.error_count += 1
-            error_msg = str(e)
-
-            logger.error(
-                "Knowledge Harvester failed",
-                agent_id=self.agent_id,
-                error=error_msg,
-            )
-
-            self.state_history.append(
-                {
-                    "timestamp": datetime.utcnow(),
-                    "status": "error",
-                    "error": error_msg,
-                }
-            )
-
-            raise
+        return result
 
     async def _harvest_knowledge(self, harvest_type: str) -> Dict[str, Any]:
         """Main harvest logic - expanded to cover broader API ecosystem."""
@@ -270,7 +237,7 @@ class KnowledgeHarvester(VitesseAgent):
         return results
 
     async def _harvest_financial_apis(self) -> List[Dict[str, Any]]:
-        """Harvest financial API knowledge."""
+        """Harvest financial API knowledge with validation."""
         harvested = []
 
         logger.info("Harvesting financial APIs...")
@@ -284,6 +251,11 @@ class KnowledgeHarvester(VitesseAgent):
 
         for api_knowledge in financial_apis:
             try:
+                # Validate API knowledge structure
+                if not api_knowledge.get("api_name"):
+                    logger.warning("Skipping API with missing name", api=api_knowledge)
+                    continue
+
                 # Store in knowledge DB
                 doc_id = await self.knowledge_db.add_documents(
                     collection=FINANCIAL_APIS_COLLECTION,
@@ -297,6 +269,11 @@ class KnowledgeHarvester(VitesseAgent):
                         }
                     ],
                 )
+
+                # Validate doc_id is a non-empty list
+                if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
+                    logger.warning("Failed to store API document", api=api_knowledge.get("api_name"))
+                    continue
 
                 harvested.append(
                     {
@@ -322,7 +299,7 @@ class KnowledgeHarvester(VitesseAgent):
         return harvested
 
     async def _harvest_standards(self) -> List[Dict[str, Any]]:
-        """Harvest regulatory standards and compliance knowledge."""
+        """Harvest regulatory standards and compliance knowledge with validation."""
         harvested = []
 
         logger.info("Harvesting financial standards...")
@@ -334,6 +311,11 @@ class KnowledgeHarvester(VitesseAgent):
 
         for standard in standards:
             try:
+                # Validate standard structure
+                if not standard.get("standard"):
+                    logger.warning("Skipping standard with missing name", standard=standard)
+                    continue
+
                 doc_id = await self.knowledge_db.add_documents(
                     collection=FINANCIAL_STANDARDS_COLLECTION,
                     documents=[
@@ -345,6 +327,11 @@ class KnowledgeHarvester(VitesseAgent):
                         }
                     ],
                 )
+
+                # Validate doc_id is a non-empty list
+                if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
+                    logger.warning("Failed to store standard document", standard=standard.get("standard"))
+                    continue
 
                 harvested.append(
                     {
@@ -369,7 +356,7 @@ class KnowledgeHarvester(VitesseAgent):
         return harvested
 
     async def _harvest_patterns(self) -> List[Dict[str, Any]]:
-        """Identify and harvest common integration patterns."""
+        """Identify and harvest common integration patterns with validation."""
         harvested = []
 
         logger.info("Harvesting integration patterns...")
@@ -423,6 +410,11 @@ class KnowledgeHarvester(VitesseAgent):
 
         for pattern in patterns:
             try:
+                # Validate pattern structure
+                if not pattern.get("pattern_name"):
+                    logger.warning("Skipping pattern with missing name", pattern=pattern)
+                    continue
+
                 from app.core.knowledge_db import INTEGRATION_PATTERNS_COLLECTION
 
                 doc_id = await self.knowledge_db.add_documents(
@@ -436,6 +428,11 @@ class KnowledgeHarvester(VitesseAgent):
                         }
                     ],
                 )
+
+                # Validate doc_id is a non-empty list
+                if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
+                    logger.warning("Failed to store pattern document", pattern=pattern.get("pattern_name"))
+                    continue
 
                 harvested.append(
                     {
@@ -461,8 +458,10 @@ class KnowledgeHarvester(VitesseAgent):
         return harvested
 
     async def _harvest_api_directory(self) -> List[Dict[str, Any]]:
-        """Harvest APIs from APIs.guru directory."""
+        """Harvest APIs from APIs.guru directory with validation."""
         harvested = []
+        skipped_count = 0
+        error_count = 0
 
         logger.info("Harvesting from APIs.guru directory...")
 
@@ -476,8 +475,25 @@ class KnowledgeHarvester(VitesseAgent):
 
                     # APIs.guru returns a nested structure
                     for provider, versions in api_data.items():
+                        # Skip if versions is not a dict (malformed data)
+                        if not isinstance(versions, dict):
+                            skipped_count += 1
+                            continue
+
                         for version, spec_info in versions.items():
                             try:
+                                # Skip if spec_info is not a dict (malformed data)
+                                if not isinstance(spec_info, dict):
+                                    skipped_count += 1
+                                    continue
+
+                                # Validate required fields exist
+                                if not spec_info.get("info") or not isinstance(
+                                    spec_info.get("info"), dict
+                                ):
+                                    skipped_count += 1
+                                    continue
+
                                 # Extract basic API information
                                 api_info = {
                                     "api_name": spec_info.get("info", {}).get(
@@ -494,12 +510,18 @@ class KnowledgeHarvester(VitesseAgent):
                                     "source": "apis_guru",
                                 }
 
+                                # Skip if description is empty (will cause vector dimension issues)
+                                description = api_info.get("description", "").strip()
+                                if not description:
+                                    skipped_count += 1
+                                    continue
+
                                 # Store in general API specifications collection
                                 doc_id = await self.knowledge_db.add_documents(
                                     collection=API_SPECS_COLLECTION,
                                     documents=[
                                         {
-                                            "content": f"{api_info['description']} {str(spec_info)}",
+                                            "content": f"{description} API: {api_info['api_name']}",
                                             "api_name": api_info["api_name"],
                                             "provider": api_info["provider"],
                                             "categories": api_info["categories"],
@@ -512,6 +534,11 @@ class KnowledgeHarvester(VitesseAgent):
                                     ],
                                 )
 
+                                # Validate doc_id is a non-empty list
+                                if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
+                                    logger.warning("Failed to store API document", api=api_info.get("api_name"))
+                                    continue
+
                                 harvested.append(
                                     {
                                         "api": api_info["api_name"],
@@ -521,18 +548,14 @@ class KnowledgeHarvester(VitesseAgent):
                                     }
                                 )
 
-                                logger.info(
-                                    "APIs.guru API harvested",
-                                    api=api_info["api_name"],
-                                    provider=provider,
-                                )
-
                             except Exception as e:
-                                logger.error(
-                                    "Failed to process APIs.guru API",
+                                # Only log at debug level to reduce noise
+                                error_count += 1
+                                logger.debug(
+                                    "Skipped malformed API entry",
                                     provider=provider,
                                     version=version,
-                                    error=str(e),
+                                    error_type=type(e).__name__,
                                 )
 
             except Exception as e:
@@ -541,6 +564,14 @@ class KnowledgeHarvester(VitesseAgent):
                     url=directory_url,
                     error=str(e),
                 )
+
+        # Log summary instead of individual errors
+        logger.info(
+            "APIs.guru harvest complete",
+            harvested=len(harvested),
+            skipped=skipped_count,
+            errors=error_count,
+        )
 
         return harvested
 
@@ -630,6 +661,11 @@ class KnowledgeHarvester(VitesseAgent):
                     ],
                 )
 
+                # Validate doc_id is a non-empty list
+                if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
+                    logger.warning("Failed to store marketplace API document", api=api["name"])
+                    continue
+
                 harvested.append(
                     {
                         "api": api["name"],
@@ -656,7 +692,7 @@ class KnowledgeHarvester(VitesseAgent):
         return harvested
 
     async def _harvest_github_apis(self) -> List[Dict[str, Any]]:
-        """Harvest API information from GitHub repositories."""
+        """Harvest API information from GitHub repositories with validation."""
         harvested = []
 
         logger.info("Harvesting from GitHub API repositories...")
@@ -695,6 +731,11 @@ class KnowledgeHarvester(VitesseAgent):
                         }
                     ],
                 )
+
+                # Validate doc_id is a non-empty list
+                if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
+                    logger.warning("Failed to store GitHub API document", repo=repo, provider=provider)
+                    continue
 
                 harvested.append(
                     {

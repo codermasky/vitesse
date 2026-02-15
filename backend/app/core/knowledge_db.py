@@ -81,212 +81,6 @@ class KnowledgeDB(ABC):
         pass
 
 
-# =========== ChromaDB Implementation ===========
-
-
-class ChromaDBKnowledge(KnowledgeDB):
-    """
-    ChromaDB-backed Knowledge Database.
-
-    Best for:
-    - Local development
-    - Self-hosted deployments
-    - Small to medium knowledge bases
-    - Privacy-sensitive deployments
-    """
-
-    def __init__(
-        self,
-        persist_directory: str = "./chroma_data",
-        embedding_model: str = "all-MiniLM-L6-v2",
-    ):
-        self.persist_directory = persist_directory
-        self.embedding_model = embedding_model
-        self.client = None
-        self.collections: Dict[str, Any] = {}
-
-    async def initialize(self) -> None:
-        """Initialize ChromaDB client."""
-        try:
-            import chromadb
-
-            # Create persist directory if needed
-            os.makedirs(self.persist_directory, exist_ok=True)
-
-            # Use modern PersistentClient to avoid migration warnings
-            self.client = chromadb.PersistentClient(path=self.persist_directory)
-
-            logger.info(
-                "ChromaDB initialized (Modern API)",
-                persist_directory=self.persist_directory,
-                embedding_model=self.embedding_model,
-            )
-        except ImportError:
-            logger.error("ChromaDB not installed. Install with: pip install chromadb")
-            raise
-
-    async def add_documents(
-        self,
-        collection: str,
-        documents: List[Dict[str, Any]],
-        ids: Optional[List[str]] = None,
-    ) -> List[str]:
-        """Add documents to a collection."""
-        if self.client is None:
-            await self.initialize()
-
-        # Get or create collection
-        col = self.client.get_or_create_collection(
-            name=collection,
-            metadata={"hnsw:space": "cosine"},
-        )
-
-        # Prepare documents
-        docs_to_add = []
-        metas_to_add = []
-        ids_to_add = ids or [str(uuid.uuid4()) for _ in documents]
-
-        for i, doc in enumerate(documents):
-            # Extract text content
-            text_content = doc.get("content", "")
-            if isinstance(text_content, dict):
-                text_content = json.dumps(text_content)
-
-            docs_to_add.append(text_content)
-
-            # Prepare metadata (exclude large content)
-            meta = {
-                k: str(v)
-                for k, v in doc.items()
-                if k != "content" and len(str(v)) < 5000
-            }
-            metas_to_add.append(meta)
-
-        # Add to collection
-        col.add(
-            ids=ids_to_add,
-            documents=docs_to_add,
-            metadatas=metas_to_add,
-        )
-
-        logger.info(
-            "Documents added to knowledge collection",
-            collection=collection,
-            count=len(ids_to_add),
-        )
-
-        return ids_to_add
-
-    async def search(
-        self,
-        collection: str,
-        query: str,
-        top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Tuple[Dict[str, Any], float]]:
-        """Search for similar documents."""
-        if self.client is None:
-            await self.initialize()
-
-        try:
-            col = self.client.get_collection(name=collection)
-
-            # Perform search
-            results = col.query(
-                query_texts=[query],
-                n_results=top_k,
-                where=filters,
-            )
-
-            # Format results
-            formatted_results = []
-            if results["ids"] and len(results["ids"]) > 0:
-                for i, doc_id in enumerate(results["ids"][0]):
-                    # ChromaDB returns distances, convert to similarity (0-1)
-                    distance = results["distances"][0][i]
-                    similarity = 1 / (1 + distance)  # Convert distance to similarity
-
-                    doc = {
-                        "id": doc_id,
-                        "content": (
-                            results["documents"][0][i] if results["documents"] else ""
-                        ),
-                        "metadata": (
-                            results["metadatas"][0][i] if results["metadatas"] else {}
-                        ),
-                    }
-                    formatted_results.append((doc, similarity))
-
-            return formatted_results
-
-        except Exception as e:
-            logger.error("Search failed", collection=collection, error=str(e))
-            return []
-
-    async def get_document(
-        self,
-        collection: str,
-        doc_id: str,
-    ) -> Optional[Dict[str, Any]]:
-        """Get a specific document."""
-        if self.client is None:
-            await self.initialize()
-
-        try:
-            col = self.client.get_collection(name=collection)
-            results = col.get(ids=[doc_id])
-
-            if results["ids"]:
-                return {
-                    "id": doc_id,
-                    "content": results["documents"][0] if results["documents"] else "",
-                    "metadata": results["metadatas"][0] if results["metadatas"] else {},
-                }
-            return None
-        except Exception as e:
-            logger.error(
-                "Get document failed",
-                collection=collection,
-                doc_id=doc_id,
-                error=str(e),
-            )
-            return None
-
-    async def delete_document(
-        self,
-        collection: str,
-        doc_id: str,
-    ) -> bool:
-        """Delete a document."""
-        if self.client is None:
-            await self.initialize()
-
-        try:
-            col = self.client.get_collection(name=collection)
-            col.delete(ids=[doc_id])
-            return True
-        except Exception as e:
-            logger.error(
-                "Delete document failed",
-                collection=collection,
-                doc_id=doc_id,
-                error=str(e),
-            )
-            return False
-
-    async def list_collections(self) -> List[str]:
-        """List all collections."""
-        if self.client is None:
-            await self.initialize()
-
-        try:
-            collections = self.client.list_collections()
-            return [c.name for c in collections]
-        except Exception as e:
-            logger.error("List collections failed", error=str(e))
-            return []
-
-
 # =========== Qdrant Implementation ===========
 
 
@@ -416,7 +210,7 @@ class QdrantKnowledge(KnowledgeDB):
         documents: List[Dict[str, Any]],
         ids: Optional[List[str]] = None,
     ) -> List[str]:
-        """Add documents to Qdrant."""
+        """Add documents to Qdrant with proper validation."""
         if self.client is None or self.embedder is None:
             await self.initialize()
 
@@ -429,9 +223,11 @@ class QdrantKnowledge(KnowledgeDB):
             # Generate IDs if not provided
             ids_to_add = ids or [str(uuid.uuid4()) for _ in documents]
 
-            # Extract content and generate embeddings
+            # Extract content and generate embeddings with validation
             contents = []
             payloads = []
+            valid_indices = []
+            skipped_indices = []
 
             for i, doc in enumerate(documents):
                 # Extract text content
@@ -439,7 +235,14 @@ class QdrantKnowledge(KnowledgeDB):
                 if isinstance(text_content, dict):
                     text_content = json.dumps(text_content)
 
+                # Skip documents with empty content (will cause vector dimension errors)
+                text_content = str(text_content).strip()
+                if not text_content or len(text_content) < 10:
+                    skipped_indices.append(i)
+                    continue
+
                 contents.append(text_content)
+                valid_indices.append(i)
 
                 # Prepare payload (metadata)
                 payload = {
@@ -449,6 +252,16 @@ class QdrantKnowledge(KnowledgeDB):
                 }
                 payloads.append(payload)
 
+            # Skip if no valid documents
+            if not contents:
+                logger.debug(
+                    "No valid documents to add",
+                    collection=collection,
+                    total_docs=len(documents),
+                    skipped_docs=len(skipped_indices),
+                )
+                return []
+
             # Generate embeddings (synchronous call)
             embeddings = self.embedder.encode(contents, show_progress_bar=False)
 
@@ -456,12 +269,12 @@ class QdrantKnowledge(KnowledgeDB):
             points = [
                 models.PointStruct(
                     id=int(
-                        uuid.UUID(ids_to_add[i]).int % (2**63)
+                        uuid.UUID(ids_to_add[valid_indices[i]]).int % (2**63)
                     ),  # Convert UUID to int64
                     vector=embeddings[i].tolist(),
                     payload=payloads[i],
                 )
-                for i in range(len(documents))
+                for i in range(len(contents))
             ]
 
             # Upload points to Qdrant
@@ -470,19 +283,24 @@ class QdrantKnowledge(KnowledgeDB):
                 points=points,
             )
 
-            logger.info(
+            logger.debug(
                 "Documents added to Qdrant",
                 collection=collection,
-                count=len(ids_to_add),
+                count=len(points),
+                skipped=len(skipped_indices),
             )
 
-            return ids_to_add
+            return [ids_to_add[i] for i in valid_indices]
 
         except Exception as e:
-            logger.error(
-                "Failed to add documents to Qdrant", collection=collection, error=str(e)
+            # Log at debug level to reduce noise
+            logger.debug(
+                "Failed to add documents to Qdrant",
+                collection=collection,
+                error_type=type(e).__name__,
+                error_message=str(e),
             )
-            raise
+            return []
 
     async def search(
         self,
@@ -650,17 +468,15 @@ class KnowledgeDBManager:
     Abstracts away specific DB implementation details.
     """
 
-    def __init__(self, backend: str = "chromadb", **kwargs):
+    def __init__(self, backend: str = "qdrant", **kwargs):
         self.backend = backend
         self.kwargs = kwargs
         self.db: Optional[KnowledgeDB] = None
 
     async def initialize(self) -> None:
-        """Initialize the configured backend with fallback logic."""
+        """Initialize the configured backend."""
         try:
-            if self.backend == "chromadb":
-                self.db = ChromaDBKnowledge(**self.kwargs)
-            elif self.backend == "qdrant":
+            if self.backend == "qdrant":
                 self.db = QdrantKnowledge(**self.kwargs)
             elif self.backend == "pinecone":
                 self.db = PineconeKnowledge(**self.kwargs)
@@ -670,14 +486,8 @@ class KnowledgeDBManager:
             await self.db.initialize()
             logger.info("Knowledge DB manager initialized", backend=self.backend)
         except Exception as e:
-            logger.warning(f"Failed to initialize primary backend {self.backend}: {e}")
-            if self.backend != "chromadb":
-                logger.info("Falling back to ChromaDB for knowledge storage")
-                self.db = ChromaDBKnowledge()
-                await self.db.initialize()
-                self.backend = "chromadb"
-            else:
-                raise
+            logger.error(f"Failed to initialize {self.backend} backend: {e}")
+            raise
 
     # Delegate methods to the backend
     async def add_documents(self, *args, **kwargs):
@@ -728,7 +538,7 @@ INTEGRATION_PATTERNS_COLLECTION = "integration_patterns"
 _knowledge_db: Optional[KnowledgeDBManager] = None
 
 
-async def get_knowledge_db(backend: str = "chromadb", **kwargs) -> KnowledgeDBManager:
+async def get_knowledge_db(backend: str = "qdrant", **kwargs) -> KnowledgeDBManager:
     """Get global knowledge database instance."""
     global _knowledge_db
     if _knowledge_db is None:
@@ -738,7 +548,7 @@ async def get_knowledge_db(backend: str = "chromadb", **kwargs) -> KnowledgeDBMa
 
 
 async def initialize_knowledge_db(
-    backend: str = "chromadb", **kwargs
+    backend: str = "qdrant", **kwargs
 ) -> KnowledgeDBManager:
     """Initialize the global knowledge database."""
     global _knowledge_db
