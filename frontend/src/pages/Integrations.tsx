@@ -346,8 +346,8 @@ export const Integrations: React.FC = () => {
                     e.stopPropagation();
                     console.log('Edit button clicked');
                     if (selectedIntegration) {
-                      console.log('Navigating to edit', selectedIntegration.id);
-                      navigate(`/integrations/${selectedIntegration.id}/edit`);
+                      console.log('Navigating to workflow', selectedIntegration.id);
+                      navigate(`/integrations/${selectedIntegration.id}/workflow`);
                     }
                   }}
                   className="flex-1 px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-950 dark:text-white rounded-lg font-medium transition-colors shadow-sm"
