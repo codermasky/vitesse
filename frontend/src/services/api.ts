@@ -702,6 +702,14 @@ class ApiService {
     return this.axiosInstance.post(`/harvest-jobs/${jobId}/cancel`);
   }
 
+  async deleteHarvestJob(jobId: string): Promise<AxiosResponse> {
+    return this.axiosInstance.delete(`/harvest-jobs/${jobId}`);
+  }
+
+  async bulkDeleteHarvestJobs(jobIds: string[]): Promise<AxiosResponse> {
+    return this.axiosInstance.post("/harvest-jobs/bulk-delete", jobIds);
+  }
+
   async getHarvestJobStats(): Promise<AxiosResponse> {
     return this.axiosInstance.get("/harvest-jobs/stats/overview");
   }

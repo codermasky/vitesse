@@ -18,6 +18,8 @@ from abc import ABC, abstractmethod
 import uuid
 import json
 import os
+import hashlib
+import asyncio
 
 logger = structlog.get_logger(__name__)
 
@@ -76,6 +78,30 @@ class KnowledgeDB(ABC):
         pass
 
     @abstractmethod
+    async def get_harvest_source_state(
+        self, source_key: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get the state of a harvested source (hash, last processed, etc.)."""
+        pass
+
+    @abstractmethod
+    async def update_harvest_source_state(
+        self,
+        source_key: str,
+        content_hash: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Update the state of a harvested source after processing."""
+        pass
+
+    @abstractmethod
+    async def list_harvest_sources(
+        self, source_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List all tracked harvest sources, optionally filtered by type."""
+        pass
+
+    @abstractmethod
     async def initialize(self) -> None:
         """Initialize the knowledge database."""
         pass
@@ -120,6 +146,8 @@ class QdrantKnowledge(KnowledgeDB):
         self.prefer_grpc = prefer_grpc
         self.client = None
         self.embedder = None
+        self._existing_collections: Set[str] = set()
+        self._last_collection_refresh = 0
 
     async def initialize(self) -> None:
         """Initialize Qdrant client."""
@@ -146,10 +174,10 @@ class QdrantKnowledge(KnowledgeDB):
                 "/app/.cache/huggingface",
                 ".cache",
             ]
-            
+
             embedder = None
             last_error = None
-            
+
             for cache_dir in cache_dirs:
                 try:
                     os.makedirs(cache_dir, exist_ok=True)
@@ -171,23 +199,23 @@ class QdrantKnowledge(KnowledgeDB):
                         error=str(e),
                     )
                     continue
-            
+
             if embedder is None:
                 # Last resort: try without explicit cache
                 embedder = SentenceTransformer(self.embedding_model)
-            
+
             self.embedder = embedder
 
             # Test embedder to ensure it works correctly
             test_texts = ["test", "hello world", "financial API integration"]
             test_embedding = self.embedder.encode(test_texts, show_progress_bar=False)
-            
+
             # Check for valid embedding shape
-            if not hasattr(test_embedding, 'shape'):
+            if not hasattr(test_embedding, "shape"):
                 raise RuntimeError(
                     f"Embedder model '{self.embedding_model}' did not return a numpy array"
                 )
-            
+
             if len(test_embedding.shape) != 2 or test_embedding.shape[1] != 384:
                 raise RuntimeError(
                     f"Embedder model '{self.embedding_model}' produced unexpected dimension: "
@@ -203,6 +231,10 @@ class QdrantKnowledge(KnowledgeDB):
 
             # Test connection
             await self._test_connection()
+
+            # Ensure the harvest sources tracking collection exists
+            await self._ensure_collection_exists(HARVEST_SOURCES_COLLECTION)
+            logger.info("Harvest sources tracking collection ensured")
 
             logger.info(
                 "Qdrant initialized",
@@ -231,39 +263,97 @@ class QdrantKnowledge(KnowledgeDB):
             raise
 
     async def _ensure_collection_exists(
-        self, collection: str, vector_size: int = 384
+        self, collection: str, vector_size: int = 384, max_retries: int = 3
     ) -> None:
-        """Create collection if it doesn't exist."""
-        try:
-            from qdrant_client.http import models
+        """Create collection if it doesn't exist with retry logic."""
+        import time
 
-            collections = self.client.get_collections()
-            collection_names = [c.name for c in collections.collections]
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                from qdrant_client.http import models
 
-            if collection not in collection_names:
-                self.client.create_collection(
-                    collection_name=collection,
-                    vectors_config=models.VectorParams(
-                        size=vector_size,
-                        distance=models.Distance.COSINE,
-                    ),
-                    # Enable quantization for 40x performance improvement
-                    quantization_config=models.ScalarQuantization(
-                        scalar=models.ScalarQuantizationConfig(
-                            type=models.ScalarType.INT8,
-                            quantile=0.99,
-                            always_ram=False,
+                # Check cache first
+                if collection in self._existing_collections and (
+                    time.time() - self._last_collection_refresh < 300
+                ):
+                    return
+
+                # Use a longer timeout for collection operations
+                collections = await asyncio.wait_for(
+                    asyncio.to_thread(self.client.get_collections),
+                    timeout=30.0,
+                )
+                self._existing_collections = {c.name for c in collections.collections}
+                self._last_collection_refresh = time.time()
+
+                if collection not in self._existing_collections:
+                    logger.info(
+                        "Creating collection",
+                        collection=collection,
+                        attempt=attempt + 1,
+                    )
+                    await asyncio.wait_for(
+                        asyncio.to_thread(
+                            self.client.create_collection,
+                            collection_name=collection,
+                            vectors_config=models.VectorParams(
+                                size=vector_size,
+                                distance=models.Distance.COSINE,
+                            ),
+                            # Enable quantization for 40x performance improvement
+                            quantization_config=models.ScalarQuantization(
+                                scalar=models.ScalarQuantizationConfig(
+                                    type=models.ScalarType.INT8,
+                                    quantile=0.99,
+                                    always_ram=False,
+                                ),
+                            ),
                         ),
-                    ),
-                )
-                logger.info(
-                    "Collection created",
+                        timeout=60.0,  # Longer timeout for collection creation
+                    )
+                    self._existing_collections.add(collection)
+                    logger.info(
+                        "Collection created",
+                        collection=collection,
+                        vector_size=vector_size,
+                    )
+                return  # Success, exit retry loop
+
+            except asyncio.TimeoutError as e:
+                last_error = e
+                logger.warning(
+                    "Collection operation timed out, retrying",
                     collection=collection,
-                    vector_size=vector_size,
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    error=str(e),
                 )
-        except Exception as e:
-            logger.error(f"Failed to ensure collection exists: {str(e)}")
-            raise
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2**attempt)  # Exponential backoff
+                continue
+            except Exception as e:
+                last_error = e
+                # Check if it's a 404 (collection doesn't exist is ok on first try)
+                # But if we're trying to create and it fails, we retry
+                logger.warning(
+                    "Collection operation failed, retrying",
+                    collection=collection,
+                    attempt=attempt + 1,
+                    error=str(e)[:200],
+                )
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2**attempt)  # Exponential backoff
+                continue
+
+        # All retries failed
+        if last_error:
+            logger.error(
+                "Failed to ensure collection exists after retries",
+                collection=collection,
+                error=str(last_error),
+            )
+            raise last_error
 
     async def add_documents(
         self,
@@ -272,8 +362,12 @@ class QdrantKnowledge(KnowledgeDB):
         ids: Optional[List[str]] = None,
     ) -> List[str]:
         """Add documents to Qdrant with proper validation."""
+        skipped_indices = []
         if self.client is None or self.embedder is None:
             await self.initialize()
+
+        # Initialize tracking variables
+        skipped_indices: List[int] = []
 
         try:
             from qdrant_client.http import models
@@ -288,7 +382,6 @@ class QdrantKnowledge(KnowledgeDB):
             contents = []
             payloads = []
             valid_indices = []
-            skipped_indices = []
 
             for i, doc in enumerate(documents):
                 # Extract text content
@@ -334,25 +427,31 @@ class QdrantKnowledge(KnowledgeDB):
             # Test embedder with a simple text before batch encoding
             try:
                 test_emb = self.embedder.encode(["test"], show_progress_bar=False)
-                if not hasattr(test_emb, 'shape') or test_emb.shape[1] != 384:
+                if not hasattr(test_emb, "shape") or test_emb.shape[1] != 384:
                     logger.error(
                         "Embedder test failed: invalid embedding dimension",
                         expected_dim=384,
-                        actual_shape=str(test_emb.shape) if hasattr(test_emb, 'shape') else "no shape",
+                        actual_shape=str(test_emb.shape)
+                        if hasattr(test_emb, "shape")
+                        else "no shape",
                     )
                     return []
             except Exception as e:
                 logger.error("Embedder test failed", error=str(e))
                 return []
 
-            # Generate embeddings (synchronous call)
+            # Generate embeddings (CPU intensive, run in thread)
             try:
-                embeddings = self.embedder.encode(contents, show_progress_bar=False)
+                embeddings = await asyncio.to_thread(
+                    self.embedder.encode, contents, show_progress_bar=False
+                )
                 logger.info(
                     "Embeddings encoding completed",
                     collection=collection,
                     input_count=len(contents),
-                    output_shape=str(embeddings.shape) if hasattr(embeddings, 'shape') else "unknown",
+                    output_shape=str(embeddings.shape)
+                    if hasattr(embeddings, "shape")
+                    else "unknown",
                 )
             except Exception as e:
                 logger.error(
@@ -373,7 +472,7 @@ class QdrantKnowledge(KnowledgeDB):
                 )
                 return []
 
-            if not hasattr(embeddings, 'shape'):
+            if not hasattr(embeddings, "shape"):
                 logger.error(
                     "Embeddings do not have shape attribute",
                     collection=collection,
@@ -400,7 +499,11 @@ class QdrantKnowledge(KnowledgeDB):
                 return []
 
             # Check dimension - safely handle both 1D and 2D cases
-            actual_dim = embeddings.shape[1] if len(embeddings.shape) > 1 else embeddings.shape[0]
+            actual_dim = (
+                embeddings.shape[1]
+                if len(embeddings.shape) > 1
+                else embeddings.shape[0]
+            )
             if actual_dim != 384:
                 logger.error(
                     "Embeddings have wrong dimension",
@@ -416,8 +519,12 @@ class QdrantKnowledge(KnowledgeDB):
                 "Embeddings generated",
                 collection=collection,
                 num_embeddings=len(embeddings),
-                embedding_shape=embeddings.shape if hasattr(embeddings, 'shape') else 'unknown',
-                sample_first_elem=embeddings[0].tolist()[:5] if len(embeddings) > 0 else 'empty',
+                embedding_shape=embeddings.shape
+                if hasattr(embeddings, "shape")
+                else "unknown",
+                sample_first_elem=embeddings[0].tolist()[:5]
+                if len(embeddings) > 0
+                else "empty",
             )
 
             # Validate embeddings before inserting - check for empty or invalid vectors
@@ -425,11 +532,11 @@ class QdrantKnowledge(KnowledgeDB):
             valid_contents = []
             valid_payloads = []
             valid_ids = []
-            
+
             for i, emb in enumerate(embeddings):
                 # Handle both numpy array and list cases
-                emb_array = emb.tolist() if hasattr(emb, 'tolist') else emb
-                
+                emb_array = emb.tolist() if hasattr(emb, "tolist") else emb
+
                 # Check if embedding is empty or has zero dimensions FIRST
                 # This catches cases like [[]] or [] before dimension checks
                 is_empty = False
@@ -437,10 +544,12 @@ class QdrantKnowledge(KnowledgeDB):
                     # Check if it's an empty list or a list containing empty lists
                     if len(emb_array) == 0:
                         is_empty = True
-                    elif len(emb_array) == 1 and (isinstance(emb_array[0], list) and len(emb_array[0]) == 0):
+                    elif len(emb_array) == 1 and (
+                        isinstance(emb_array[0], list) and len(emb_array[0]) == 0
+                    ):
                         # Case: [[]] - 2D array with shape (1, 0)
                         is_empty = True
-                
+
                 if is_empty:
                     logger.warning(
                         "Skipping document with empty/zero-dimensional embedding",
@@ -450,9 +559,9 @@ class QdrantKnowledge(KnowledgeDB):
                         content_preview=contents[i][:100] if contents[i] else "empty",
                     )
                     continue
-                
+
                 # Check if embedding has valid dimensions using numpy shape
-                if hasattr(emb, 'shape'):
+                if hasattr(emb, "shape"):
                     if len(emb.shape) == 1:
                         # 1D array: shape should be (384,)
                         if emb.shape[0] != 384:
@@ -463,7 +572,9 @@ class QdrantKnowledge(KnowledgeDB):
                                 expected_dim=384,
                                 actual_dim=emb.shape[0],
                                 embedding_shape=str(emb.shape),
-                                content_preview=contents[i][:100] if contents[i] else "empty",
+                                content_preview=contents[i][:100]
+                                if contents[i]
+                                else "empty",
                             )
                             continue
                     elif len(emb.shape) == 2:
@@ -474,7 +585,9 @@ class QdrantKnowledge(KnowledgeDB):
                                 collection=collection,
                                 doc_index=i,
                                 embedding_shape=str(emb.shape),
-                                content_preview=contents[i][:100] if contents[i] else "empty",
+                                content_preview=contents[i][:100]
+                                if contents[i]
+                                else "empty",
                             )
                             continue
                         if emb.shape[1] != 384:
@@ -485,7 +598,9 @@ class QdrantKnowledge(KnowledgeDB):
                                 expected_dim=384,
                                 actual_dim=emb.shape[1],
                                 embedding_shape=str(emb.shape),
-                                content_preview=contents[i][:100] if contents[i] else "empty",
+                                content_preview=contents[i][:100]
+                                if contents[i]
+                                else "empty",
                             )
                             continue
                     else:
@@ -496,7 +611,9 @@ class QdrantKnowledge(KnowledgeDB):
                             expected_dim=384,
                             actual_dim="unknown",
                             embedding_shape=str(emb.shape),
-                            content_preview=contents[i][:100] if contents[i] else "empty",
+                            content_preview=contents[i][:100]
+                            if contents[i]
+                            else "empty",
                         )
                         continue
                 elif isinstance(emb_array, list) and len(emb_array) > 0:
@@ -511,9 +628,9 @@ class QdrantKnowledge(KnowledgeDB):
                             content_preview=contents[i][:100],
                         )
                         continue
-                
+
                 # Convert to flat list for Qdrant
-                if hasattr(emb, 'tolist'):
+                if hasattr(emb, "tolist"):
                     emb_list = emb.tolist()
                     # If 2D, take the first row
                     # Check for empty or zero-dimensional case
@@ -524,13 +641,15 @@ class QdrantKnowledge(KnowledgeDB):
                                 "Skipping document with empty embedding after tolist",
                                 collection=collection,
                                 doc_index=i,
-                                content_preview=contents[i][:100] if contents[i] else "empty",
+                                content_preview=contents[i][:100]
+                                if contents[i]
+                                else "empty",
                             )
                             continue
                         emb_list = emb_list[0]
                 else:
                     emb_list = emb_array
-                
+
                 # Final validation: ensure the resulting list has 384 elements
                 if not isinstance(emb_list, list) or len(emb_list) != 384:
                     logger.warning(
@@ -539,11 +658,13 @@ class QdrantKnowledge(KnowledgeDB):
                         doc_index=i,
                         expected_dim=384,
                         actual_type=type(emb_list).__name__,
-                        actual_len=len(emb_list) if isinstance(emb_list, list) else "N/A",
+                        actual_len=len(emb_list)
+                        if isinstance(emb_list, list)
+                        else "N/A",
                         content_preview=contents[i][:100] if contents[i] else "empty",
                     )
                     continue
-                
+
                 valid_embeddings.append(emb_list)
                 valid_contents.append(contents[i])
                 valid_payloads.append(payloads[i])
@@ -563,10 +684,14 @@ class QdrantKnowledge(KnowledgeDB):
                 "Preparing points for Qdrant",
                 collection=collection,
                 num_valid_embeddings=len(valid_embeddings),
-                sample_embedding_len=len(valid_embeddings[0]) if valid_embeddings else 0,
-                sample_embedding_first5=valid_embeddings[0][:5] if valid_embeddings and len(valid_embeddings[0]) > 0 else "empty",
+                sample_embedding_len=len(valid_embeddings[0])
+                if valid_embeddings
+                else 0,
+                sample_embedding_first5=valid_embeddings[0][:5]
+                if valid_embeddings and len(valid_embeddings[0]) > 0
+                else "empty",
             )
-            
+
             points = [
                 models.PointStruct(
                     id=int(
@@ -588,8 +713,9 @@ class QdrantKnowledge(KnowledgeDB):
                     vector_first3=pt.vector[:3] if len(pt.vector) > 0 else "empty",
                 )
 
-            # Upload points to Qdrant
-            self.client.upsert(
+            # Upload points to Qdrant (CPU intensive, run in thread)
+            await asyncio.to_thread(
+                self.client.upsert,
                 collection_name=collection,
                 points=points,
             )
@@ -598,7 +724,8 @@ class QdrantKnowledge(KnowledgeDB):
                 "Documents added to Qdrant",
                 collection=collection,
                 count=len(points),
-                skipped=len(skipped_indices) + (len(embeddings) - len(valid_embeddings)),
+                skipped=len(skipped_indices)
+                + (len(embeddings) - len(valid_embeddings)),
             )
 
             return valid_ids
@@ -630,12 +757,14 @@ class QdrantKnowledge(KnowledgeDB):
             from qdrant_client.http import models
 
             # Generate embedding for query
-            query_embedding = self.embedder.encode([query], show_progress_bar=False)[
-                0
-            ].tolist()
+            embeddings = await asyncio.to_thread(
+                self.embedder.encode, [query], show_progress_bar=False
+            )
+            query_embedding = embeddings[0].tolist()
 
             # Search in Qdrant using query_points (v1.7+ API)
-            search_results = self.client.query_points(
+            search_results = await asyncio.to_thread(
+                self.client.query_points,
                 collection_name=collection,
                 query=query_embedding,
                 limit=top_k,
@@ -756,6 +885,195 @@ class QdrantKnowledge(KnowledgeDB):
             logger.error("List collections failed in Qdrant", error=str(e))
             return []
 
+    async def get_harvest_source_state(
+        self, source_key: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get the state of a harvested source (hash, last processed, etc.)."""
+        if self.client is None or self.embedder is None:
+            logger.warning("Initializing knowledge DB from get_harvest_source_state")
+            await self.initialize()
+
+        # Quick check if collection exists - with short timeout
+        try:
+            from qdrant_client.http import models
+            import asyncio
+
+            # Try to ensure collection exists with longer timeout and retries
+            try:
+                await asyncio.wait_for(
+                    self._ensure_collection_exists(HARVEST_SOURCES_COLLECTION),
+                    timeout=30.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Collection check timed out, continuing anyway")
+            except Exception as e:
+                logger.debug("Collection check skipped", error=str(e)[:100])
+
+            # Search for the source by source_key
+            search_results = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.client.query_points,
+                    collection_name=HARVEST_SOURCES_COLLECTION,
+                    query=[0.0] * 384,  # Dummy query vector
+                    limit=1,
+                    query_filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="source_key",
+                                match=models.MatchValue(value=source_key),
+                            )
+                        ]
+                    ),
+                ),
+                timeout=30.0,
+            )
+
+            points = search_results.points
+            if points:
+                return points[0].payload or {}
+            return None
+
+        except asyncio.TimeoutError:
+            # Timeout - treat as if source doesn't exist
+            logger.warning(
+                "Get harvest source state timed out, treating as new source",
+                source_key=source_key,
+            )
+            return None
+        except Exception as e:
+            error_str = str(e)
+            # Check if it's a 404 (collection not found) or similar - treat as new source
+            if (
+                "404" in error_str
+                or "Not Found" in error_str
+                or "Collection" in error_str
+            ):
+                logger.debug(
+                    "Harvest source collection not found or empty, treating as new source",
+                    source_key=source_key,
+                    error=error_str[:100],
+                )
+                return None
+            # Other errors - log but don't fail
+            logger.warning(
+                "Get harvest source state failed, treating as new source",
+                source_key=source_key,
+                error=error_str[:200],
+            )
+            return None
+
+    async def update_harvest_source_state(
+        self,
+        source_key: str,
+        content_hash: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Update the state of a harvested source after processing."""
+        if self.client is None or self.embedder is None:
+            logger.warning("Initializing knowledge DB from update_harvest_source_state")
+            await self.initialize()
+
+        # Ensure collection exists before upserting
+        try:
+            await asyncio.wait_for(
+                self._ensure_collection_exists(HARVEST_SOURCES_COLLECTION),
+                timeout=30.0,
+            )
+        except Exception as e:
+            logger.warning("Failed to ensure collection exists on update", error=str(e))
+
+        try:
+            from qdrant_client.http import models
+
+            # Generate a deterministic ID based on source_key
+            source_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, source_key))
+            int_id = int(uuid.UUID(source_id).int % (2**63))
+
+            # Prepare payload
+            payload = {
+                "source_key": source_key,
+                "content_hash": content_hash,
+                "last_processed": datetime.utcnow().isoformat(),
+            }
+            if metadata:
+                payload.update(metadata)
+
+            # Generate embedding for the source key (run in thread)
+            embeddings = await asyncio.to_thread(
+                self.embedder.encode, [source_key], show_progress_bar=False
+            )
+            embedding = embeddings[0].tolist()
+
+            # Upsert the source state
+            point = models.PointStruct(
+                id=int_id,
+                vector=embedding,
+                payload=payload,
+            )
+
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.client.upsert,
+                    collection_name=HARVEST_SOURCES_COLLECTION,
+                    points=[point],
+                ),
+                timeout=30.0,
+            )
+
+            logger.debug(
+                "Harvest source state updated",
+                source_key=source_key,
+                content_hash=content_hash[:8],
+            )
+            return True
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Update harvest source state timed out",
+                source_key=source_key,
+            )
+            return False
+        except Exception as e:
+            logger.warning(
+                "Update harvest source state failed",
+                source_key=source_key,
+                error=str(e)[:200],
+            )
+            return False
+
+    async def list_harvest_sources(
+        self, source_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List all tracked harvest sources, optionally filtered by type."""
+        if self.client is None or self.embedder is None:
+            await self.initialize()
+
+        try:
+            from qdrant_client.http import models
+
+            # Get all sources (using scroll)
+            scroll_results = self.client.scroll(
+                collection_name=HARVEST_SOURCES_COLLECTION,
+                limit=1000,
+            )
+
+            sources = []
+            for point in scroll_results[0]:
+                payload = point.payload or {}
+                if source_type and payload.get("source_type") != source_type:
+                    continue
+                sources.append(payload)
+
+            return sources
+
+        except Exception as e:
+            logger.error(
+                "List harvest sources failed",
+                source_type=source_type,
+                error=str(e),
+            )
+            return []
+
 
 # =========== Pinecone Implementation (stub for future) ===========
 
@@ -786,6 +1104,24 @@ class PineconeKnowledge(KnowledgeDB):
         return False
 
     async def list_collections(self, *args, **kwargs) -> List[str]:
+        return []
+
+    async def get_harvest_source_state(
+        self, source_key: str
+    ) -> Optional[Dict[str, Any]]:
+        return None
+
+    async def update_harvest_source_state(
+        self,
+        source_key: str,
+        content_hash: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        return False
+
+    async def list_harvest_sources(
+        self, source_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         return []
 
 
@@ -845,6 +1181,32 @@ class KnowledgeDBManager:
             await self.initialize()
         return await self.db.list_collections(*args, **kwargs)
 
+    async def get_harvest_source_state(
+        self, source_key: str
+    ) -> Optional[Dict[str, Any]]:
+        if self.db is None:
+            await self.initialize()
+        return await self.db.get_harvest_source_state(source_key)
+
+    async def update_harvest_source_state(
+        self,
+        source_key: str,
+        content_hash: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        if self.db is None:
+            await self.initialize()
+        return await self.db.update_harvest_source_state(
+            source_key, content_hash, metadata
+        )
+
+    async def list_harvest_sources(
+        self, source_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        if self.db is None:
+            await self.initialize()
+        return await self.db.list_harvest_sources(source_type)
+
 
 # =========== Collections Name Constants ===========
 
@@ -861,6 +1223,9 @@ TRANSFORMATION_RULES_COLLECTION = "transformation_rules"
 # Knowledge libraries
 DOMAIN_KNOWLEDGE_COLLECTION = "domain_knowledge"
 INTEGRATION_PATTERNS_COLLECTION = "integration_patterns"
+
+# Harvest source tracking - NEW: tracks processed sources to avoid reprocessing
+HARVEST_SOURCES_COLLECTION = "harvest_sources_tracking"
 
 
 # =========== Global Knowledge DB Instance ===========

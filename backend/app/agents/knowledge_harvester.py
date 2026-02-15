@@ -17,6 +17,8 @@ from datetime import datetime
 import uuid
 import asyncio
 import httpx
+import hashlib
+import json
 
 from app.agents.base import VitesseAgent, AgentContext
 from app.core.knowledge_db import (
@@ -25,6 +27,7 @@ from app.core.knowledge_db import (
     FINANCIAL_SCHEMAS_COLLECTION,
     FINANCIAL_STANDARDS_COLLECTION,
     API_SPECS_COLLECTION,
+    HARVEST_SOURCES_COLLECTION,
 )
 from app.core.financial_services import (
     PLAID_API_KNOWLEDGE,
@@ -125,6 +128,67 @@ class KnowledgeHarvester(VitesseAgent):
             ],
         }
 
+    def _compute_content_hash(self, content: Any) -> str:
+        """Compute a hash of the content for change detection."""
+        content_str = json.dumps(content, sort_keys=True, default=str)
+        return hashlib.sha256(content_str.encode('utf-8')).hexdigest()
+
+    def _get_source_key(self, source_type: str, source_identifier: str) -> str:
+        """Generate a unique key for tracking a harvest source."""
+        return f"{source_type}:{source_identifier}"
+
+    async def _should_process_source(
+        self, source_key: str, content_hash: str
+    ) -> bool:
+        """
+        Check if a source should be processed.
+        Returns True if the source is new or has changed, False if it exists and hasn't changed.
+        """
+        try:
+            existing_state = await self.knowledge_db.get_harvest_source_state(source_key)
+            
+            if existing_state is None:
+                # New source - should process
+                logger.debug("New source, will process", source_key=source_key)
+                return True
+            
+            existing_hash = existing_state.get("content_hash")
+            if existing_hash != content_hash:
+                # Source has changed - should process
+                logger.debug(
+                    "Source changed, will process",
+                    source_key=source_key,
+                    old_hash=existing_hash[:8] if existing_hash else "none",
+                    new_hash=content_hash[:8],
+                )
+                return True
+            
+            # Source exists and hasn't changed - skip processing
+            logger.debug("Source unchanged, skipping", source_key=source_key)
+            return False
+            
+        except Exception as e:
+            # On any error, log and return True to process (fail-safe)
+            logger.warning(
+                "Error checking source state, will process to be safe",
+                source_key=source_key,
+                error=str(e),
+            )
+            return True
+
+    async def _update_source_state(
+        self, source_key: str, content_hash: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Update the tracking state for a processed source."""
+        try:
+            await self.knowledge_db.update_harvest_source_state(
+                source_key=source_key,
+                content_hash=content_hash,
+                metadata=metadata or {},
+            )
+        except Exception as e:
+            logger.warning("Failed to update source state", source_key=source_key, error=str(e))
+
     async def _execute(
         self,
         context: Dict[str, Any],
@@ -148,12 +212,13 @@ class KnowledgeHarvester(VitesseAgent):
         return result
 
     async def _harvest_knowledge(self, harvest_type: str) -> Dict[str, Any]:
-        """Main harvest logic - expanded to cover broader API ecosystem."""
+        """Main harvest logic - expanded to cover broader API ecosystem with smart deduplication."""
         results = {
             "status": "success",
             "harvest_type": harvest_type,
             "timestamp": datetime.utcnow().isoformat(),
             "total_harvested": 0,
+            "total_skipped_unchanged": 0,
             "collections_updated": [],
             "sources_harvested": [],
         }
@@ -216,28 +281,10 @@ class KnowledgeHarvester(VitesseAgent):
             results["error"] = str(e)
             return results
 
-            if harvest_type in ["full", "patterns"]:
-                # Harvest integration patterns
-                harvested = await self._harvest_patterns()
-                results["total_harvested"] += len(harvested)
-                results["collections_updated"].append("integration_patterns")
-
-            logger.info(
-                "Knowledge harvesting completed",
-                total_harvested=results["total_harvested"],
-                collections=results["collections_updated"],
-            )
-
-        except Exception as e:
-            results["status"] = "partial_failure"
-            results["error"] = str(e)
-            logger.error("Harvesting error", error=str(e))
-
-        return results
-
     async def _harvest_financial_apis(self) -> List[Dict[str, Any]]:
-        """Harvest financial API knowledge with validation."""
+        """Harvest financial API knowledge with validation and smart deduplication."""
         harvested = []
+        skipped_unchanged = 0
 
         logger.info("Harvesting financial APIs...")
 
@@ -253,6 +300,16 @@ class KnowledgeHarvester(VitesseAgent):
                 # Validate API knowledge structure
                 if not api_knowledge.get("api_name"):
                     logger.warning("Skipping API with missing name", api=api_knowledge)
+                    continue
+
+                # Compute content hash for change detection
+                content_hash = self._compute_content_hash(api_knowledge)
+                source_key = self._get_source_key("financial_api", api_knowledge["api_name"])
+
+                # Check if we should process this source (new or changed)
+                if not await self._should_process_source(source_key, content_hash):
+                    skipped_unchanged += 1
+                    logger.debug("Skipping unchanged financial API", api=api_knowledge["api_name"])
                     continue
 
                 # Store in knowledge DB
@@ -271,8 +328,33 @@ class KnowledgeHarvester(VitesseAgent):
 
                 # Validate doc_id is a non-empty list
                 if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
-                    logger.warning("Failed to store API document", api=api_knowledge.get("api_name"))
+                    logger.warning(
+                        "Failed to store API document",
+                        api=api_knowledge.get("api_name"),
+                    )
+                    # Still update source state to avoid retrying failed docs
+                    await self._update_source_state(
+                        source_key=source_key,
+                        content_hash=content_hash,
+                        metadata={
+                            "source_type": "financial_api",
+                            "api_name": api_knowledge["api_name"],
+                            "category": api_knowledge["category"],
+                            "store_failed": True,
+                        },
+                    )
                     continue
+
+                # Update source state after successful processing
+                await self._update_source_state(
+                    source_key=source_key,
+                    content_hash=content_hash,
+                    metadata={
+                        "source_type": "financial_api",
+                        "api_name": api_knowledge["api_name"],
+                        "category": api_knowledge["category"],
+                    },
+                )
 
                 harvested.append(
                     {
@@ -295,11 +377,20 @@ class KnowledgeHarvester(VitesseAgent):
                     error=str(e),
                 )
 
+        # Log summary with smart harvesting stats
+        logger.info(
+            "Financial APIs harvest complete",
+            harvested=len(harvested),
+            skipped_unchanged=skipped_unchanged,
+            total_sources=len(financial_apis),
+        )
+
         return harvested
 
     async def _harvest_standards(self) -> List[Dict[str, Any]]:
-        """Harvest regulatory standards and compliance knowledge with validation."""
+        """Harvest regulatory standards and compliance knowledge with validation and smart deduplication."""
         harvested = []
+        skipped_unchanged = 0
 
         logger.info("Harvesting financial standards...")
 
@@ -313,6 +404,16 @@ class KnowledgeHarvester(VitesseAgent):
                 # Validate standard structure
                 if not standard.get("standard"):
                     logger.warning("Skipping standard with missing name", standard=standard)
+                    continue
+
+                # Compute content hash for change detection
+                content_hash = self._compute_content_hash(standard)
+                source_key = self._get_source_key("standard", standard["standard"])
+
+                # Check if we should process this source (new or changed)
+                if not await self._should_process_source(source_key, content_hash):
+                    skipped_unchanged += 1
+                    logger.debug("Skipping unchanged standard", standard=standard.get("standard"))
                     continue
 
                 doc_id = await self.knowledge_db.add_documents(
@@ -330,7 +431,29 @@ class KnowledgeHarvester(VitesseAgent):
                 # Validate doc_id is a non-empty list
                 if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
                     logger.warning("Failed to store standard document", standard=standard.get("standard"))
+                    # Still update source state to avoid retrying failed documents
+                    await self._update_source_state(
+                        source_key=source_key,
+                        content_hash=content_hash,
+                        metadata={
+                            "source_type": "standard",
+                            "standard": standard.get("standard"),
+                            "region": standard.get("region"),
+                            "store_failed": True,
+                        },
+                    )
                     continue
+
+                # Update source state after successful processing
+                await self._update_source_state(
+                    source_key=source_key,
+                    content_hash=content_hash,
+                    metadata={
+                        "source_type": "standard",
+                        "standard": standard.get("standard"),
+                        "region": standard.get("region"),
+                    },
+                )
 
                 harvested.append(
                     {
@@ -352,11 +475,20 @@ class KnowledgeHarvester(VitesseAgent):
                     error=str(e),
                 )
 
+        # Log summary with smart harvesting stats
+        logger.info(
+            "Standards harvest complete",
+            harvested=len(harvested),
+            skipped_unchanged=skipped_unchanged,
+            total_sources=len(standards),
+        )
+
         return harvested
 
     async def _harvest_patterns(self) -> List[Dict[str, Any]]:
-        """Identify and harvest common integration patterns with validation."""
+        """Identify and harvest common integration patterns with validation and smart deduplication."""
         harvested = []
+        skipped_unchanged = 0
 
         logger.info("Harvesting integration patterns...")
 
@@ -414,6 +546,16 @@ class KnowledgeHarvester(VitesseAgent):
                     logger.warning("Skipping pattern with missing name", pattern=pattern)
                     continue
 
+                # Compute content hash for change detection
+                content_hash = self._compute_content_hash(pattern)
+                source_key = self._get_source_key("pattern", pattern["pattern_name"])
+
+                # Check if we should process this source (new or changed)
+                if not await self._should_process_source(source_key, content_hash):
+                    skipped_unchanged += 1
+                    logger.debug("Skipping unchanged pattern", pattern=pattern["pattern_name"])
+                    continue
+
                 from app.core.knowledge_db import INTEGRATION_PATTERNS_COLLECTION
 
                 doc_id = await self.knowledge_db.add_documents(
@@ -430,8 +572,33 @@ class KnowledgeHarvester(VitesseAgent):
 
                 # Validate doc_id is a non-empty list
                 if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
-                    logger.warning("Failed to store pattern document", pattern=pattern.get("pattern_name"))
+                    logger.warning(
+                        "Failed to store pattern document",
+                        pattern=pattern.get("pattern_name"),
+                    )
+                    # Still update source state to avoid retrying
+                    await self._update_source_state(
+                        source_key=source_key,
+                        content_hash=content_hash,
+                        metadata={
+                            "source_type": "pattern",
+                            "pattern_name": pattern["pattern_name"],
+                            "pattern_type": pattern["pattern_type"],
+                            "store_failed": True,
+                        },
+                    )
                     continue
+
+                # Update source state after successful processing
+                await self._update_source_state(
+                    source_key=source_key,
+                    content_hash=content_hash,
+                    metadata={
+                        "source_type": "pattern",
+                        "pattern_name": pattern["pattern_name"],
+                        "pattern_type": pattern["pattern_type"],
+                    },
+                )
 
                 harvested.append(
                     {
@@ -454,12 +621,21 @@ class KnowledgeHarvester(VitesseAgent):
                     error=str(e),
                 )
 
+        # Log summary with smart harvesting stats
+        logger.info(
+            "Patterns harvest complete",
+            harvested=len(harvested),
+            skipped_unchanged=skipped_unchanged,
+            total_sources=len(patterns),
+        )
+
         return harvested
 
     async def _harvest_api_directory(self) -> List[Dict[str, Any]]:
-        """Harvest APIs from APIs.guru directory with validation."""
+        """Harvest APIs from APIs.guru directory with validation and smart deduplication."""
         harvested = []
         skipped_count = 0
+        skipped_unchanged = 0
         error_count = 0
 
         logger.info("Harvesting from APIs.guru directory...")
@@ -471,6 +647,20 @@ class KnowledgeHarvester(VitesseAgent):
                     response.raise_for_status()
 
                     api_data = response.json()
+
+                    # Compute hash of the entire API list for change detection at directory level
+                    directory_hash = self._compute_content_hash(api_data)
+                    source_key = self._get_source_key("api_directory", directory_url)
+
+                    # Check if we should process this directory (new or changed)
+                    if not await self._should_process_source(source_key, directory_hash):
+                        skipped_unchanged = len(api_data)  # Estimate all APIs unchanged
+                        logger.info(
+                            "Skipping unchanged API directory",
+                            url=directory_url,
+                            estimated_apis=skipped_unchanged,
+                        )
+                        continue
 
                     # APIs.guru returns a nested structure
                     for provider, versions in api_data.items():
@@ -515,6 +705,15 @@ class KnowledgeHarvester(VitesseAgent):
                                     skipped_count += 1
                                     continue
 
+                                # Compute hash for individual API
+                                api_content_hash = self._compute_content_hash(api_info)
+                                api_source_key = self._get_source_key("apis_guru", f"{provider}:{version}")
+
+                                # Check if this specific API needs processing
+                                if not await self._should_process_source(api_source_key, api_content_hash):
+                                    skipped_count += 1
+                                    continue
+
                                 # Store in general API specifications collection
                                 doc_id = await self.knowledge_db.add_documents(
                                     collection=API_SPECS_COLLECTION,
@@ -535,8 +734,37 @@ class KnowledgeHarvester(VitesseAgent):
 
                                 # Validate doc_id is a non-empty list
                                 if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
-                                    logger.warning("Failed to store API document", api=api_info.get("api_name"))
+                                    logger.warning(
+                                        "Failed to store API document",
+                                        api=api_info.get("api_name"),
+                                        provider=provider,
+                                    )
+                                    # Still update source state so we don't retry failed docs
+                                    await self._update_source_state(
+                                        source_key=api_source_key,
+                                        content_hash=api_content_hash,
+                                        metadata={
+                                            "source_type": "apis_guru",
+                                            "api_name": api_info["api_name"],
+                                            "provider": provider,
+                                            "version": version,
+                                            "store_failed": True,
+                                        },
+                                    )
+                                    skipped_count += 1
                                     continue
+
+                                # Update source state after successful processing
+                                await self._update_source_state(
+                                    source_key=api_source_key,
+                                    content_hash=api_content_hash,
+                                    metadata={
+                                        "source_type": "apis_guru",
+                                        "api_name": api_info["api_name"],
+                                        "provider": provider,
+                                        "version": version,
+                                    },
+                                )
 
                                 harvested.append(
                                     {
@@ -557,6 +785,17 @@ class KnowledgeHarvester(VitesseAgent):
                                     error_type=type(e).__name__,
                                 )
 
+                    # Update directory-level hash after processing all APIs
+                    await self._update_source_state(
+                        source_key=source_key,
+                        content_hash=directory_hash,
+                        metadata={
+                            "source_type": "api_directory",
+                            "url": directory_url,
+                            "apis_processed": len(harvested),
+                        },
+                    )
+
             except Exception as e:
                 logger.error(
                     "Failed to harvest from APIs.guru",
@@ -569,14 +808,16 @@ class KnowledgeHarvester(VitesseAgent):
             "APIs.guru harvest complete",
             harvested=len(harvested),
             skipped=skipped_count,
+            skipped_unchanged=skipped_unchanged,
             errors=error_count,
         )
 
         return harvested
 
     async def _harvest_api_marketplaces(self) -> List[Dict[str, Any]]:
-        """Harvest APIs from marketplaces like RapidAPI, Postman, etc."""
+        """Harvest APIs from marketplaces like RapidAPI, Postman, etc. with smart deduplication."""
         harvested = []
+        skipped_unchanged = 0
 
         logger.info("Harvesting from API marketplaces...")
 
@@ -647,6 +888,16 @@ class KnowledgeHarvester(VitesseAgent):
 
         for api in marketplace_apis:
             try:
+                # Compute content hash for change detection
+                content_hash = self._compute_content_hash(api)
+                source_key = self._get_source_key("marketplace", api["name"])
+
+                # Check if we should process this source (new or changed)
+                if not await self._should_process_source(source_key, content_hash):
+                    skipped_unchanged += 1
+                    logger.debug("Skipping unchanged marketplace source", api=api["name"])
+                    continue
+
                 doc_id = await self.knowledge_db.add_documents(
                     collection=API_SPECS_COLLECTION,
                     documents=[
@@ -662,8 +913,35 @@ class KnowledgeHarvester(VitesseAgent):
 
                 # Validate doc_id is a non-empty list
                 if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
-                    logger.warning("Failed to store marketplace API document", api=api["name"])
+                    logger.warning(
+                        "Failed to store marketplace API document",
+                        api=api["name"],
+                    )
+                    # Still update source state to avoid retrying
+                    await self._update_source_state(
+                        source_key=source_key,
+                        content_hash=content_hash,
+                        metadata={
+                            "source_type": "marketplace",
+                            "api_name": api["name"],
+                            "marketplace": api["marketplace"],
+                            "category": api["category"],
+                            "store_failed": True,
+                        },
+                    )
                     continue
+
+                # Update source state after successful processing
+                await self._update_source_state(
+                    source_key=source_key,
+                    content_hash=content_hash,
+                    metadata={
+                        "source_type": "marketplace",
+                        "api_name": api["name"],
+                        "marketplace": api["marketplace"],
+                        "category": api["category"],
+                    },
+                )
 
                 harvested.append(
                     {
@@ -688,11 +966,21 @@ class KnowledgeHarvester(VitesseAgent):
                     error=str(e),
                 )
 
+        # Log summary with smart harvesting stats
+        logger.info(
+            "Marketplace API harvest complete",
+            harvested=len(harvested),
+            skipped_unchanged=skipped_unchanged,
+            total_sources=len(marketplace_apis),
+        )
+
         return harvested
 
     async def _harvest_github_apis(self) -> List[Dict[str, Any]]:
-        """Harvest API information from GitHub repositories with validation."""
+        """Harvest API information from GitHub repositories with validation and smart deduplication."""
         harvested = []
+        skipped_unchanged = 0
+        skipped_error = 0
 
         logger.info("Harvesting from GitHub API repositories...")
 
@@ -716,6 +1004,16 @@ class KnowledgeHarvester(VitesseAgent):
                     "description": f"API SDK for {provider} {repo_name}",
                 }
 
+                # Compute content hash for change detection
+                content_hash = self._compute_content_hash(api_info)
+                source_key = self._get_source_key("github", repo)
+
+                # Check if we should process this source (new or changed)
+                if not await self._should_process_source(source_key, content_hash):
+                    skipped_unchanged += 1
+                    logger.debug("Skipping unchanged GitHub source", repo=repo)
+                    continue
+
                 doc_id = await self.knowledge_db.add_documents(
                     collection=API_SPECS_COLLECTION,
                     documents=[
@@ -733,8 +1031,37 @@ class KnowledgeHarvester(VitesseAgent):
 
                 # Validate doc_id is a non-empty list
                 if not doc_id or not isinstance(doc_id, list) or len(doc_id) == 0:
-                    logger.warning("Failed to store GitHub API document", repo=repo, provider=provider)
+                    logger.warning(
+                        "Failed to store GitHub API document",
+                        repo=repo,
+                        provider=provider,
+                    )
+                    skipped_error += 1
+                    # Still update source state to avoid retrying
+                    await self._update_source_state(
+                        source_key=source_key,
+                        content_hash=content_hash,
+                        metadata={
+                            "source_type": "github",
+                            "api_name": api_info["name"],
+                            "provider": provider,
+                            "category": category,
+                            "store_failed": True,
+                        },
+                    )
                     continue
+
+                # Update source state after successful processing
+                await self._update_source_state(
+                    source_key=source_key,
+                    content_hash=content_hash,
+                    metadata={
+                        "source_type": "github",
+                        "api_name": api_info["name"],
+                        "provider": provider,
+                        "category": category,
+                    },
+                )
 
                 harvested.append(
                     {
@@ -760,6 +1087,16 @@ class KnowledgeHarvester(VitesseAgent):
                     repo=repo,
                     error=str(e),
                 )
+                skipped_error += 1
+
+        # Log summary with smart harvesting stats
+        logger.info(
+            "GitHub API harvest complete",
+            harvested=len(harvested),
+            skipped_unchanged=skipped_unchanged,
+            skipped_errors=skipped_error,
+            total_sources=len(self.harvest_sources["github_api_repos"]),
+        )
 
         return harvested
 

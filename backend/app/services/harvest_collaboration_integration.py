@@ -215,6 +215,31 @@ class HarvestJobService:
             "peak_harvest_time": "14:00",  # This would need more complex analysis
         }
 
+    @staticmethod
+    async def delete_harvest_job(db: AsyncSession, job_id: str) -> bool:
+        """Delete a harvest job."""
+        result = await db.execute(select(HarvestJob).filter(HarvestJob.id == job_id))
+        job = result.scalar_one_or_none()
+        if not job:
+            return False
+
+        await db.delete(job)
+        await db.commit()
+        return True
+
+    @staticmethod
+    async def bulk_delete_harvest_jobs(db: AsyncSession, job_ids: List[str]) -> int:
+        """Bulk delete harvest jobs."""
+        result = await db.execute(select(HarvestJob).filter(HarvestJob.id.in_(job_ids)))
+        jobs = result.scalars().all()
+        count = 0
+        for job in jobs:
+            await db.delete(job)
+            count += 1
+
+        await db.commit()
+        return count
+
 
 class AgentCollaborationService:
     """Service for agent collaboration operations."""

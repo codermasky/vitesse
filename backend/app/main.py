@@ -180,9 +180,10 @@ def create_application() -> FastAPI:
     init_telemetry(app)
 
     # Set up CORS
+    origins = [str(orig).rstrip("/") for orig in settings.BACKEND_CORS_ORIGINS]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -51,11 +51,13 @@ class HarvestJobTestResult(Base):
     __tablename__ = "harvest_job_test_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    job_id = Column(String, ForeignKey("harvest_jobs.id"), nullable=False)
+    job_id = Column(
+        String, ForeignKey("harvest_jobs.id", ondelete="CASCADE"), nullable=False
+    )
     test_type = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="completed")
     success = Column(Boolean, default=False)
     error_message = Column(Text, nullable=True)
-    test_data = Column(JSON, nullable=True)
     result_data = Column(JSON, nullable=True)
     execution_time_ms = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -78,7 +80,7 @@ class AgentActivity(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     tasks_completed = Column(Integer, default=0)
-    success_rate = Column(Float, default=0.0)
+    tasks_failed = Column(Integer, default=0)
     average_response_time = Column(Float, default=0.0)  # in seconds
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
@@ -218,9 +220,11 @@ class IntegrationTestResult(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     integration_id = Column(
-        String, ForeignKey("ui_builder_integrations.id"), nullable=False
+        String,
+        ForeignKey("ui_builder_integrations.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    status = Column(String, default="running", index=True)
+    status = Column(String, nullable=False, default="running", index=True)
     start_time = Column(DateTime(timezone=True), server_default=func.now())
     end_time = Column(DateTime(timezone=True), nullable=True)
     success = Column(Boolean, nullable=True)

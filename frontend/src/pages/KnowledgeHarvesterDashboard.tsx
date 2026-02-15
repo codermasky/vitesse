@@ -11,7 +11,8 @@ import {
   TrendingUp,
   Activity,
   Database,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import apiService from '../services/api';
 
@@ -53,6 +54,7 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
   const [selectedJob, setSelectedJob] = useState<HarvestJob | null>(null);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [newJobType, setNewJobType] = useState('full');
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -108,6 +110,59 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
       await loadJobs();
     } catch (error) {
       console.error('Failed to cancel job:', error);
+    }
+  };
+
+
+  const deleteJob = async (jobId: string) => {
+    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await apiService.deleteHarvestJob(jobId);
+      // Remove job from local state immediately for better UX
+      setJobs(jobs.filter(j => j.id !== jobId));
+      loadStats(); // Reload stats to reflect the change
+    } catch (error) {
+      console.error('Failed to delete job:', error);
+      alert('Failed to delete job. Please try again.');
+    }
+  };
+
+  const bulkDeleteJobs = async () => {
+    if (selectedJobIds.size === 0) return;
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedJobIds.size} jobs? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await apiService.bulkDeleteHarvestJobs(Array.from(selectedJobIds));
+      setJobs(jobs.filter(j => !selectedJobIds.has(j.id)));
+      setSelectedJobIds(new Set());
+      loadStats();
+    } catch (error) {
+      console.error('Failed to bulk delete jobs:', error);
+      alert('Failed to delete some jobs. Please try again.');
+    }
+  };
+
+  const toggleJobSelection = (jobId: string) => {
+    const newSelected = new Set(selectedJobIds);
+    if (newSelected.has(jobId)) {
+      newSelected.delete(jobId);
+    } else {
+      newSelected.add(jobId);
+    }
+    setSelectedJobIds(newSelected);
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedJobIds.size === jobs.length && jobs.length > 0) {
+      setSelectedJobIds(new Set());
+    } else {
+      setSelectedJobIds(new Set(jobs.map(j => j.id)));
     }
   };
 
@@ -283,11 +338,32 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
             <Plus className="w-4 h-4 inline mr-2" />
             New Harvest
           </motion.button>
+          {selectedJobIds.size > 0 && (
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={bulkDeleteJobs}
+              className="px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-medium hover:bg-red-500 hover:text-white transition-all duration-200 shadow-lg"
+            >
+              <Trash2 className="w-4 h-4 inline mr-2" />
+              Delete Selected ({selectedJobIds.size})
+            </motion.button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-white/10">
             <thead className="bg-white/5">
               <tr>
+                <th className="px-4 py-4 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedJobIds.size === jobs.length && jobs.length > 0}
+                    onChange={toggleAllSelection}
+                    className="rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-500"
+                  />
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                   Job ID
                 </th>
@@ -318,8 +394,16 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.7 + index * 0.1, duration: 0.3 }}
-                  className="hover:bg-white/5 transition-colors duration-200"
+                  className={`hover:bg-white/5 transition-colors duration-200 ${selectedJobIds.has(job.id) ? 'bg-brand-500/10' : ''}`}
                 >
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedJobIds.has(job.id)}
+                      onChange={() => toggleJobSelection(job.id)}
+                      className="rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                     {job.id}
                   </td>
@@ -368,10 +452,11 @@ const KnowledgeHarvesterDashboard: React.FC = () => {
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => setSelectedJob(job)}
-                        className="text-blue-400 hover:text-blue-300 transition-colors duration-200"
+                        onClick={() => deleteJob(job.id)}
+                        className="text-surface-400 hover:text-red-500 transition-colors duration-200"
+                        title="Delete Job"
                       >
-                        <BarChart3 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </motion.button>
                     </div>
                   </td>

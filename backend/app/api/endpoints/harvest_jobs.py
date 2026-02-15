@@ -7,7 +7,7 @@ REST API for managing and monitoring knowledge harvesting jobs.
 import structlog
 from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
@@ -230,6 +230,24 @@ async def cancel_harvest_job(job_id: str, db: AsyncSession = Depends(get_db)):
     """Cancel a running harvest job."""
     # Mock implementation - in real app, signal job cancellation
     return {"message": f"Harvest job {job_id} cancelled successfully"}
+
+
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_harvest_job(job_id: str, db: AsyncSession = Depends(get_db)):
+    """Delete a harvest job."""
+    success = await HarvestJobService.delete_harvest_job(db, job_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Harvest job not found")
+    return None
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_harvest_jobs(
+    job_ids: List[str], db: AsyncSession = Depends(get_db)
+):
+    """Bulk delete harvest jobs."""
+    count = await HarvestJobService.bulk_delete_harvest_jobs(db, job_ids)
+    return {"message": f"Successfully deleted {count} jobs", "count": count}
 
 
 @router.get("/scheduler/config")
