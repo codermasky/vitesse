@@ -40,7 +40,7 @@ class HarvestJobResponse(BaseModel):
     id: str = Field(..., description="Unique job identifier")
     harvest_type: str = Field(..., description="Type of harvest performed")
     status: str = Field(..., description="Current job status")
-    progress: int = Field(..., ge=0, le=100, description="Job progress percentage")
+    progress: float = Field(..., ge=0, le=100, description="Job progress percentage")
     total_sources: int = Field(
         ..., ge=0, description="Total number of sources to process"
     )
@@ -101,7 +101,7 @@ class HarvestJobStatus(BaseModel):
     """Schema for job status updates."""
 
     status: str = Field(..., description="New job status")
-    progress: Optional[int] = Field(
+    progress: Optional[float] = Field(
         None, ge=0, le=100, description="Updated progress percentage"
     )
     message: Optional[str] = Field(None, description="Status message")
